@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
 
-const MAUVE = '#2d1f35'
+const MAUVE = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
 
 const rules = [
   { label: '6+ characters', test: (p) => p.length >= 6 },
