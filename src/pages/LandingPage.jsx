@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { TrendingDown, Target, PiggyBank, BarChart2, ArrowRight, Check, Sparkles } from 'lucide-react'
 import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
 
-const MAUVE = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
+const MAUVE = '#2d1f35'
 
 const FEATURES = [
   {
