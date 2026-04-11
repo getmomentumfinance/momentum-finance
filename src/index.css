@@ -1,0 +1,655 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+html, body { overscroll-behavior: none; }
+
+.drag-region { -webkit-app-region: drag; app-region: drag; }
+.no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+
+/* ─────────────────────────────────────────
+   COLOR LIBRARY — edit hex values here only
+   Then use as Tailwind classes anywhere:
+     bg-surface, text-accent, border-border, etc.
+───────────────────────────────────────── */
+:root {
+  --color-bg-from:  #3b3156;
+  --color-bg-to:    #1e2a4a;
+
+  --color-surface:  rgba(37, 38, 54, 0.55);   /* card background (glass) */
+  --color-input:    rgba(20, 21, 35, 0.7);     /* input fields */
+  --color-border:   rgba(255, 255, 255, 0.1);  /* subtle borders */
+
+  --color-accent:        #c084fc;   /* purple — overridden at runtime by theme */
+  --color-accent-2:      #3b82f6;   /* blue */
+  --btn-bg: linear-gradient(to right, var(--color-accent), var(--color-accent-2));
+  --color-progress-bar:  #4ade80;   /* green — overridden at runtime by theme */
+  --color-line-chart:    #4ade80;   /* chart colors — overridden at runtime by theme */
+  --color-bar-chart:     #60a5fa;   /* bar chart color — overridden at runtime by theme */
+  --color-alert:         #ef4444;   /* red — overridden at runtime by theme */
+  --color-warning:       #f59e0b;   /* amber — overridden at runtime by theme */
+  --color-muted:    #9ca3af;   /* gray text */
+
+  --color-dash-bg:   #1E1E2D;  /* dashboard page background */
+  --color-dash-card: #1F2333;  /* dashboard card background */
+
+  
+
+  /* ── Solid palette (mirrored from constants/gradients.js) ── */
+
+  /* Reds / Pinks */
+  --solid-rose:       #dc5863;
+  --solid-blush:      #ffb5ba;
+  --solid-orchid:     #e790d2;
+  --solid-soft-pink:  #f6c4ed;
+
+  /* Mauves / Dusty purples */
+  --solid-mauve-light:   #e0bbe4;
+  --solid-mauve-mist:    #e1dae6;
+  --solid-dusty-mauve:   #cbb6c1;
+  --solid-muted-mauve:   #b19bad;
+  --solid-vintage-mauve: #a77693;
+  --solid-deep-mauve:    #986798;
+  --solid-dark-mauve:    #5e435d;
+
+  /* Dark warm tones */
+  --solid-burgundy-mist: #563734;
+
+  /* Blues */
+  --solid-matt:        #080814d9;
+  --solid-space:       #1e1e2d;
+  --solid-cosmos:      #1f2333;
+  --solid-midnight:    #141e30;
+  --solid-cobalt:      #35577d;
+  --solid-deep-ocean:  #174871;
+  --solid-steel-blue:  #6d90b9;
+  --solid-ice-blue:    #93b5c6;
+  --solid-fog-blue:    #bbc7dc;
+  --solid-sky-pastel:  #bae1ff;
+
+  /* Greens */
+  --solid-pine:         #36574e;
+  --solid-sage:         #a4c6b8;
+  --solid-dusty-sage:   #8c9f96;
+  --solid-spring-green: #7abb75;
+  --solid-forest-deep:  #253e19;
+
+  /* Purples / violets */
+  --solid-deep-purple:  #432371;
+  --solid-periwinkle:   #696eff;
+  --solid-soft-violet:  #bd90e3;
+  --solid-lilac:        #f8acff;
+
+  /* Greens / teals */
+  --solid-seafoam:  #96d4ca;
+  --solid-celadon:  #caefd7;
+  --solid-muted-sage: #6b8a7e;
+
+  /* Warm reds / corals */
+  --solid-coral: #cc575f;
+
+  /* Pinks / dusty */
+  --solid-dusty-rose: #d8bdbe;
+
+  /* Warm oranges */
+  --solid-apricot: #faae7b;
+  --solid-tangerine: #c4836e;
+  --solid-orange:    #a86d5c;
+  --solid-pumpkin:   #f2a438;
+
+  /* Neutrals / warm tones */
+  --solid-linen:  #ded1c6;
+  --solid-sand:   #e7d2ac;
+  --solid-gold:   #e1b270;
+  --solid-pearl:  #e4dbdc;
+  --solid-petal:  #ffe3e3;
+  --solid-slate:  #5b5c5e;
+
+  /* ── Transaction type colors (overridden at runtime by theme) ── */
+  --type-income:            var(--solid-dusty-sage);
+  --type-expense:           var(--solid-blush);
+  --type-transfer:          var(--solid-fog-blue);
+  --type-savings:           var(--solid-soft-pink);
+  --type-invest:            var(--solid-steel-blue);
+  --type-cash-out:          var(--solid-vintage-mauve);
+  --type-income-earned:     var(--solid-dusty-sage);
+  --type-income-not-earned: var(--solid-soft-pink);
+
+  /* ── Gradient palette (mirrored from constants/gradients.js) ── */
+  --palette-cotton:     linear-gradient(135deg,#ffb5ba,#e0bbe4,#bae1ff);
+  --palette-mauve:      linear-gradient(135deg,#a77693,#174871);
+  --palette-spectrum:   linear-gradient(135deg,#ded1c6,#a77693,#174871);
+  --palette-hazy:       linear-gradient(135deg,#563734,#cbb6c1);
+  --palette-blossom:    linear-gradient(135deg,#986798,#e7d2ac);
+  --palette-mint:       linear-gradient(135deg,#8c9f96,#5b5c5e);
+  --palette-blush:      linear-gradient(135deg,#f6c4ed,#e1dae6);
+  --palette-silver:     linear-gradient(135deg,#6d90b9,#bbc7dc);
+  --palette-slate:      linear-gradient(135deg,#a4c6b8,#5e435d);
+  --palette-teal-blush: linear-gradient(135deg,#a4c6b8,#f6c4ed);
+  --palette-flamingo:   linear-gradient(135deg,#dc5863,#e790d2,#b19bad);
+  --palette-forest:     linear-gradient(315deg,#7abb75,#253e19);
+  --palette-metal:      linear-gradient(315deg,#141e30,#35577d);
+  --palette-spring:     linear-gradient(315deg,#36574e,#e1b270);
+  --palette-pastel:     linear-gradient(315deg,#6d90b9,#93b5c6,#e4dbdc,#ffe3e3);
+  --palette-sunrise:    linear-gradient(315deg,#e1b270,#e0bbe4);
+  --palette-spacy:      linear-gradient(315deg,#1E1E2D,#1F2333);
+
+  --palette-peach:        linear-gradient(315deg,#e1b270,#cc575f);
+  --palette-bubble:       linear-gradient(315deg,#bae1ff,#696eff,#e0bbe4);
+  --palette-lavender:     radial-gradient( circle farthest-corner at 6.3% 21.8%, #96d4ca 0%, #5e435d 90% );
+  --palette-dream:        radial-gradient( circle farthest-corner at 6.3% 21.8%, #696eff 0%, #f8acff 90% );
+  --palette-twilight:     linear-gradient(315deg,#432371,#faae7b);
+  --palette-violet-breeze: radial-gradient( circle farthest-corner at 6.3% 21.8%, #d8bdbe 0%, #bd90e3 90% );
+  --palette-powder-bloom: linear-gradient(315deg,#caefd7,#f6c4ed,#bae1ff);
+
+  /* ── Nav blur bg (overridden per design) ── */
+  --color-nav-blur: rgba(10, 10, 10, 0.45);
+}
+
+html {
+  background: var(--color-dash-bg);
+  scrollbar-gutter: stable;
+}
+
+body {
+  background: linear-gradient(135deg, var(--color-bg-from), var(--color-bg-to));
+  min-height: 100vh;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ── Glassmorphism card ── */
+.glass {
+  background: var(--color-surface);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Gradient text ── */
+.gradient-text {
+  background: linear-gradient(to right, var(--color-accent), var(--color-accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Gradient button ── */
+.btn-primary {
+  background: var(--btn-bg);
+}
+
+.scrollbar-thin { scrollbar-width: none; }
+.scrollbar-thin::-webkit-scrollbar { display: none; }
+
+/* ── Modal buttons ── */
+.btn-modal-primary {
+  flex: 1 1 0%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  transition: background 0.15s, opacity 0.15s;
+}
+.btn-modal-primary:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.btn-modal-primary:disabled { opacity: 0.4; }
+
+.btn-modal-cancel {
+  flex: 1 1 0%;
+  padding: 0.625rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-alert) 30%, transparent);
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--color-alert) 80%, white);
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-modal-cancel:hover { border-color: color-mix(in srgb, var(--color-alert) 60%, transparent); color: var(--color-alert); }
+
+/* ── Glassmorphism — popups / modals ── */
+.glass-popup {
+  background: color-mix(in srgb, var(--color-dash-card) 78%, transparent);
+  backdrop-filter: blur(var(--card-blur, 14px));
+  -webkit-backdrop-filter: blur(var(--card-blur, 14px));
+}
+
+/* ── Glassmorphism — dashboard cards (subtle, on dark bg) ── */
+.glass-card {
+  background: var(--color-dash-card);
+  backdrop-filter: blur(var(--card-blur, 14px));
+  -webkit-backdrop-filter: blur(var(--card-blur, 14px));
+  border-radius: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+}
+
+/* ════════════════════════════════════════
+   DESIGNS — CSS variables per design
+   Edit values here to change a design's colors.
+   ════════════════════════════════════════ */
+
+/* Cosmos (also the :root fallback before JS sets data-design) */
+html[data-design="cosmos"] {
+  --color-bg-from:   #3b3156;
+  --color-bg-to:     #1e2a4a;
+  --color-surface:   rgba(37, 38, 54, 0.55);
+  --color-dash-bg:   #1E1E2D;
+  --color-dash-card: #1F2333;
+  --color-muted:     #9ca3af;
+  --color-border:    rgba(255, 255, 255, 0.1);
+  --color-input:     rgba(20, 21, 35, 0.7);
+  --color-nav-blur:  rgba(10, 10, 10, 0.05);
+}
+
+/* Stars */
+html[data-design="stars"] {
+  --op-low:  25%;
+  --op-mid:  55%;
+  --op-high: 85%;
+
+  --color-bg-from:   #02020a;
+  --color-bg-to:     #02020a;
+  --color-surface:   rgba(255, 255, 255, 0.04);
+  --color-dash-bg:   transparent;
+  --color-dash-card: color-mix(in srgb, var(--solid-matt) var(--op-mid),   transparent);
+  --color-muted:     #9ca3af;
+  --color-border:    rgba(255, 255, 255, 0.08);
+  --color-input:     rgba(8, 8, 20, 0.80);
+  --color-nav-blur:  rgba(10, 10, 10, 0.45);
+  --color-stat-card: color-mix(in srgb, var(--solid-matt) var(--op-mid),   transparent);
+  
+  --color-progress-bar:  var(--solid-mauve-light);  
+  --color-line-chart:    var(--solid-ice-blue);   
+  --color-bar-chart:     var(--solid-soft-pink);   
+  --color-alert:         var(--solid-orchid);  
+  --color-warning:       var(--solid-tangerine);  
+  --btn-bg: linear-gradient(to right, var(--solid-deep-mauve), var(--solid-soft-pink));
+  --color-calendar-heatmap: var(--solid-deep-mauve);
+
+
+  background:        #02020a; /* scrollbar gutter */
+
+}
+html[data-design="stars"] body { background: var(--solid-midnight); }
+
+/* Studio */
+html[data-design="studio"] {
+  --color-bg-from:   #ebebeb;
+  --color-bg-to:     #e0e0de;
+  --color-surface:   rgba(255, 255, 255, 0.65);
+  --color-dash-bg:   transparent;
+  --color-dash-card: rgba(255, 255, 255, 0.92);
+  --color-muted:     #64748b;
+  --color-border:    rgba(0, 0, 0, 0.08);
+  --color-input:     rgba(255, 255, 255, 0.85);
+  --color-nav-blur:  rgba(240, 240, 238, 0.75);
+  background:        #ebebeb; /* scrollbar gutter */
+  color-scheme:      light;
+}
+html[data-design="studio"] body {
+  background:  #ebebeb;
+  color:       #1a1a1a;
+  color-scheme: light;
+}
+
+/* ════════════════════════════════════════
+   DESIGNS — animated full-page backgrounds
+   ════════════════════════════════════════ */
+
+/* Shared overlay element — always present, z-index between body bg and content */
+#design-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Stars ───────────────────────────────
+   Black sky with twinkling white stars */
+@keyframes star-twinkle-a {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1.00; }
+}
+@keyframes star-twinkle-b {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.55; }
+}
+
+html[data-design="stars"] #design-overlay { background: #02020a; }
+
+/* Bright stars layer */
+html[data-design="stars"] #design-overlay::before {
+  content: '';
+  position: absolute;
+  width: 2px; height: 2px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    134px  52px 0 rgba(255,255,255,0.92),  387px  28px 0 rgba(255,255,255,0.85),
+    621px  91px 0 rgba(255,255,255,0.95),  834px  37px 0 rgba(255,255,255,0.88),
+    1093px 74px 0 rgba(255,255,255,0.90), 1312px  19px 0 rgba(255,255,255,0.85),
+    1547px 68px 0 rgba(255,255,255,0.92), 1781px  44px 0 rgba(255,255,255,0.88),
+    223px 187px 0 rgba(255,255,255,0.88),  476px 243px 0 rgba(255,255,255,0.92),
+    712px 168px 0 rgba(255,255,255,0.85),  958px 274px 0 rgba(255,255,255,0.90),
+    1156px 213px 0 rgba(255,255,255,0.88), 1398px 258px 0 rgba(255,255,255,0.85),
+    1634px 192px 0 rgba(255,255,255,0.92), 1867px 246px 0 rgba(255,255,255,0.88),
+    89px  412px 0 rgba(255,255,255,0.90),  334px 478px 0 rgba(255,255,255,0.85),
+    567px 398px 0 rgba(255,255,255,0.92),  803px 463px 0 rgba(255,255,255,0.88),
+    1047px 421px 0 rgba(255,255,255,0.85), 1284px 489px 0 rgba(255,255,255,0.90),
+    1519px 408px 0 rgba(255,255,255,0.92), 1756px 472px 0 rgba(255,255,255,0.85),
+    178px 634px 0 rgba(255,255,255,0.88),  423px 712px 0 rgba(255,255,255,0.92),
+    659px 668px 0 rgba(255,255,255,0.85),  897px 743px 0 rgba(255,255,255,0.90),
+    1132px 681px 0 rgba(255,255,255,0.88), 1456px 728px 0 rgba(255,255,255,0.85),
+    748px 912px 0 rgba(255,255,255,0.88), 1221px 923px 0 rgba(255,255,255,0.92),
+    1600px 860px 0 rgba(255,255,255,0.85), 1900px 940px 0 rgba(255,255,255,0.90);
+  animation: star-twinkle-a 3.5s ease-in-out infinite;
+}
+
+/* Dim stars layer */
+html[data-design="stars"] #design-overlay::after {
+  content: '';
+  position: absolute;
+  width: 1px; height: 1px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    58px  18px 0 rgba(255,255,255,0.45),  167px  73px 0 rgba(255,255,255,0.38),
+    273px 31px 0 rgba(255,255,255,0.52),  412px  88px 0 rgba(255,255,255,0.40),
+    498px 16px 0 rgba(255,255,255,0.48),  574px  67px 0 rgba(255,255,255,0.35),
+    698px 42px 0 rgba(255,255,255,0.55),  763px  95px 0 rgba(255,255,255,0.38),
+    912px 22px 0 rgba(255,255,255,0.45), 1034px  78px 0 rgba(255,255,255,0.52),
+    1167px 48px 0 rgba(255,255,255,0.38), 1234px 87px 0 rgba(255,255,255,0.45),
+    1423px 33px 0 rgba(255,255,255,0.55), 1489px 92px 0 rgba(255,255,255,0.38),
+    1678px 27px 0 rgba(255,255,255,0.48), 1834px 81px 0 rgba(255,255,255,0.42),
+    42px  153px 0 rgba(255,255,255,0.42),  148px 234px 0 rgba(255,255,255,0.50),
+    298px 178px 0 rgba(255,255,255,0.38),  387px 256px 0 rgba(255,255,255,0.45),
+    534px 194px 0 rgba(255,255,255,0.52),  623px 276px 0 rgba(255,255,255,0.38),
+    789px 215px 0 rgba(255,255,255,0.48),  876px 289px 0 rgba(255,255,255,0.42),
+    1023px 172px 0 rgba(255,255,255,0.50), 1178px 244px 0 rgba(255,255,255,0.38),
+    1267px 182px 0 rgba(255,255,255,0.45), 1478px 238px 0 rgba(255,255,255,0.52),
+    1623px 176px 0 rgba(255,255,255,0.38), 1812px 252px 0 rgba(255,255,255,0.48),
+    107px 342px 0 rgba(255,255,255,0.45),  256px 423px 0 rgba(255,255,255,0.38),
+    432px 376px 0 rgba(255,255,255,0.52),  689px 445px 0 rgba(255,255,255,0.40),
+    856px 382px 0 rgba(255,255,255,0.48), 1123px 434px 0 rgba(255,255,255,0.38),
+    1345px 378px 0 rgba(255,255,255,0.52), 1567px 452px 0 rgba(255,255,255,0.42),
+    1756px 385px 0 rgba(255,255,255,0.48), 78px  556px 0 rgba(255,255,255,0.42),
+    234px 613px 0 rgba(255,255,255,0.50),  489px 578px 0 rgba(255,255,255,0.38),
+    734px 624px 0 rgba(255,255,255,0.45), 1012px 561px 0 rgba(255,255,255,0.52),
+    1234px 623px 0 rgba(255,255,255,0.38), 1512px 579px 0 rgba(255,255,255,0.48),
+    1789px 612px 0 rgba(255,255,255,0.42), 312px 836px 0 rgba(255,255,255,0.45),
+    698px 871px 0 rgba(255,255,255,0.38), 1089px 844px 0 rgba(255,255,255,0.52),
+    1478px 876px 0 rgba(255,255,255,0.42), 1820px 858px 0 rgba(255,255,255,0.38);
+  animation: star-twinkle-b 5.5s ease-in-out infinite;
+  animation-delay: -2.5s;
+}
+
+/* Preview tile */
+.design-stars-preview {
+  background: #02020a;
+  position: relative;
+  overflow: hidden;
+}
+.design-stars-preview::before {
+  content: '';
+  position: absolute;
+  width: 2px; height: 2px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    12px  6px 0 rgba(255,255,255,0.92),  38px  3px 0 rgba(255,255,255,0.85),
+    68px 11px 0 rgba(255,255,255,0.95), 102px  5px 0 rgba(255,255,255,0.88),
+    140px 14px 0 rgba(255,255,255,0.90), 22px 28px 0 rgba(255,255,255,0.88),
+    58px 32px 0 rgba(255,255,255,0.92),  88px 22px 0 rgba(255,255,255,0.85),
+    125px 35px 0 rgba(255,255,255,0.90),  8px 46px 0 rgba(255,255,255,0.85),
+    48px 52px 0 rgba(255,255,255,0.88),  82px 44px 0 rgba(255,255,255,0.80),
+    118px 55px 0 rgba(255,255,255,0.92), 35px 62px 0 rgba(255,255,255,0.85),
+    98px 65px 0 rgba(255,255,255,0.88), 148px 58px 0 rgba(255,255,255,0.90);
+  animation: star-twinkle-a 3.5s ease-in-out infinite;
+}
+.design-stars-preview::after {
+  content: '';
+  position: absolute;
+  width: 1px; height: 1px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    6px   4px 0 rgba(255,255,255,0.45),  22px 16px 0 rgba(255,255,255,0.38),
+    44px  8px 0 rgba(255,255,255,0.52),  62px 20px 0 rgba(255,255,255,0.40),
+    95px  4px 0 rgba(255,255,255,0.48), 115px 18px 0 rgba(255,255,255,0.35),
+    145px  9px 0 rgba(255,255,255,0.55), 30px 40px 0 rgba(255,255,255,0.42),
+    65px 44px 0 rgba(255,255,255,0.50),  78px 36px 0 rgba(255,255,255,0.38),
+    108px 42px 0 rgba(255,255,255,0.45), 138px 34px 0 rgba(255,255,255,0.52),
+    15px 58px 0 rgba(255,255,255,0.38),  70px 60px 0 rgba(255,255,255,0.48),
+    120px 62px 0 rgba(255,255,255,0.42), 155px 56px 0 rgba(255,255,255,0.45);
+  animation: star-twinkle-b 5.5s ease-in-out infinite;
+  animation-delay: -2.5s;
+}
+
+/* ── Studio ──────────────────────────────
+   Clean light mode — static, no animation */
+
+html[data-design="studio"] #design-overlay {
+  background: linear-gradient(160deg, #efefed 0%, #e4e4e2 100%);
+}
+
+/* ─ Text: white → near-black ─ */
+html[data-design="studio"] .text-white               { color: #1a1a1a !important; }
+html[data-design="studio"] .hover\:text-white:hover  { color: #0d0d0d !important; }
+html[data-design="studio"] .text-white\/70           { color: rgba(26,26,26,0.70) !important; }
+html[data-design="studio"] .text-white\/60           { color: rgba(26,26,26,0.60) !important; }
+html[data-design="studio"] .text-white\/50           { color: rgba(26,26,26,0.50) !important; }
+html[data-design="studio"] .text-white\/45           { color: rgba(26,26,26,0.45) !important; }
+html[data-design="studio"] .text-white\/40           { color: rgba(26,26,26,0.40) !important; }
+html[data-design="studio"] .text-white\/35           { color: rgba(26,26,26,0.35) !important; }
+html[data-design="studio"] .text-white\/30           { color: rgba(26,26,26,0.30) !important; }
+html[data-design="studio"] .text-white\/25           { color: rgba(26,26,26,0.25) !important; }
+html[data-design="studio"] .text-white\/20           { color: rgba(26,26,26,0.20) !important; }
+html[data-design="studio"] .text-white\/15           { color: rgba(26,26,26,0.15) !important; }
+html[data-design="studio"] .text-white\/10           { color: rgba(26,26,26,0.10) !important; }
+
+/* ─ Placeholder text ─ */
+html[data-design="studio"] .placeholder\:text-white\/25::placeholder { color: rgba(26,26,26,0.35) !important; }
+html[data-design="studio"] .placeholder\:text-white\/30::placeholder { color: rgba(26,26,26,0.40) !important; }
+
+/* ─ Borders: white/X → black/X ─ */
+html[data-design="studio"] [class*="border-white"]   { border-color: rgba(0,0,0,0.10) !important; }
+html[data-design="studio"] [class*="ring-white"]     { --tw-ring-color: rgba(0,0,0,0.15) !important; }
+
+/* ─ Semi-transparent white backgrounds → subtle dark tints ─ */
+html[data-design="studio"] .bg-white\/5                   { background: rgba(0,0,0,0.04) !important; }
+html[data-design="studio"] .bg-white\/\[0\.01\]           { background: rgba(0,0,0,0.01) !important; }
+html[data-design="studio"] .bg-white\/\[0\.02\]           { background: rgba(0,0,0,0.02) !important; }
+html[data-design="studio"] .bg-white\/\[0\.03\]           { background: rgba(0,0,0,0.03) !important; }
+html[data-design="studio"] .bg-white\/\[0\.06\]           { background: rgba(0,0,0,0.04) !important; }
+html[data-design="studio"] .bg-white\/\[0\.08\]           { background: rgba(0,0,0,0.05) !important; }
+html[data-design="studio"] .bg-white\/8                   { background: rgba(0,0,0,0.05) !important; }
+html[data-design="studio"] .bg-white\/10                  { background: rgba(0,0,0,0.06) !important; }
+html[data-design="studio"] .bg-white\/12                  { background: rgba(0,0,0,0.07) !important; }
+html[data-design="studio"] .bg-white\/15                  { background: rgba(0,0,0,0.08) !important; }
+html[data-design="studio"] .hover\:bg-white\/\[0\.02\]:hover { background: rgba(0,0,0,0.03) !important; }
+html[data-design="studio"] .hover\:bg-white\/10:hover     { background: rgba(0,0,0,0.07) !important; }
+html[data-design="studio"] .hover\:bg-white\/12:hover     { background: rgba(0,0,0,0.08) !important; }
+html[data-design="studio"] .hover\:bg-white\/15:hover     { background: rgba(0,0,0,0.09) !important; }
+
+/* ─ Hardcoded dark backgrounds ─ */
+html[data-design="studio"] [class*="#1a1a2e"]  { background: #f0f0ee !important; }
+html[data-design="studio"] [class*="#1E1E2D"]  { background: #ebebeb !important; }
+html[data-design="studio"] [class*="#13131f"]  { background: #f5f5f3 !important; }
+html[data-design="studio"] [class*="#1F2333"]  { background: #e8e8e6 !important; }
+
+/* ─ Black overlay divs (card customization dark overlay) — hide in light mode ─ */
+html[data-design="studio"] .pointer-events-none.bg-black { opacity: 0 !important; }
+
+
+/* ─────────────────────────────────────────────────────────────────
+   DESIGN TEMPLATE — copy this block to add a new design
+     1. Replace "mydesign" with your id everywhere in this block
+     2. Add an entry to DESIGNS in src/constants/designs.js
+   ───────────────────────────────────────────────────────────────── */
+
+html[data-design="mydesign"] {
+  --color-bg-from:   #0a0a1a;                /* page background (top) */
+  --color-bg-to:     #0a0a1a;                /* page background (bottom, same = solid) */
+  --color-dash-card: rgba(20, 20, 40, 0.80); /* card backgrounds */
+  --color-stat-card: rgba(20, 20, 40, 0.50); /* stat card background (transparent by default) */
+  --color-nav-blur:  rgba(10, 10, 10, 0.45); /* navbar blur */
+  --color-surface:   rgba(25, 25, 45, 0.65); /* modals / popovers */
+  --color-input:     rgba(8,  8,  20, 0.75); /* input fields */
+  --color-border:    rgba(255,255,255, 0.08);/* borders */
+  --color-muted:     #6b7280;                /* secondary text */
+  --color-accent:    #818cf8;                /* buttons, active nav, highlights */
+  --color-accent-2:  #a78bfa;                /* secondary accent */
+  --btn-bg: linear-gradient(to right, var(--color-accent), var(--color-accent-2));
+  background: #0a0a1a;
+}
+html[data-design="mydesign"] body { background: linear-gradient(135deg, var(--color-bg-from), var(--color-bg-to)); }
+html[data-design="mydesign"] #design-overlay { background: linear-gradient(160deg, var(--color-bg-from) 0%, var(--color-bg-to) 100%); }
+.design-mydesign-preview { background: #0a0a1a; }
+
+
+/* ── Sage ─────────────────────────────────────────────────────── */
+
+html[data-design="sage"] {
+  --color-bg-from:   #162318;                    /* dark forest green */
+  --color-bg-to:     #1d2e22;                    /* deeper forest */
+  --color-dash-bg:   #111d14;                    /* html background — overrides :root purple */
+  --color-dash-card: #152019;                    /* card background — opaque green */
+  --color-nav-blur:  rgba(15, 20, 17, 0.45);
+  --color-surface:   rgba(18, 30, 22, 0.75);
+  --color-input:     rgba(10, 18, 13, 0.85);
+  --color-muted:     #6b8a7e;                                 /* muted green */
+  --color-accent:    var(--solid-tangerine);                    /* dusty rose */
+  --color-accent-2:  var(--solid-orange);                    /* deeper terracotta */
+  --btn-bg: linear-gradient(to right, var(--solid-apricot), var(--solid-orange));
+  --color-border: color-mix(in srgb, var(--solid-orange) 20%, transparent);
+
+  --color-progress-bar:  var(--solid-orange);   /* green — overridden at runtime by theme */
+  --color-line-chart:    var(--solid-tangerine);   /* chart colors — overridden at runtime by theme */
+  --color-bar-chart:     var(--solid-gold);   /* bar chart color — overridden at runtime by theme */
+  --color-alert:         var(--solid-coral);   /* red — overridden at runtime by theme */
+  --color-warning:       var(--solid-apricot);   /* amber — overridden at runtime by theme */
+
+  background: linear-gradient(160deg, #162318 0%, #1d2e22 100%);
+}
+html[data-design="sage"] body { background: linear-gradient(135deg, #162318, #1d2e22); }
+html[data-design="sage"] #design-overlay { background: linear-gradient(160deg, #162318 0%, #1d2e22 100%); }
+.design-sage-preview { background: linear-gradient(135deg, #162318 0%, #1d2e22 100%); }
+
+/* ── Rose ─────────────────────────────────────────────────────── */
+
+html[data-design="rose"] {
+  --color-bg-from:   #1e0f14;                    /* deep dark pink */
+  --color-bg-to:     #2a1520;                    /* deeper rose-dark */
+  --color-dash-bg:   #170b10;                    /* html background */
+  --color-dash-card: #221018;                    /* card background — opaque dark rose */
+  --color-nav-blur:  rgba(10, 10, 10, 0.45);
+  --color-surface:   rgba(34, 16, 24, 0.75);
+  --color-input:     rgba(15, 8, 12, 0.85);
+  --color-muted:     #8a6b75;                    /* muted dusty rose */
+  --color-accent:    var(--solid-rose);
+  --color-accent-2:  var(--solid-vintage-mauve);
+  --color-border:    rgba(255, 255, 255, 0.08);
+  --color-stat-card: rgba(34, 16, 24, 0.70);
+  --card-blur:       14px;
+}
+html[data-design="rose"] #design-overlay {
+  background: linear-gradient(160deg, #1e0f14 0%, #2a1520 100%);
+}
+
+/* ── Slate ────────────────────────────────────────────────────── */
+
+html[data-design="slate"] {
+  --color-bg-from:   #0e1520;                    /* deep dark navy */
+  --color-bg-to:     #152030;                    /* deeper slate blue */
+  --color-dash-bg:   #0b1018;                    /* html background */
+  --color-dash-card: #111d2a;                    /* card background — opaque dark slate */
+  --color-nav-blur:  rgba(10, 10, 10, 0.45);
+  --color-surface:   rgba(17, 29, 42, 0.75);
+  --color-input:     rgba(8, 13, 20, 0.85);
+  --color-muted:     #6b7f9a;                    /* muted cool blue */
+  --color-accent:    var(--solid-steel-blue);
+  --color-accent-2:  var(--solid-cobalt);
+  --color-border:    rgba(255, 255, 255, 0.08);
+  --color-stat-card: rgba(17, 29, 42, 0.70);
+  --card-blur:       14px;
+}
+html[data-design="slate"] #design-overlay {
+  background: linear-gradient(160deg, #0e1520 0%, #152030 100%);
+}
+
+/* ════════════════════════════════════════ */
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-fade-in {
+  animation: pageFadeIn 0.25s ease forwards;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.animate-toast-in {
+  animation: toastIn 0.18s ease forwards;
+}
+
+input[type="range"] {
+  accent-color: var(--color-progress-bar);
+}
+
+.recharts-wrapper,
+.recharts-wrapper:focus,
+.recharts-wrapper svg,
+.recharts-surface,
+.recharts-surface:focus {
+  outline: none !important;
+  border: none !important;
+}
+
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to   { background-position:  400px 0; }
+}
+.skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+html[data-design="studio"] .skeleton,
+html[data-design="lilac"] .skeleton,
+html[data-design="celadon"] .skeleton,
+html[data-design="blush"] .skeleton,
+html[data-design="apricot"] .skeleton {
+  background: linear-gradient(90deg, rgba(0,0,0,0.06) 25%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.06) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes underBudgetPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--pulse-rgb), 0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(var(--pulse-rgb), 0); }
+}
+
+@keyframes confettiFall {
+  0%   { transform: translateY(-10px) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(80px)  rotate(360deg); opacity: 0; }
+}
+
+@keyframes savedFlash {
+  0%   { opacity: 0; transform: translateY(4px) scale(0.92); }
+  12%  { opacity: 1; transform: translateY(0)    scale(1);    }
+  75%  { opacity: 1; transform: translateY(0)    scale(1);    }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.95); }
+}
