@@ -10,6 +10,7 @@ import { UserPreferencesProvider, usePreferences } from './context/UserPreferenc
 import ParticleLayer from './components/shared/ParticleLayer'
 import Toast from './components/shared/Toast'
 import { useGlassBlur } from './hooks/useGlassBlur'
+import LandingPage from './pages/LandingPage'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -45,6 +46,7 @@ function AppRoutes() {
   return (
     <div key={location.pathname} className="page-fade-in">
     <Routes>
+      <Route path="/"             element={user ? <Navigate to={landingPage} /> : <LandingPage />} />
       <Route path="/login"        element={user ? <Navigate to={landingPage} /> : <Login />} />
       <Route path="/register"     element={user ? <Navigate to="/dashboard" /> : <Register />} />
       <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -56,7 +58,7 @@ function AppRoutes() {
       <Route path="/portfolio"    element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
       <Route path="/calendar"     element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
       <Route path="/summary"      element={<ProtectedRoute><Summary /></ProtectedRoute>} />
-      <Route path="*"             element={<Navigate to={user ? landingPage : "/login"} />} />
+      <Route path="*"             element={<Navigate to={user ? landingPage : "/"} />} />
     </Routes>
     </div>
   )

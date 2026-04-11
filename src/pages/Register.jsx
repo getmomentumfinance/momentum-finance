@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
+import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
+
+const MAUVE = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
 
 const rules = [
   { label: '6+ characters', test: (p) => p.length >= 6 },
@@ -52,8 +55,9 @@ export default function Register() {
   }
 
   if (confirmed) return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
+    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ background: MAUVE }}>
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.4))', zIndex: 0 }} />
+      <div className="relative z-10 glass w-full max-w-md rounded-2xl p-8 text-center">
         <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-white/60"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
         </div>
@@ -69,8 +73,19 @@ export default function Register() {
   )
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass w-full max-w-md rounded-2xl p-8">
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative" style={{ background: MAUVE }}>
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.4))', zIndex: 0 }} />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo + back to home */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <Link to="/" className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
+            <img src={logoImg} alt="Momentum Finance" className="w-7 h-7 rounded-lg object-cover" />
+            <span className="font-bold text-sm text-white">Momentum Finance</span>
+          </Link>
+        </div>
+
+      <div className="glass w-full rounded-2xl p-8">
 
         {/* Header */}
         <div className="text-center mb-8">
@@ -182,6 +197,7 @@ export default function Register() {
             {t('reg.logIn')}
           </Link>
         </p>
+      </div>
       </div>
     </div>
   )

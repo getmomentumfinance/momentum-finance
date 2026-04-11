@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Eye, EyeOff } from 'lucide-react'
 import { usePreferences } from '../context/UserPreferencesContext'
+import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
+
+const MAUVE = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -33,8 +36,20 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="glass w-full max-w-md rounded-2xl p-8">
+    <div className="min-h-screen flex items-center justify-center px-4 relative" style={{ background: MAUVE }}>
+      {/* depth overlay */}
+      <div className="fixed inset-0 pointer-events-none" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.4))', zIndex: 0 }} />
+
+      <div className="relative z-10 w-full max-w-md">
+        {/* Logo + back to home */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <Link to="/" className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
+            <img src={logoImg} alt="Momentum Finance" className="w-7 h-7 rounded-lg object-cover" />
+            <span className="font-bold text-sm text-white">Momentum Finance</span>
+          </Link>
+        </div>
+
+      <div className="glass w-full rounded-2xl p-8">
 
         <div className="text-center mb-8">
           <h1 className="gradient-text text-3xl font-bold mb-2">{t('login.welcome')}</h1>
@@ -103,6 +118,7 @@ export default function Login() {
           {t('login.noAccount')}{' '}
           <Link to="/register" className="text-accent font-semibold hover:underline">{t('login.signUp')}</Link>
         </p>
+      </div>
       </div>
     </div>
   )
