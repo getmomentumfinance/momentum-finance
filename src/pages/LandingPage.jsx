@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, TrendingUp, TrendingDown } from 'lucide-react'
-import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
 
 const BTN = 'linear-gradient(to right, #c084fc, #3b82f6)'
 
@@ -55,7 +54,7 @@ export default function LandingPage() {
       {/* ── Navbar ── */}
       <nav className="relative z-10 flex items-center justify-between px-8 md:px-16 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2.5">
-          <img src={logoImg} alt="Momentum Finance" className="w-7 h-7 rounded-lg object-cover" />
+          <img src={'/momentum_transparant.png'} alt="Momentum Finance" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-semibold text-sm tracking-tight text-white/90">Momentum Finance</span>
         </div>
         <div className="flex items-center gap-2">
@@ -201,7 +200,7 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="relative z-10 max-w-7xl mx-auto px-8 md:px-16 pb-10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src={logoImg} alt="" className="w-5 h-5 rounded object-cover opacity-40" />
+          <img src={'/momentum_transparant.png'} alt="" className="w-5 h-5 rounded object-cover opacity-40" />
           <span className="text-xs text-white/25">© 2026 Momentum Finance</span>
         </div>
         <div className="flex items-center gap-6">

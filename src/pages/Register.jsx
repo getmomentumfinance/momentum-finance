@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
-import logoImg from '../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
+const logoImg = '/momentum_transparant.png'
 
 const MAUVE = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
 
