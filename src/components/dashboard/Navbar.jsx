@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download } from 'lucide-react'
-import logoImg from '../../assets/momentum_icon-iOS-ClearDark-1024x1024@1x copy.png'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import ProfileModal from './ProfileModal'
@@ -60,9 +59,8 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
         {/* Nav content sits above the blur layer */}
         <div className="relative flex items-center justify-between py-3 no-drag" style={{ paddingLeft: '80px', paddingRight: '24px' }}>
 
-          {/* Left: logo + navigation icons */}
+          {/* Left: navigation icons */}
           <div className="flex items-center gap-1">
-            <img src={logoImg} alt="Momentum Finance" className="w-6 h-6 rounded-md object-cover mr-2 opacity-80" />
             {navItems.map(({ icon: Icon, label, path }) => {
               const active = pathname === path
               return (
