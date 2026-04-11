@@ -216,7 +216,7 @@ export default function LandingPage() {
             <Link
               to="/register"
               className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #a77693, #174871)', border: '1px solid rgba(255,255,255,0.15)' }}
+              style={{ background: 'linear-gradient(to right, #c084fc, #3b82f6)', border: '1px solid rgba(255,255,255,0.15)' }}
             >
               Get Started Free <ArrowRight size={15} />
             </Link>
@@ -333,7 +333,7 @@ export default function LandingPage() {
             <Link
               to="/register"
               className="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #a77693, #174871)', border: '1px solid rgba(255,255,255,0.15)' }}
+              style={{ background: 'linear-gradient(to right, #c084fc, #3b82f6)', border: '1px solid rgba(255,255,255,0.15)' }}
             >
               Create Free Account <ArrowRight size={15} />
             </Link>
