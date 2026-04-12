@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { TransactionModalProvider } from './context/TransactionModalContext'
 import { CardPreferencesProvider } from './context/CardPreferencesContext'
@@ -76,6 +77,7 @@ export default function App() {
               <ThemeApplier />
               <Toast />
               <div id="design-overlay" aria-hidden="true" />
+              <Analytics />
               <ParticleLayer />
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <AppRoutes />
