@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { FileText, Plus, Check } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
@@ -260,8 +260,8 @@ export default function RecurringBills({ currentDate }) {
             const receiver = bill.receiver_id   ? receiverMap[bill.receiver_id] : null
 
             return (
+              <Fragment key={bill.id}>
               <div
-                key={bill.id}
                 className={`flex items-start gap-3 py-2.5 first:pt-0 last:pb-0 transition-opacity ${isPaid ? 'opacity-45' : ''}`}
               >
                 {/* Checkmark */}
@@ -345,6 +345,7 @@ export default function RecurringBills({ currentDate }) {
                   </button>
                 </div>
               </div>
+              </Fragment>
             )
           })}
         </div>

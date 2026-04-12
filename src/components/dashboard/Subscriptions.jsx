@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { CreditCard, Plus, Check, Undo2 } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
@@ -239,7 +239,8 @@ export default function Subscriptions({ currentDate = new Date() }) {
                 const isCancelled = sub.status === 'cancelled'
 
                 return (
-                  <div key={sub.id} className={`flex items-start gap-3 py-2.5 first:pt-0 last:pb-0 transition-opacity relative ${isCancelled || isPaid ? 'opacity-45' : ''}`}>
+                  <Fragment key={sub.id}>
+                  <div className={`flex items-start gap-3 py-2.5 first:pt-0 last:pb-0 transition-opacity relative ${isCancelled || isPaid ? 'opacity-45' : ''}`}>
 
                     {/* Cancel flash */}
                     {cancelFlash?.id === sub.id && (
@@ -344,6 +345,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
                       </button>
                     </div>
                   </div>
+                  </Fragment>
                 )
               })}
             </div>
