@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Clock, Bell, Zap, Trash2 } from 'lucide-react'
+import { AlertTriangle, Clock, Bell, Zap, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../hooks/useNotifications'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { supabase } from '../../lib/supabase'
 import PaymentModal from './PaymentModal'
 
 const SEVERITY_COLOR = {
@@ -15,8 +16,9 @@ export default function ActionCenter({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { t } = usePreferences()
   const { items, loading } = useNotifications(user?.id, currentDate)
-  const [selected,  setSelected]  = useState(null)
-  const [dismissed, setDismissed] = useState(new Set())
+  const [selected,   setSelected]  = useState(null)
+  const [dismissed,  setDismissed] = useState(new Set())
+  const [resolving,  setResolving] = useState(new Set())
 
   useEffect(() => {
     if (!user?.id) return
@@ -27,6 +29,18 @@ export default function ActionCenter({ currentDate = new Date() }) {
   }, [user?.id])
 
   function stableKey(item) { return `${item.type}-${item.recordId}` }
+
+  async function resolvePriceChange(item, update) {
+    if (resolving.has(item.id)) return
+    setResolving(s => new Set(s).add(item.id))
+    if (update) {
+      const table = item.source === 'subscription' ? 'subscriptions' : 'recurring_bills'
+      await supabase.from(table).update({ amount: item.actualAmount }).eq('id', item.sourceId)
+    }
+    await supabase.from('price_change_alerts').update({ resolved: true }).eq('id', item.recordId)
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
+    setResolving(s => { const n = new Set(s); n.delete(item.id); return n })
+  }
 
   function dismiss(e, item) {
     e.stopPropagation()
@@ -96,10 +110,57 @@ export default function ActionCenter({ currentDate = new Date() }) {
             <p className="text-xs text-muted py-2">{t('common.loading')}</p>
           ) : (
             visibleItems.map((item) => {
-              const { id, severity, label, detail, canPay } = item
-              const Icon  = severity === 'alert' ? AlertTriangle : severity === 'warning' ? Clock : Bell
+              const { id, severity, label, detail, canPay, type } = item
               const color = SEVERITY_COLOR[severity]
               const severityLabel = severity === 'alert' ? t('ac.urgentLabel') : severity === 'warning' ? t('ac.soonLabel') : t('ac.infoLabel')
+
+              // Price change alert — special inline Update/Keep UI
+              if (type === 'price_change') {
+                const isUp = item.actualAmount > item.expectedAmount
+                const Icon = isUp ? TrendingUp : TrendingDown
+                const busy = resolving.has(item.id)
+                return (
+                  <div key={id} className="group py-2.5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-0.5 self-stretch rounded-full shrink-0 mt-0.5" style={{ background: color }} />
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: `color-mix(in srgb, ${color} 15%, transparent)` }}>
+                        <Icon size={12} style={{ color }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white/90">{label}</p>
+                        <p className="text-xs text-white/40 mt-0.5 mb-2">{detail}</p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => resolvePriceChange(item, true)}
+                            disabled={busy}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-80 disabled:opacity-40"
+                            style={{ background: 'var(--color-accent)' }}
+                          >
+                            Update
+                          </button>
+                          <button
+                            onClick={() => resolvePriceChange(item, false)}
+                            disabled={busy}
+                            className="px-2.5 py-1 rounded-lg text-xs font-medium text-white/50 hover:text-white/80 transition-colors disabled:opacity-40"
+                            style={{ border: '1px solid rgba(255,255,255,0.12)' }}
+                          >
+                            Keep as is
+                          </button>
+                        </div>
+                      </div>
+                      <button
+                        onClick={e => dismiss(e, item)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 text-white/30 hover:text-white/60 shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+
+              const Icon = severity === 'alert' ? AlertTriangle : severity === 'warning' ? Clock : Bell
               return (
                 <div
                   key={id}

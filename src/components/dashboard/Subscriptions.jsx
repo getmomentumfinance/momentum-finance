@@ -61,8 +61,10 @@ export default function Subscriptions({ currentDate = new Date() }) {
   const [editingSub,  setEditingSub]  = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [toggling,    setToggling]    = useState(new Set())
-  const [cancelFlash, setCancelFlash] = useState(null) // { id, amount }
-  const [collapsed, setCollapsed] = useCollapsed('Subscriptions')
+  const [cancelFlash, setCancelFlash] = useState(null)
+  const [collapsed,   setCollapsed]   = useCollapsed('Subscriptions')
+  const [expandedId,  setExpandedId]  = useState(null)
+  const [paidAmount,  setPaidAmount]  = useState('')
 
   useEffect(() => {
     if (!user?.id) return
@@ -88,7 +90,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
     setLoading(false)
   }
 
-  async function togglePaid(sub) {
+  async function togglePaid(sub, amount = sub.amount) {
     if (toggling.has(sub.id)) return
     setToggling(s => new Set(s).add(sub.id))
 
@@ -113,7 +115,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
         user_id:        user.id,
         type:           'expense',
         description:    desc,
-        amount:         sub.amount,
+        amount,
         category_id:    sub.category_id    ?? null,
         subcategory_id: sub.subcategory_id ?? null,
         card_id:        sub.card_id        ?? null,
@@ -134,6 +136,25 @@ export default function Subscriptions({ currentDate = new Date() }) {
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     setToggling(s => { const n = new Set(s); n.delete(sub.id); return n })
     load()
+  }
+
+  function handleCheckClick(sub, isPaid) {
+    if (isPaid) { togglePaid(sub); return }
+    setExpandedId(sub.id)
+    setPaidAmount(String(sub.amount))
+  }
+
+  async function confirmPaid(sub) {
+    const amount = parseFloat(paidAmount) || sub.amount
+    setExpandedId(null)
+    await togglePaid(sub, amount)
+    if (Math.abs(amount - sub.amount) > 0.001) {
+      await supabase.from('price_change_alerts').insert({
+        user_id: user.id, source: 'subscription', record_id: sub.id,
+        name: sub.name, expected_amount: sub.amount, actual_amount: amount,
+      })
+      window.dispatchEvent(new CustomEvent('transaction-saved'))
+    }
   }
 
   async function toggleCancel(sub) {
@@ -235,14 +256,14 @@ export default function Subscriptions({ currentDate = new Date() }) {
                     {/* Checkmark — hidden for cancelled */}
                     {!isCancelled && (
                       <button
-                        onClick={() => togglePaid(sub)}
+                        onClick={() => handleCheckClick(sub, isPaid)}
                         disabled={toggling.has(sub.id)}
                         className="mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all"
                         style={isPaid
                           ? { background: 'var(--color-accent)', borderColor: 'var(--color-accent)' }
-                          : { borderColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)' }}
-                        onMouseEnter={e => { if (!isPaid) { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--color-accent) 70%, transparent)'; e.currentTarget.style.background = 'color-mix(in srgb, var(--color-accent) 12%, transparent)' } }}
-                        onMouseLeave={e => { if (!isPaid) { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--color-accent) 40%, transparent)'; e.currentTarget.style.background = '' } }}
+                          : expandedId === sub.id
+                            ? { borderColor: 'var(--color-accent)', background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }
+                            : { borderColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)' }}
                       >
                         <Check size={11} className={isPaid ? 'text-white' : 'text-transparent'} />
                       </button>
@@ -283,6 +304,43 @@ export default function Subscriptions({ currentDate = new Date() }) {
                         className={`flex items-center gap-1 text-[10px] transition-colors ${isCancelled ? 'text-white/50 hover:text-white/80' : 'text-white/25 hover:text-white/60'}`}
                       >
                         <Undo2 size={11} /> {isCancelled ? t('common.undo') : t('common.cancel')}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Inline pay expansion */}
+                  <div style={{
+                    maxHeight:  expandedId === sub.id ? '52px' : '0',
+                    opacity:    expandedId === sub.id ? 1 : 0,
+                    overflow:   'hidden',
+                    transition: 'max-height 0.2s ease, opacity 0.15s ease',
+                  }}>
+                    <div className="flex items-center gap-2 pb-2.5 pl-9">
+                      <span className="text-xs text-white/40">Paid</span>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-white/40">€</span>
+                        <input
+                          type="number"
+                          value={paidAmount}
+                          onChange={e => setPaidAmount(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && confirmPaid(sub)}
+                          className="w-24 rounded-lg pl-5 pr-2 py-1 text-sm text-white outline-none"
+                          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+                          autoFocus={expandedId === sub.id}
+                        />
+                      </div>
+                      <button
+                        onClick={() => confirmPaid(sub)}
+                        className="px-3 py-1 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-80"
+                        style={{ background: 'var(--color-accent)' }}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => setExpandedId(null)}
+                        className="text-xs text-white/30 hover:text-white/60 transition-colors"
+                      >
+                        ✕
                       </button>
                     </div>
                   </div>

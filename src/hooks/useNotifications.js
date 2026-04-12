@@ -254,6 +254,25 @@ export function useNotifications(userId, currentDate) {
       }
     }
 
+    // 7. Price change alerts
+    const { data: priceAlerts } = await supabase
+      .from('price_change_alerts').select('*')
+      .eq('user_id', userId).eq('resolved', false)
+
+    for (const a of priceAlerts ?? []) {
+      const diff = a.actual_amount - a.expected_amount
+      const yearlyDiff = Math.abs(diff * 12)
+      const sign = diff > 0 ? '+' : '-'
+      actions.push({
+        id: `price-change-${a.id}`, type: 'price_change', recordId: a.id,
+        source: a.source, sourceId: a.record_id,
+        severity: 'warning', label: `${a.name} price ${diff > 0 ? 'increased' : 'decreased'}`,
+        detail: `${fmtAmt(a.expected_amount)} → ${fmtAmt(a.actual_amount)} (${sign}${fmtAmt(yearlyDiff)}/yr)`,
+        expectedAmount: a.expected_amount, actualAmount: a.actual_amount,
+        canPay: false,
+      })
+    }
+
     actions.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
     setItems(actions)
     setLoading(false)

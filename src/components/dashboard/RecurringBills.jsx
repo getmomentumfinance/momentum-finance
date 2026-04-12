@@ -86,6 +86,8 @@ export default function RecurringBills({ currentDate }) {
   const [toggling,   setToggling]   = useState(new Set())
   const [collapsed, setCollapsed] = useCollapsed('RecurringBills')
   const [filter, setFilter] = useState('month')
+  const [expandedId, setExpandedId] = useState(null)
+  const [paidAmount, setPaidAmount] = useState('')
 
   useEffect(() => {
     if (!user?.id) return
@@ -117,7 +119,7 @@ export default function RecurringBills({ currentDate }) {
     setLoading(false)
   }
 
-  async function togglePaid(bill) {
+  async function togglePaid(bill, amount = bill.amount) {
     if (toggling.has(bill.id)) return
     setToggling(s => new Set(s).add(bill.id))
 
@@ -125,13 +127,11 @@ export default function RecurringBills({ currentDate }) {
     const existing = payments.find(p => p.bill_id === bill.id && p.period === period)
 
     if (existing) {
-      // Uncheck → soft-delete the transaction, remove payment record
       if (existing.transaction_id) {
         await supabase.from('transactions').update({ is_deleted: true }).eq('id', existing.transaction_id)
       }
       await supabase.from('recurring_bill_payments').delete().eq('id', existing.id)
     } else {
-      // Check → create transaction + payment record
       const receiver = bill.receiver_id ? receiverMap[bill.receiver_id] : null
       const desc = receiver ? receiver.name : bill.name
       const commentParts = []
@@ -146,7 +146,7 @@ export default function RecurringBills({ currentDate }) {
           user_id:        user.id,
           type:           'expense',
           description:    desc,
-          amount:         bill.amount,
+          amount,
           category_id:    bill.category_id    ?? null,
           subcategory_id: bill.subcategory_id ?? null,
           card_id:        bill.card_id        ?? null,
@@ -171,6 +171,25 @@ export default function RecurringBills({ currentDate }) {
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     setToggling(s => { const n = new Set(s); n.delete(bill.id); return n })
     load()
+  }
+
+  function handleCheckClick(bill, isPaid) {
+    if (isPaid) { togglePaid(bill); return }
+    setExpandedId(bill.id)
+    setPaidAmount(String(bill.amount))
+  }
+
+  async function confirmPaid(bill) {
+    const amount = parseFloat(paidAmount) || bill.amount
+    setExpandedId(null)
+    await togglePaid(bill, amount)
+    if (Math.abs(amount - bill.amount) > 0.001) {
+      await supabase.from('price_change_alerts').insert({
+        user_id: user.id, source: 'bill', record_id: bill.id,
+        name: bill.name, expected_amount: bill.amount, actual_amount: amount,
+      })
+      window.dispatchEvent(new CustomEvent('transaction-saved'))
+    }
   }
 
   return (
@@ -247,12 +266,14 @@ export default function RecurringBills({ currentDate }) {
               >
                 {/* Checkmark */}
                 <button
-                  onClick={() => togglePaid(bill)}
+                  onClick={() => handleCheckClick(bill, isPaid)}
                   disabled={toggling.has(bill.id)}
                   className="mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all"
                   style={isPaid
                     ? { background: 'var(--color-accent)', borderColor: 'var(--color-accent)' }
-                    : { borderColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)' }}
+                    : expandedId === bill.id
+                      ? { borderColor: 'var(--color-accent)', background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }
+                      : { borderColor: 'color-mix(in srgb, var(--color-accent) 40%, transparent)' }}
                 >
                   <Check size={11} className={isPaid ? 'text-white' : 'text-transparent'} />
                 </button>
@@ -286,6 +307,43 @@ export default function RecurringBills({ currentDate }) {
                 <span className="text-sm font-medium tabular-nums text-white/60 shrink-0">
                   {fmt(bill.amount)}
                 </span>
+              </div>
+
+              {/* Inline pay expansion */}
+              <div style={{
+                maxHeight: expandedId === bill.id ? '52px' : '0',
+                opacity:   expandedId === bill.id ? 1 : 0,
+                overflow:  'hidden',
+                transition: 'max-height 0.2s ease, opacity 0.15s ease',
+              }}>
+                <div className="flex items-center gap-2 pb-2.5 pl-9">
+                  <span className="text-xs text-white/40">Paid</span>
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-white/40">€</span>
+                    <input
+                      type="number"
+                      value={paidAmount}
+                      onChange={e => setPaidAmount(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && confirmPaid(bill)}
+                      className="w-24 rounded-lg pl-5 pr-2 py-1 text-sm text-white outline-none"
+                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      autoFocus={expandedId === bill.id}
+                    />
+                  </div>
+                  <button
+                    onClick={() => confirmPaid(bill)}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-80"
+                    style={{ background: 'var(--color-accent)' }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setExpandedId(null)}
+                    className="text-xs text-white/30 hover:text-white/60 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )
           })}
