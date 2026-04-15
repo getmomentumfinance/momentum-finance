@@ -21,6 +21,7 @@ import { DEFAULT_IMPORTANCE } from '../constants/importance'
 import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X } from 'lucide-react'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -496,6 +497,7 @@ function LinePanel({ title, subtitle, data, series, xInterval = 0, chartHeight =
 // ── Main page ──────────────────────────────────────────────────────
 export default function Analytics() {
   const { fmt, fmtK, t } = usePreferences()
+  const isMobile = useIsMobile()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [range, setRange] = useState('month')
   const [compareDate, setCompareDate] = useState(() => {
@@ -2425,63 +2427,68 @@ export default function Analytics() {
             {showDeepDive && <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
 
               {/* Header */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <h2 className="text-sm font-semibold">{t('an.deepDive')}</h2>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
 
-                  {/* Dimension toggle */}
-                  <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
-                    {[
-                      { id: 'category',    label: t('an.dimCategory')    },
-                      { id: 'subcategory', label: t('an.dimSubcategory') },
-                      { id: 'importance',  label: t('an.dimImportance')  },
-                      { id: 'receiver',    label: 'Merchant'              },
-                    ].map(d => (
-                      <button
-                        key={d.id}
-                        onClick={() => { setDdDimension(d.id); setDdFilter(null); setDdClickedLabel(null) }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                          ddDimension === d.id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-                        }`}
+                  {/* Dimension toggle — scrollable on mobile */}
+                  <div className="overflow-x-auto scrollbar-none">
+                    <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max">
+                      {[
+                        { id: 'category',    label: t('an.dimCategory')    },
+                        { id: 'subcategory', label: t('an.dimSubcategory') },
+                        { id: 'importance',  label: t('an.dimImportance')  },
+                        { id: 'receiver',    label: 'Merchant'              },
+                      ].map(d => (
+                        <button
+                          key={d.id}
+                          onClick={() => { setDdDimension(d.id); setDdFilter(null); setDdClickedLabel(null) }}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                            ddDimension === d.id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Chart type + filter on one row */}
+                  <div className="flex items-center gap-2">
+                    {/* Chart type toggle */}
+                    <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 shrink-0">
+                      {['bar', 'line'].map(ct => (
+                        <button key={ct} onClick={() => setDdChartType(ct)}
+                          className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors capitalize ${
+                            ddChartType === ct ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
+                          }`}>
+                          {ct}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Filter select for active dimension */}
+                    <div className="relative flex-1 md:flex-none">
+                      <select
+                        value={ddFilter ?? ''}
+                        onChange={e => { setDdFilter(e.target.value || null); setDdClickedLabel(null) }}
+                        className="w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
                       >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Chart type toggle */}
-                  <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5">
-                    {['bar', 'line'].map(ct => (
-                      <button key={ct} onClick={() => setDdChartType(ct)}
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors capitalize ${
-                          ddChartType === ct ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
-                        }`}>
-                        {ct}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Filter select for active dimension */}
-                  <div className="relative">
-                    <select
-                      value={ddFilter ?? ''}
-                      onChange={e => { setDdFilter(e.target.value || null); setDdClickedLabel(null) }}
-                      className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
-                    >
-                      <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : t('an.allImportance')}</option>
-                      {ddOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </select>
-                    <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                        <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : t('an.allImportance')}</option>
+                        {ddOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                      </select>
+                      <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+                    </div>
                   </div>
 
                 </div>
               </div>
 
               {/* Content */}
-              <div className="flex gap-0" style={{ height: 380 }}>
+              <div className={isMobile ? 'flex flex-col gap-4' : 'flex gap-0'} style={isMobile ? undefined : { height: 380 }}>
 
                 {/* Left panel — ranked breakdown OR transaction list when bar clicked */}
-                <div className="flex flex-col shrink-0 pr-6 gap-4 overflow-hidden transition-all duration-200" style={{ width: ddClickedLabel ? 320 : 208 }}>
+                <div className={isMobile ? 'flex flex-col gap-4' : 'flex flex-col shrink-0 pr-6 gap-4 overflow-hidden transition-all duration-200'} style={isMobile ? undefined : { width: ddClickedLabel ? 320 : 208 }}>
 
                   {ddClickedLabel ? (
                     <>
@@ -2586,12 +2593,12 @@ export default function Analytics() {
 
                 </div>
 
-                {/* Vertical separator */}
-                <div className="w-px bg-white/[0.07] shrink-0 self-stretch" />
+                {/* Vertical separator — desktop only */}
+                {!isMobile && <div className="w-px bg-white/[0.07] shrink-0 self-stretch" />}
 
                 {/* Chart + legend */}
-                <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 pl-6">
-                  <div className="flex-1 min-h-0">
+                <div className={isMobile ? 'flex flex-col gap-3' : 'flex-1 min-w-0 min-h-0 flex flex-col gap-3 pl-6'}>
+                  <div className={isMobile ? '' : 'flex-1 min-h-0'} style={{ height: isMobile ? 220 : undefined }}>
                     {ddFiltered.length === 0
                       ? <div className="h-full flex items-center"><p className="text-sm text-muted">{t('an.noDataFilters')}</p></div>
                       : (
@@ -2643,10 +2650,10 @@ export default function Analytics() {
             </div>}
 
         {/* ── BOTTOM: secondary sidebar + spending habit ── */}
-        <div className="flex gap-5 items-stretch">
+        <div className="flex flex-col md:flex-row gap-5 items-stretch">
 
           {/* Bottom left sidebar */}
-          <div className="w-80 shrink-0 flex flex-col gap-4">
+          <div className="w-full md:w-80 md:shrink-0 flex flex-col gap-4">
 
 
 
