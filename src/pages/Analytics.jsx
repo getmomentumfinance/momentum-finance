@@ -1756,21 +1756,35 @@ export default function Analytics() {
             <p className="text-muted text-sm mt-1">{periodLabel}</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="overflow-x-auto scrollbar-none flex-1 min-w-0">
-              <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max">
+            {/* Mobile: dropdown select */}
+            {isMobile ? (
+              <select
+                value={range}
+                onChange={e => setRange(e.target.value)}
+                className="flex-1 appearance-none bg-white/[0.08] border border-white/[0.10] rounded-xl px-3 py-2 text-sm text-white outline-none cursor-pointer"
+              >
                 {RANGE_IDS.map(id => (
-                  <button
-                    key={id}
-                    onClick={() => setRange(id)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                      range === id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-                    }`}
-                  >
-                    {t(RANGE_KEYS[id])}
-                  </button>
+                  <option key={id} value={id}>{t(RANGE_KEYS[id])}</option>
                 ))}
+              </select>
+            ) : (
+              /* Desktop: scrollable pill tabs */
+              <div className="overflow-x-auto scrollbar-none flex-1 min-w-0">
+                <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max">
+                  {RANGE_IDS.map(id => (
+                    <button
+                      key={id}
+                      onClick={() => setRange(id)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                        range === id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+                      }`}
+                    >
+                      {t(RANGE_KEYS[id])}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Appearance button + popover */}
             <div className="relative shrink-0" ref={appearanceRef}>
@@ -1847,7 +1861,7 @@ export default function Analytics() {
                   </p>
 
                   {/* Per-week amounts: 4-column grid, one card per dimension */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {WEEK_BREAK_DIM_IDS.map(dim => (
                       <WeekBreakCard
                         key={dim}
@@ -1945,7 +1959,7 @@ export default function Analytics() {
               {/* Summary header */}
               <div className="glass-card rounded-2xl p-5">
                 <h2 className="text-sm font-semibold mb-4">{t('an.periodSummary')}</h2>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Expenses comparison */}
                   <div>
                     <p className="text-[11px] text-muted uppercase tracking-widest mb-3">{t('an.expenses')}</p>
@@ -2170,7 +2184,7 @@ export default function Analytics() {
         <div className="flex flex-col gap-5">
 
         {/* ── Donut row — week and month only ── */}
-        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           <DonutPanel title={t('an.byCategory')}    data={categoryData}    />
           <DonutPanel title={t('an.bySubcategory')} data={subcategoryData} />
           <DonutPanel title={t('an.byImportance')}  data={importanceData}  />
@@ -2255,7 +2269,7 @@ export default function Analytics() {
                   </div>
 
                   {effectiveTab === 'limits' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {items.map(item => {
                         let label = '', color = FALLBACK_COLORS[0]
                         if (item.category_id || item.subcategory_id) {
@@ -2300,7 +2314,7 @@ export default function Analytics() {
                   )}
 
                   {effectiveTab === 'goals' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {items.map(item => {
                         let label = '', color = FALLBACK_COLORS[0]
                         if (item.category_id || item.subcategory_id) {
@@ -2375,7 +2389,7 @@ export default function Analytics() {
             })()}
 
             {/* Projected spend + Financial Insights side by side */}
-            {(showProjected || showInsights) && <div className="flex gap-5 items-stretch">
+            {(showProjected || showInsights) && <div className="flex flex-col md:flex-row gap-5 items-stretch">
               {showProjected && projectedSpend && (
                 <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col">
                   <div className="flex items-center justify-between mb-4">
