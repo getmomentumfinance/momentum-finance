@@ -2727,12 +2727,12 @@ export default function Analytics() {
             {/* Spending Habit — monthly trend (all time, up to 18 months) */}
             {showSpendingHabit && <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
               {/* Header row */}
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-3">
                 <div>
                   <h2 className="text-sm font-semibold">{t('an.spendingHabit')}</h2>
                   <p className="text-[11px] text-muted mt-0.5">Monthly · all time · up to 18 months</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   {habitDimension === 'total' && spendingTrendData.trendPct !== null && (
                     <span className="text-xs font-semibold px-2.5 py-1 rounded-full tabular-nums"
                       style={{
