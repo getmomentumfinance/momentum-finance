@@ -244,7 +244,7 @@ function AccountTab() {
         </div>
 
         {/* ── Preferences + Security side by side ── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Preferences */}
           <div className="flex flex-col gap-2">
             <label className="text-xs text-muted uppercase tracking-widest px-1">{t('set.preferences')}</label>

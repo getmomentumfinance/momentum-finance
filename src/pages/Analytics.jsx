@@ -1753,23 +1753,25 @@ export default function Analytics() {
             <h1 className="text-2xl md:text-3xl font-bold">{t('an.title')}</h1>
             <p className="text-muted text-sm mt-1">{periodLabel}</p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
-              {RANGE_IDS.map(id => (
-                <button
-                  key={id}
-                  onClick={() => setRange(id)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    range === id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-                  }`}
-                >
-                  {t(RANGE_KEYS[id])}
-                </button>
-              ))}
+          <div className="flex items-center gap-3">
+            <div className="overflow-x-auto scrollbar-none flex-1 min-w-0">
+              <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max">
+                {RANGE_IDS.map(id => (
+                  <button
+                    key={id}
+                    onClick={() => setRange(id)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                      range === id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+                    }`}
+                  >
+                    {t(RANGE_KEYS[id])}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Appearance button + popover */}
-            <div className="relative" ref={appearanceRef}>
+            <div className="relative shrink-0" ref={appearanceRef}>
               <button
                 type="button"
                 onClick={() => setAppearanceOpen(v => !v)}
@@ -2166,7 +2168,7 @@ export default function Analytics() {
         <div className="flex flex-col gap-5">
 
         {/* ── Donut row — week and month only ── */}
-        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
           <DonutPanel title={t('an.byCategory')}    data={categoryData}    />
           <DonutPanel title={t('an.bySubcategory')} data={subcategoryData} />
           <DonutPanel title={t('an.byImportance')}  data={importanceData}  />

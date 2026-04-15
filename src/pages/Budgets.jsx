@@ -1995,8 +1995,8 @@ export default function Budgets() {
         </div>
 
         {/* Top row: stat cards 2×2 (35%) + main budget */}
-        <div className="flex gap-4 items-start">
-          <div className="grid grid-cols-2 gap-3 shrink-0" style={{ width: '35%' }}>
+        <div className="flex flex-col md:flex-row gap-4 items-start">
+          <div className="grid grid-cols-2 gap-3 w-full md:w-[35%] md:shrink-0">
           {[
             {
               label: t('budgets.active'),

@@ -327,7 +327,7 @@ export default function Summary() {
 
           {/* ── Top: Net flow hero + Donut ── */}
           <FadeIn>
-            <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* Net flow hero */}
               <div className="glass-card rounded-2xl p-6 flex flex-col justify-between">
@@ -403,7 +403,7 @@ export default function Summary() {
 
           {/* ── Middle: 4 KPI tiles ── */}
           <FadeIn delay={80}>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KpiTile label={t('sum.income')}   value={income}   fmt={fmt} color={colors.income}  Icon={TrendingUp}   />
               <KpiTile label={t('sum.expenses')} value={expense}  fmt={fmt} color={colors.expense} Icon={TrendingDown} />
               <KpiTile label={t('sum.savings')}  value={savings}  fmt={fmt} color={colors.income}  Icon={PiggyBank}    />
@@ -413,7 +413,7 @@ export default function Summary() {
 
           {/* ── Bottom: Budgets + To Pay + Heatmap ── */}
           <FadeIn delay={160}>
-            <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
               {/* Budgets */}
               <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
