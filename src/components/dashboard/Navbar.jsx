@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -28,25 +28,29 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
   const [moreOpen, setMoreOpen]       = useState(false)
   const [bottomNavVisible, setBottomNavVisible] = useState(true)
   const isMobile                      = useIsMobile()
-  const hideTimerRef                  = useRef(null)
-
-  const resetHideTimer = useCallback(() => {
-    setBottomNavVisible(true)
-    clearTimeout(hideTimerRef.current)
-    hideTimerRef.current = setTimeout(() => setBottomNavVisible(false), 3000)
-  }, [])
+  const lastScrollY                   = useRef(0)
+  const ticking                       = useRef(false)
 
   useEffect(() => {
     if (!isMobile) return
-    resetHideTimer()
-    window.addEventListener('touchstart', resetHideTimer, { passive: true })
-    window.addEventListener('scroll',     resetHideTimer, { passive: true })
-    return () => {
-      clearTimeout(hideTimerRef.current)
-      window.removeEventListener('touchstart', resetHideTimer)
-      window.removeEventListener('scroll',     resetHideTimer)
+    lastScrollY.current = window.scrollY
+
+    function onScroll() {
+      if (ticking.current) return
+      ticking.current = true
+      requestAnimationFrame(() => {
+        const current = window.scrollY
+        const delta   = current - lastScrollY.current
+        if (delta > 8)       setBottomNavVisible(false) // scrolling down → hide
+        else if (delta < -8) setBottomNavVisible(true)  // scrolling up   → show
+        lastScrollY.current = current
+        ticking.current = false
+      })
     }
-  }, [isMobile, resetHideTimer])
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [isMobile])
 
   // On mobile show 4 primary tabs + "more" overflow
   const primaryNav = navItems.slice(0, 4)
