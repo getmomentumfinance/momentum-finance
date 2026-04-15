@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -26,7 +26,27 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
   const [showProfile, setShowProfile] = useState(false)
   const [exporting, setExporting]     = useState(false)
   const [moreOpen, setMoreOpen]       = useState(false)
+  const [bottomNavVisible, setBottomNavVisible] = useState(true)
   const isMobile                      = useIsMobile()
+  const hideTimerRef                  = useRef(null)
+
+  const resetHideTimer = useCallback(() => {
+    setBottomNavVisible(true)
+    clearTimeout(hideTimerRef.current)
+    hideTimerRef.current = setTimeout(() => setBottomNavVisible(false), 3000)
+  }, [])
+
+  useEffect(() => {
+    if (!isMobile) return
+    resetHideTimer()
+    window.addEventListener('touchstart', resetHideTimer, { passive: true })
+    window.addEventListener('scroll',     resetHideTimer, { passive: true })
+    return () => {
+      clearTimeout(hideTimerRef.current)
+      window.removeEventListener('touchstart', resetHideTimer)
+      window.removeEventListener('scroll',     resetHideTimer)
+    }
+  }, [isMobile, resetHideTimer])
 
   // On mobile show 4 primary tabs + "more" overflow
   const primaryNav = navItems.slice(0, 4)
@@ -164,8 +184,14 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
       </div>}
 
       {/* ── Mobile bottom tab bar ── */}
-      {isMobile && <nav className="fixed bottom-0 left-0 right-0 z-50"
-        style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'var(--color-nav-blur)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+      {isMobile && <nav className="fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out"
+        style={{
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          background: 'var(--color-nav-blur)',
+          borderTop: '1px solid rgba(255,255,255,0.07)',
+          transform: bottomNavVisible ? 'translateY(0)' : 'translateY(100%)',
+        }}>
         <div className="flex items-center justify-around px-1 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
           {primaryNav.map(({ icon: Icon, label, path }) => {
             const active = pathname === path
