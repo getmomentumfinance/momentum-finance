@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Target } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Target, ChevronDown } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -9,6 +9,28 @@ import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { usePreferences } from '../../context/UserPreferencesContext'
+
+function toLocalStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function getPeriodBounds(period, refDate, resetDay) {
+  const y = refDate.getFullYear(), m = refDate.getMonth()
+  if (period === 'weekly') {
+    const startJsDow = ((resetDay ?? 0) + 1) % 7
+    const dow  = refDate.getDay()
+    const diff = (dow - startJsDow + 7) % 7
+    const start = new Date(refDate); start.setDate(refDate.getDate() - diff); start.setHours(0,0,0,0)
+    const end = new Date(start); end.setDate(start.getDate() + 6)
+    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
+  }
+  const rd = resetDay ?? 1
+  let sy = y, sm = m
+  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
+  const nextStart = new Date(sy, sm + 1, rd)
+  const end = new Date(nextStart.getTime() - 86400000)
+  return { startStr: toLocalStr(new Date(sy, sm, rd)), endStr: toLocalStr(end) }
+}
 
 function ImpDots({ imp }) {
   return (
@@ -24,11 +46,12 @@ function ImpDots({ imp }) {
   )
 }
 
-function TargetRow({ target, allExpenses, catMap, importanceLevels, receivers, currentDate }) {
+// ── Compact goal card matching the full Goals section style ────
+function GoalCard({ target, allExpenses, catMap, importanceLevels, receivers, currentDate, promoted }) {
   const { fmt, t } = usePreferences()
-  const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+  const tgtPeriod = target.period ?? 'monthly'
 
-  const monthlySpends = useMemo(() => {
+  const periodSpends = useMemo(() => {
     const filtered = allExpenses.filter(tx => {
       if (target.category_id)    return tx.category_id    === target.category_id
       if (target.subcategory_id) return tx.subcategory_id === target.subcategory_id
@@ -39,33 +62,56 @@ function TargetRow({ target, allExpenses, catMap, importanceLevels, receivers, c
       }
       return false
     })
-    const byMonth = {}
+    const byPeriod = {}
     for (const tx of filtered) {
-      const m = tx.date.slice(0, 7)
-      byMonth[m] = (byMonth[m] ?? 0) + tx.amount
+      const key = tgtPeriod === 'weekly'
+        ? getPeriodBounds('weekly', new Date(tx.date + 'T12:00:00'), target.reset_day).startStr
+        : tx.date.slice(0, 7)
+      byPeriod[key] = (byPeriod[key] ?? 0) + tx.amount
     }
-    return byMonth
-  }, [target, allExpenses, catMap])
+    return byPeriod
+  }, [target, allExpenses, catMap, tgtPeriod])
 
-  const currentSpend = monthlySpends[currentMonthKey] ?? 0
+  // Chart periods (creation → now)
+  const chartPeriods = useMemo(() => {
+    const created = new Date(target.created_at)
+    if (tgtPeriod === 'monthly') {
+      const sy = created.getFullYear(), sm = created.getMonth()
+      const ey = currentDate.getFullYear(), em = currentDate.getMonth()
+      const count = (ey - sy) * 12 + (em - sm) + 1
+      return Array.from({ length: count }, (_, i) => {
+        const d   = new Date(sy, sm + i, 1)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        return { key, label: d.toLocaleDateString('en-US', { month: 'short' }), spend: periodSpends[key] ?? null, isCurrent: i === count - 1 }
+      })
+    }
+    const { startStr: firstWk } = getPeriodBounds('weekly', created, target.reset_day)
+    const { startStr: currWk }  = getPeriodBounds('weekly', currentDate, target.reset_day)
+    const result = []
+    let d = new Date(firstWk + 'T12:00:00')
+    const endD = new Date(currWk + 'T12:00:00')
+    while (d <= endD) {
+      const key = toLocalStr(d)
+      result.push({ key, label: `${d.getMonth()+1}/${d.getDate()}`, spend: periodSpends[key] ?? null, isCurrent: key === currWk })
+      d = new Date(d.getTime() + 7 * 86400000)
+    }
+    return result
+  }, [target, periodSpends, currentDate, tgtPeriod])
+
+  const { startStr: periodStart } = getPeriodBounds(tgtPeriod, currentDate, target.reset_day)
+  const currentPeriodKey   = tgtPeriod === 'weekly'
+    ? periodStart
+    : `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+  const currentSpend = periodSpends[currentPeriodKey] ?? 0
   const targetVal    = target.target_monthly_spend
-  const baseline     = target.avg_baseline ?? targetVal
-  const reduction    = baseline - targetVal
   const pct          = targetVal > 0 ? Math.min((currentSpend / targetVal) * 100, 100) : 0
   const isOver       = currentSpend > targetVal
+  const periodLabel  = tgtPeriod === 'weekly' ? '/wk' : '/mo'
 
-  // Streak: consecutive months on target
-  const months = Object.keys(monthlySpends).sort()
-  let streak = 0
-  for (let i = months.length - 1; i >= 0; i--) {
-    if (monthlySpends[months[i]] > targetVal) break
-    streak++
-  }
-
-  // Hit rate
-  const totalMonths = months.length
-  const metMonths   = months.filter(m => monthlySpends[m] <= targetVal).length
-  const hitRate     = totalMonths > 0 ? Math.round((metMonths / totalMonths) * 100) : null
+  const periodEntries = Object.entries(periodSpends)
+  const periodsMet    = periodEntries.filter(([, s]) => s <= targetVal).length
+  const periodsOver   = periodEntries.filter(([, s]) => s >  targetVal).length
+  const hitRate       = periodEntries.length > 0 ? Math.round((periodsMet / periodEntries.length) * 100) : null
 
   // Label
   let labelEl
@@ -82,37 +128,152 @@ function TargetRow({ target, allExpenses, catMap, importanceLevels, receivers, c
     labelEl = imp ? <ImpDots imp={imp} /> : <span className="text-[10px] text-muted">—</span>
   }
 
+  // SVG chart (compact version)
+  const SVG_W = 400, SVG_H = 60
+  const PAD   = { t: 6, r: 4, b: 14, l: 4 }
+  const iW = SVG_W - PAD.l - PAD.r
+  const iH = SVG_H - PAD.t - PAD.b
+
+  const chartMax = Math.max(...chartPeriods.map(m => m.spend ?? 0), targetVal) * 1.15 || 1
+  const xOf = i => PAD.l + (chartPeriods.length > 1 ? (i / (chartPeriods.length - 1)) * iW : iW / 2)
+  const yOf = v => PAD.t + (1 - Math.min(v, chartMax) / chartMax) * iH
+  const targetY = yOf(targetVal)
+
+  const pts     = chartPeriods.map((m, i) => ({ ...m, x: xOf(i), y: m.spend !== null ? yOf(m.spend) : null }))
+  const vis     = pts.filter(p => p.y !== null)
+  const linePath = vis.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+  const areaPath = vis.length > 1
+    ? `${vis.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} L${vis.at(-1).x.toFixed(1)},${(PAD.t + iH).toFixed(1)} L${vis[0].x.toFixed(1)},${(PAD.t + iH).toFixed(1)} Z`
+    : ''
+  const gradId = `tw-${target.id}`
+
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+    <div
+      data-goal-id={target.id}
+      className="flex flex-col gap-3 p-3 rounded-xl bg-white/[0.03] border transition-all duration-500"
+      style={{
+        borderColor: promoted
+          ? 'color-mix(in srgb, var(--color-warning) 50%, transparent)'
+          : isOver
+          ? 'color-mix(in srgb, var(--color-alert) 20%, transparent)'
+          : 'rgba(255,255,255,0.05)',
+        boxShadow: promoted
+          ? '0 0 10px color-mix(in srgb, var(--color-warning) 20%, transparent)'
+          : 'none',
+      }}>
+
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">{labelEl}</div>
-        <div className="flex items-baseline gap-1 tabular-nums shrink-0">
-          <span className="text-sm font-bold" style={{ color: isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.9)' }}>
-            {fmt(currentSpend)}
+        {hitRate !== null && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] tabular-nums text-white/35 shrink-0">
+            {t('tw.hitRate', { n: hitRate })}
           </span>
-          <span className="text-[10px] text-white/30">/ {fmt(targetVal)}</span>
+        )}
+      </div>
+
+      {/* Compact chart */}
+      <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full" style={{ height: 48 }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-progress-bar)" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="var(--color-progress-bar)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
+        <line x1={PAD.l} y1={targetY} x2={SVG_W - PAD.r} y2={targetY}
+          stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" strokeDasharray="3 2" />
+        {linePath && (
+          <path d={linePath} fill="none"
+            stroke="var(--color-progress-bar)" strokeWidth="1.5"
+            strokeLinejoin="round" strokeLinecap="round" />
+        )}
+        {pts.map(p => p.y !== null && (
+          <circle key={p.key} cx={p.x} cy={p.y}
+            r={p.isCurrent ? 3 : 2}
+            fill={(p.spend ?? 0) > targetVal ? 'var(--color-alert)' : 'var(--color-progress-bar)'}
+            opacity={p.isCurrent ? 1 : 0.45} />
+        ))}
+        {pts.map((p, i) => {
+          const every = Math.ceil(pts.length / 6)
+          if (!p.isCurrent && i !== 0 && i % every !== 0) return null
+          return (
+            <text key={`${p.key}-l`} x={p.x} y={SVG_H - 2} textAnchor="middle"
+              fontSize="6" fill={p.isCurrent ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.18)'}>
+              {p.label}
+            </text>
+          )
+        })}
+      </svg>
+
+      {/* Bottom stats */}
+      <div className="flex items-end justify-between gap-2 border-t border-white/[0.04] pt-2.5">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline gap-1 tabular-nums">
+            <span className="text-base font-bold">{fmt(currentSpend)}</span>
+            <span className="text-[10px] text-white/30">/ {fmt(targetVal)}{periodLabel}</span>
+          </div>
+          <div className="h-1.5 w-28 rounded-full bg-white/8 overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-300"
+              style={{ width: `${pct}%`, background: isOver ? 'var(--color-alert)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-progress-bar)' }} />
+          </div>
+          <span className="text-[10px] tabular-nums"
+            style={{ color: isOver ? 'var(--color-alert)' : 'var(--color-progress-bar)' }}>
+            {isOver
+              ? t('tw.overTarget', { amount: fmt(currentSpend - targetVal) })
+              : t('tw.remaining', { amount: fmt(targetVal - currentSpend) })}
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-0.5 text-[10px] text-white/25 shrink-0">
+          <span className="tabular-nums">
+            <span style={{ color: 'var(--color-progress-bar)' }}>{periodsMet}✓</span>
+            {' / '}
+            <span style={{ color: 'var(--color-alert)' }}>{periodsOver}✗</span>
+          </span>
+          {target.avg_baseline > 0 && (
+            <span>baseline {fmt(target.avg_baseline)}{periodLabel}</span>
+          )}
         </div>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${pct}%`, background: isOver ? 'var(--color-alert)' : pct >= 80 ? 'var(--color-warning)' : 'var(--color-progress-bar)' }} />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] tabular-nums" style={{ color: isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.25)' }}>
-          {isOver ? t('tw.overTarget', { amount: fmt(currentSpend - targetVal) }) : t('tw.remaining', { amount: fmt(targetVal - currentSpend) })}
-        </span>
-        <div className="flex items-center gap-2.5">
-          {reduction > 0 && (
-            <span className="text-[10px] text-white/30">↓{fmt(reduction)}/mo goal</span>
-          )}
-          {streak > 1 && (
-            <span className="text-[10px] text-white/35">{t('tw.streak', { n: streak })}</span>
-          )}
-          {hitRate !== null && (
-            <span className="text-[10px] text-white/35">{t('tw.hitRate', { n: hitRate })}</span>
-          )}
+    </div>
+  )
+}
+
+// ── Sort dropdown ──────────────────────────────────────────────
+const SORT_OPTIONS = [
+  { value: 'risk',  label: 'At-risk first' },
+  { value: 'spend', label: 'Highest spend'  },
+  { value: 'alpha', label: 'A → Z'          },
+]
+
+function SortDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+  const current = SORT_OPTIONS.find(o => o.value === value)
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1 text-[10px] text-white/25 hover:text-white/60 transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/5">
+        {current?.label}
+        <ChevronDown size={9} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 glass-popup border border-white/10 rounded-xl overflow-hidden shadow-xl min-w-[130px]">
+          {SORT_OPTIONS.map(opt => (
+            <button key={opt.value} type="button"
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-[11px] hover:bg-white/5 transition-colors ${value === opt.value ? 'text-white/80 font-medium' : 'text-white/40'}`}>
+              {opt.label}
+            </button>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -127,7 +288,13 @@ export default function TargetsWidget({ currentDate = new Date() }) {
   const [allExpenses, setAllExpenses] = useState([])
   const [categories,  setCategories]  = useState([])
   const [receivers,   setReceivers]   = useState([])
-  const [collapsed, setCollapsed] = useCollapsed('TargetsWidget')
+  const [collapsed,   setCollapsed]   = useCollapsed('TargetsWidget')
+  const [sortBy,      setSortBy]      = useState('risk')
+  const [showSort,    setShowSort]    = useState(false)
+
+  // FLIP animation state
+  const containerRef  = useRef(null)
+  const snapRef = useRef({})
 
   useEffect(() => {
     if (!user?.id) return
@@ -149,7 +316,6 @@ export default function TargetsWidget({ currentDate = new Date() }) {
       supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
       supabase.from('receivers').select('id, name, domain, logo_url').eq('user_id', user.id),
     ])
-
     setTargets(tData ?? [])
     setAllExpenses(txData ?? [])
     setCategories(catData ?? [])
@@ -159,21 +325,61 @@ export default function TargetsWidget({ currentDate = new Date() }) {
   const catMap = useMemo(() =>
     Object.fromEntries(categories.map(c => [c.id, c])), [categories])
 
-  const currentMonthKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
-  const overCount = targets.filter(tgt => {
-    const filtered = allExpenses.filter(tx => {
-      if (tgt.category_id)    return tx.category_id    === tgt.category_id
-      if (tgt.subcategory_id) return tx.subcategory_id === tgt.subcategory_id
-      if (tgt.receiver_id)    return tx.receiver_id    === tgt.receiver_id
-      if (tgt.importance) {
-        const imp = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
-        return imp === tgt.importance
+  // Compute sort key per target
+  const sortData = useMemo(() => {
+    const result = {}
+    for (const tgt of targets) {
+      const period = tgt.period ?? 'monthly'
+      const { startStr } = getPeriodBounds(period, currentDate, tgt.reset_day)
+      const currentPeriodKey = period === 'weekly'
+        ? startStr
+        : `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
+
+      const txs = allExpenses.filter(tx => {
+        if (tx.date < startStr) return false
+        if (tgt.category_id)    return tx.category_id    === tgt.category_id
+        if (tgt.subcategory_id) return tx.subcategory_id === tgt.subcategory_id
+        if (tgt.receiver_id)    return tx.receiver_id    === tgt.receiver_id
+        if (tgt.importance) {
+          const imp = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
+          return imp === tgt.importance
+        }
+        return false
+      })
+      const currentSpend = txs.reduce((s, tx) => s + tx.amount, 0)
+      const pct = tgt.target_monthly_spend > 0 ? currentSpend / tgt.target_monthly_spend : 0
+
+      // Label for alpha sort
+      let label = ''
+      if (tgt.category_id || tgt.subcategory_id) {
+        label = catMap[tgt.category_id ?? tgt.subcategory_id]?.name ?? ''
+      } else if (tgt.receiver_id) {
+        label = receivers.find(r => r.id === tgt.receiver_id)?.name ?? ''
+      } else {
+        label = importanceLevels.find(i => i.value === tgt.importance)?.label ?? ''
       }
-      return false
+
+      result[tgt.id] = { pct, spend: currentSpend, label }
+    }
+    return result
+  }, [targets, allExpenses, catMap, currentDate, receivers, importanceLevels])
+
+  const sortedTargets = useMemo(() => {
+    return [...targets].sort((a, b) => {
+      const da = sortData[a.id] ?? { pct: 0, spend: 0, label: '' }
+      const db = sortData[b.id] ?? { pct: 0, spend: 0, label: '' }
+      if (sortBy === 'risk')  return db.pct   - da.pct
+      if (sortBy === 'spend') return db.spend - da.spend
+      if (sortBy === 'alpha') return da.label.localeCompare(db.label)
+      return 0
     })
-    const spent = filtered.filter(tx => tx.date.slice(0, 7) === currentMonthKey).reduce((s, tx) => s + tx.amount, 0)
-    return spent > tgt.target_monthly_spend
-  }).length
+  }, [targets, sortData, sortBy])
+
+
+  const overCount = useMemo(() =>
+    targets.filter(tgt => (sortData[tgt.id]?.pct ?? 0) > 1).length,
+    [targets, sortData]
+  )
 
   return (
     <>
@@ -187,17 +393,22 @@ export default function TargetsWidget({ currentDate = new Date() }) {
         )}
 
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
+          <div
+            className="flex items-center justify-between mb-4"
+            onMouseEnter={() => setShowSort(true)}
+            onMouseLeave={() => setShowSort(false)}>
             <div className="flex items-center gap-2">
               <button
                 ref={c.btnRef}
                 type="button"
                 onClick={c.toggleOpen}
-                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-              >
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                 <Target size={14} />
               </button>
-              <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('tw.title')}</button>
+              <button type="button" onClick={() => setCollapsed(v => !v)}
+                className="font-semibold text-base hover:text-white/70 transition-colors">
+                {t('tw.title')}
+              </button>
               {overCount > 0 && (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: 'var(--color-alert)22', color: 'var(--color-alert)' }}>
@@ -205,27 +416,32 @@ export default function TargetsWidget({ currentDate = new Date() }) {
                 </span>
               )}
             </div>
+            {/* Sort toggle — reveals on hover */}
+            <div className={`transition-opacity duration-150 ${showSort && !collapsed && targets.length > 1 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+              <SortDropdown value={sortBy} onChange={setSortBy} />
+            </div>
           </div>
 
-          {!collapsed && (<>
-          {targets.length === 0 ? (
-            <p className="text-center text-muted text-sm py-6">{t('tw.noTargets')}</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {targets.map(t => (
-                <TargetRow
-                  key={t.id}
-                  target={t}
-                  allExpenses={allExpenses}
-                  catMap={catMap}
-                  importanceLevels={importanceLevels}
-                  receivers={receivers}
-                  currentDate={currentDate}
-                />
-              ))}
-            </div>
+          {!collapsed && (
+            targets.length === 0 ? (
+              <p className="text-center text-muted text-sm py-6">{t('tw.noTargets')}</p>
+            ) : (
+              <div ref={containerRef} className="grid grid-cols-2 gap-3">
+                {sortedTargets.map(tgt => (
+                  <GoalCard
+                    key={tgt.id}
+                    target={tgt}
+                    allExpenses={allExpenses}
+                    catMap={catMap}
+                    importanceLevels={importanceLevels}
+                    receivers={receivers}
+                    currentDate={currentDate}
+                    promoted={false}
+                  />
+                ))}
+              </div>
+            )
           )}
-          </>)}
         </div>
       </div>
 

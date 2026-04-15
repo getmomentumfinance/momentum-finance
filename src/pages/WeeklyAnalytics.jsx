@@ -320,7 +320,7 @@ export default function WeeklyAnalytics() {
     <div className="min-h-screen">
       <Navbar currentDate={weekStart} onPrev={() => navigateWeek(-1)} onNext={() => navigateWeek(1)} />
 
-      <div id="page-content" className="px-6 pb-12 space-y-5 max-w-screen-xl mx-auto">
+      <div id="page-content" className="px-4 md:px-6 pb-24 md:pb-12 space-y-5 max-w-screen-xl mx-auto">
 
         {/* ── Page header ── */}
         <div className="flex items-center justify-between pt-2">
@@ -337,7 +337,7 @@ export default function WeeklyAnalytics() {
         </div>
 
         {/* ── KPI row ── */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="glass-card rounded-2xl p-4 flex flex-col gap-2">
             <p className="text-[10px] text-white/35 uppercase tracking-widest">Expenses</p>
             <p className="text-2xl font-bold tabular-nums leading-none" style={{ color: colors.expense }}>{fmt(totalExpenses, 0)}</p>
@@ -427,7 +427,7 @@ export default function WeeklyAnalytics() {
           </div>
 
           {/* Day stat tiles */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {dayData.map(d => (
               <div key={d.label} className={`rounded-xl p-2 text-center ${
                 d.isToday ? 'bg-white/[0.10] ring-1 ring-white/10' : 'bg-white/[0.03]'
@@ -450,7 +450,7 @@ export default function WeeklyAnalytics() {
         </div>
 
         {/* ── Category breakdown + Budget progress ── */}
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col md:flex-row gap-5 md:items-start">
 
           {/* Category donut + list */}
           <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 flex-1">
@@ -489,7 +489,7 @@ export default function WeeklyAnalytics() {
           </div>
 
           {/* Budget progress panel */}
-          <div className="glass-card rounded-2xl p-5 flex flex-col gap-5 w-72 shrink-0">
+          <div className="glass-card rounded-2xl p-5 flex flex-col gap-5 md:w-72 md:shrink-0">
             <h2 className="text-sm font-semibold">Budget Progress</h2>
 
             {budgetSummary.weekLimit ? (

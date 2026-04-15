@@ -193,7 +193,7 @@ export default function Portfolio() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-16">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -225,7 +225,7 @@ export default function Portfolio() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <StatCard label={t('port.totalInvested')} value={fmt(totalInvested)} />
           <StatCard
             label={t('port.currentValue')}
@@ -246,7 +246,8 @@ export default function Portfolio() {
 
         {/* Positions table */}
         <div className="glass-card rounded-2xl overflow-hidden">
-          <table className="w-full text-sm border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm border-collapse">
             <thead>
               <tr className="border-b border-white/[0.04] text-[11px] uppercase tracking-widest text-muted">
                 <th className="text-left px-5 py-3 font-medium">{t('port.ticker')}</th>
@@ -366,6 +367,7 @@ export default function Portfolio() {
               })}
             </tbody>
           </table>
+          </div>{/* end overflow-x-auto */}
 
           {/* Footer */}
           {positions.length > 0 && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
@@ -7,7 +7,7 @@ export function useTransactions() {
   const [transactions, setTransactions] = useState([])
   const userId = user?.id
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!userId) return
     supabase
       .from('transactions')
@@ -17,6 +17,12 @@ export function useTransactions() {
       .order('date', { ascending: false })
       .then(({ data }) => { if (data) setTransactions(data) })
   }, [userId])
+
+  useEffect(() => {
+    load()
+    window.addEventListener('transaction-saved', load)
+    return () => window.removeEventListener('transaction-saved', load)
+  }, [load])
 
   async function addTransaction(tx) {
     const { data, error } = await supabase

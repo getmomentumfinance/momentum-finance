@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Plus, Scissors, Trash2, ChevronDown, ArrowLeft } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -9,11 +9,25 @@ import { usePreferences } from '../../context/UserPreferencesContext'
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 
 function CategoryDropdown({ value, onChange, categories, placeholder }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]     = useState(false)
+  const [search, setSearch] = useState('')
+  const ref       = useRef(null)
+  const searchRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) { setSearch(''); return }
+    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    setTimeout(() => searchRef.current?.focus(), 0)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
   const selected = categories.find(c => c.id === value)
+  const q        = search.trim().toLowerCase()
+  const filtered = q ? categories.filter(c => c.name.toLowerCase().includes(q)) : categories
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-left transition-colors hover:border-white/20">
         {selected
@@ -22,18 +36,24 @@ function CategoryDropdown({ value, onChange, categories, placeholder }) {
         <ChevronDown size={12} className="text-white/25 shrink-0 ml-2" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl max-h-44 overflow-y-auto scrollbar-thin">
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-            className="w-full px-3 py-2 text-xs text-white/30 hover:bg-white/5 text-left">
-            None
-          </button>
-          {categories.map(c => (
-            <button key={c.id} type="button"
-              onClick={() => { onChange(c.id); setOpen(false) }}
-              className={`w-full flex items-center px-3 py-2 hover:bg-white/5 transition-colors ${value === c.id ? 'bg-white/8' : ''}`}>
-              <CategoryPill name={c.name} color={c.color} icon={c.icon} />
-            </button>
-          ))}
+        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
+          <div className="px-3 py-2 border-b border-white/[0.06]">
+            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search…" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
+          </div>
+          <div className="max-h-36 overflow-y-auto scrollbar-thin">
+            {!q && <button type="button" onClick={() => { onChange(''); setOpen(false) }}
+              className="w-full px-3 py-2 text-xs text-white/30 hover:bg-white/5 text-left">None</button>}
+            {filtered.length === 0
+              ? <p className="text-xs text-white/30 px-3 py-3">No results</p>
+              : filtered.map(c => (
+                  <button key={c.id} type="button" onClick={() => { onChange(c.id); setOpen(false) }}
+                    className={`w-full flex items-center px-3 py-2 hover:bg-white/5 transition-colors ${value === c.id ? 'bg-white/8' : ''}`}>
+                    <CategoryPill name={c.name} color={c.color} icon={c.icon} />
+                  </button>
+                ))
+            }
+          </div>
         </div>
       )}
     </div>
@@ -125,9 +145,9 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-lg flex flex-col shadow-2xl max-h-[90vh]">
+      <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg flex flex-col shadow-2xl max-h-[92vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">

@@ -59,11 +59,6 @@ function BudgetRow({ label, color, icon, imp, spent, limit, projectedEnd }) {
           style={{
             width: `${displayPct}%`,
             background: barColor(pct),
-            transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)',
-            boxShadow: pct < 50 && pct > 0
-              ? `0 0 6px 1px color-mix(in srgb, var(--color-progress-bar) 60%, transparent)`
-              : undefined,
-            animation: pct < 50 && pct > 0 ? 'underBudgetPulse 2s ease-in-out infinite' : undefined,
           }} />
       </div>
       <span className="text-[10px] tabular-nums" style={{ color: over ? 'var(--color-alert)' : 'rgba(255,255,255,0.25)' }}>
@@ -87,8 +82,10 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   const c = useCardCustomization('Budgets Widget')
 
   const [budgets,    setBudgets]    = useState([])
+  const [targets,    setTargets]    = useState([])
   const [expenses,   setExpenses]   = useState([])
   const [categories, setCategories] = useState([])
+  const [receivers,  setReceivers]  = useState([])
   const [collapsed, setCollapsed] = useCollapsed('BudgetsWidget')
 
   useEffect(() => {
@@ -101,24 +98,29 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   async function load() {
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    const start = new Date(year, month, 1).toISOString().slice(0, 10)
-    const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+    const pad   = n => String(n).padStart(2, '0')
+    const start = `${year}-${pad(month + 1)}-01`
+    const end   = `${year}-${pad(month + 1)}-${pad(new Date(year, month + 1, 0).getDate())}`
 
-    const [{ data: bData }, { data: txData }, { data: catData }] = await Promise.all([
+    const [{ data: bData }, { data: tgtData }, { data: txData }, { data: catData }, { data: recData }] = await Promise.all([
       supabase.from('budgets').select('*').eq('user_id', user.id),
-      supabase.from('transactions').select('category_id, subcategory_id, amount')
+      supabase.from('targets').select('*').eq('user_id', user.id),
+      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, amount')
         .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
         .eq('is_split_parent', false).gte('date', start).lte('date', end),
       supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
+      supabase.from('receivers').select('id, name').eq('user_id', user.id),
     ])
 
     setBudgets(bData ?? [])
+    setTargets(tgtData ?? [])
     setExpenses(txData ?? [])
     setCategories(catData ?? [])
+    setReceivers(recData ?? [])
   }
 
-  const catMap = useMemo(() =>
-    Object.fromEntries((categories).map(c => [c.id, c])), [categories])
+  const catMap      = useMemo(() => Object.fromEntries(categories.map(c => [c.id, c])), [categories])
+  const receiverMap = useMemo(() => Object.fromEntries(receivers.map(r => [r.id, r])), [receivers])
 
   const spendingByCategory = useMemo(() => {
     const map = {}
@@ -145,38 +147,72 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
     return map
   }, [expenses, catMap])
 
-  const columns = useMemo(() => {
-    const now          = new Date()
-    const year         = currentDate.getFullYear()
-    const month        = currentDate.getMonth()
-    const isCurrentMo  = now.getFullYear() === year && now.getMonth() === month
-    const daysInMonth  = new Date(year, month + 1, 0).getDate()
-    const daysElapsed  = isCurrentMo ? now.getDate() : daysInMonth
+  const spendingByReceiver = useMemo(() => {
+    const map = {}
+    for (const t of expenses) {
+      if (t.receiver_id) map[t.receiver_id] = (map[t.receiver_id] ?? 0) + t.amount
+    }
+    return map
+  }, [expenses])
+
+  const allRows = useMemo(() => {
+    const now         = new Date()
+    const year        = currentDate.getFullYear()
+    const month       = currentDate.getMonth()
+    const isCurrentMo = now.getFullYear() === year && now.getMonth() === month
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    const daysElapsed = isCurrentMo ? now.getDate() : daysInMonth
     const pace = spent => isCurrentMo && daysElapsed > 0 ? (spent / daysElapsed) * daysInMonth : null
 
-    const cat = budgets.filter(b => b.category_id).map(b => {
-      const c = catMap[b.category_id]
-      const spent = spendingByCategory[b.category_id] ?? 0
-      return { key: b.id, label: c?.name ?? '—', color: c?.color, icon: c?.icon, imp: null, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
-    })
-    const sub = budgets.filter(b => b.subcategory_id).map(b => {
-      const c = catMap[b.subcategory_id]
-      const spent = spendingBySubcategory[b.subcategory_id] ?? 0
-      return { key: b.id, label: c?.name ?? '—', color: c?.color, icon: c?.icon, imp: null, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
-    })
-    const imp = budgets.filter(b => b.importance).map(b => {
-      const i = importanceLevels.find(i => i.value === b.importance) ?? null
-      const spent = spendingByImportance[b.importance] ?? 0
-      return { key: b.id, label: null, color: null, icon: null, imp: i, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
-    })
-    return [
-      { labelKey: 'common.category',    rows: cat },
-      { labelKey: 'common.subcategory', rows: sub },
-      { labelKey: 'common.importance',  rows: imp },
+    const budgetRows = [
+      ...budgets.filter(b => b.category_id).map(b => {
+        const c = catMap[b.category_id]
+        const spent = spendingByCategory[b.category_id] ?? 0
+        return { key: b.id, label: c?.name ?? '—', color: c?.color, icon: c?.icon, imp: null, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
+      }),
+      ...budgets.filter(b => b.subcategory_id).map(b => {
+        const c = catMap[b.subcategory_id]
+        const spent = spendingBySubcategory[b.subcategory_id] ?? 0
+        return { key: b.id, label: c?.name ?? '—', color: c?.color, icon: c?.icon, imp: null, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
+      }),
+      ...budgets.filter(b => b.importance).map(b => {
+        const i = importanceLevels.find(i => i.value === b.importance) ?? null
+        const spent = spendingByImportance[b.importance] ?? 0
+        return { key: b.id, label: null, color: null, icon: null, imp: i, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
+      }),
+      ...budgets.filter(b => b.receiver_id).map(b => {
+        const r = receiverMap[b.receiver_id]
+        const spent = spendingByReceiver[b.receiver_id] ?? 0
+        return { key: b.id, label: r?.name ?? '—', color: undefined, icon: undefined, imp: null, spent, limit: b.monthly_limit, projectedEnd: pace(spent) }
+      }),
     ]
-  }, [budgets, catMap, spendingByCategory, spendingBySubcategory, spendingByImportance, importanceLevels, currentDate])
 
-  const allRows = columns.flatMap(c => c.rows)
+    const targetRows = targets.map(tgt => {
+      let label = '—', color = null, icon = null, imp = null, spent = 0
+      if (tgt.category_id) {
+        const c = catMap[tgt.category_id]
+        label = c?.name ?? '—'; color = c?.color; icon = c?.icon
+        spent = spendingByCategory[tgt.category_id] ?? 0
+      } else if (tgt.subcategory_id) {
+        const c = catMap[tgt.subcategory_id]
+        label = c?.name ?? '—'; color = c?.color; icon = c?.icon
+        spent = spendingBySubcategory[tgt.subcategory_id] ?? 0
+      } else if (tgt.importance) {
+        imp = importanceLevels.find(i => i.value === tgt.importance) ?? null
+        spent = spendingByImportance[tgt.importance] ?? 0
+      } else if (tgt.receiver_id) {
+        label = receiverMap[tgt.receiver_id]?.name ?? '—'
+        spent = spendingByReceiver[tgt.receiver_id] ?? 0
+      }
+      return { key: `tgt-${tgt.id}`, label, color, icon, imp, spent, limit: tgt.target_monthly_spend, projectedEnd: pace(spent) }
+    })
+
+    return [...budgetRows, ...targetRows].sort((a, b) => {
+      const pctA = a.limit > 0 ? a.spent / a.limit : 0
+      const pctB = b.limit > 0 ? b.spent / b.limit : 0
+      return pctB - pctA
+    })
+  }, [budgets, targets, catMap, receiverMap, spendingByCategory, spendingBySubcategory, spendingByImportance, spendingByReceiver, importanceLevels, currentDate])
 
   const overCount = allRows.filter(r => r.spent > r.limit).length
 
@@ -216,18 +252,8 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
           {allRows.length === 0 ? (
             <p className="text-center text-muted text-sm py-6">{t('bw.noBudgets')}</p>
           ) : (
-            <div className="grid grid-cols-3 gap-4">
-              {columns.map(col => (
-                <div key={col.labelKey} className="flex flex-col gap-2">
-                  <span className="text-[10px] text-muted uppercase tracking-widest font-medium">{t(col.labelKey)}</span>
-                  <div className="flex flex-col gap-2">
-                    {col.rows.length === 0
-                      ? <p className="text-[11px] text-white/20 italic">{t('bw.none')}</p>
-                      : col.rows.map(r => <BudgetRow key={r.key} {...r} />)
-                    }
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-col gap-2">
+              {allRows.map(r => <BudgetRow key={r.key} {...r} />)}
             </div>
           )}
           </>)}

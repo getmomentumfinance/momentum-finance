@@ -21,11 +21,11 @@ import BalanceProjection from '../components/dashboard/BalanceProjection'
 import StillToPayCard from '../components/dashboard/StillToPayCard'
 import RecentTransactions from '../components/dashboard/RecentTransactions'
 import BudgetsWidget from '../components/dashboard/BudgetsWidget'
-import TargetsWidget from '../components/dashboard/TargetsWidget'
 import ActionCenter from '../components/dashboard/ActionCenter'
 import FinancialInsights from '../components/dashboard/FinancialInsights'
 import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 
 const BALANCE_TYPES = ['debit', 'credit']
@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [totalSavingsMonth, setTotalSavingsMonth] = useState(0)
   const [totalSavings,      setTotalSavings]      = useState(0)
   const [activityKind,      setActivityKind]      = useState(null)
+  const isMobile = useIsMobile()
 
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
@@ -138,18 +139,18 @@ export default function Dashboard() {
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={prevMonth} onNext={nextMonth} />
 
-      <div id="page-content" className="py-6 px-16">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
         {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">{t('dash.overview', { month: monthLabel })}</h1>
-            <p className="text-muted text-sm mt-1">{dateStr}</p>
+        <div className="flex items-center justify-between mb-5">
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-3xl font-bold truncate">{t('dash.overview', { month: monthLabel })}</h1>
+            <p className="text-muted text-xs md:text-sm mt-0.5 hidden sm:block">{dateStr}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={openTransactionModal} className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium">
-              <Plus size={15} /> {t('dash.addTransaction')}
+          <div className="flex items-center gap-2 shrink-0 ml-3">
+            <button onClick={openTransactionModal} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium">
+              <Plus size={15} /> <span className="hidden sm:inline">{t('dash.addTransaction')}</span>
             </button>
-            <button className="bg-dash-card border border-border flex items-center gap-2 px-4 py-2 rounded-xl text-sm hover:border-accent transition-colors">
+            <button className="hidden sm:flex bg-dash-card border border-border items-center gap-2 px-4 py-2 rounded-xl text-sm hover:border-accent transition-colors">
               <Download size={14} /> {t('dash.exportView')}
             </button>
             <div className="relative" ref={visRef}>
@@ -185,8 +186,8 @@ export default function Dashboard() {
 
         <GetStartedCard />
 
-        {/* Top section */}
-        <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+        {/* Top section — desktop: 6-col grid | mobile: stacked */}
+        {!isMobile && <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
 
           {/* Calendar */}
           <div style={{ gridColumn: '1 / span 2' }} className="h-full">
@@ -222,35 +223,65 @@ export default function Dashboard() {
           {/* Col 6: AccountsList */}
           <AccountsList currentDate={currentDate} />
 
-        </div>
+        </div>}
 
-        {/* Financial Insights + Action Center side by side */}
+        {/* Mobile top section — stat cards in 2-col grid, then accounts */}
+        {isMobile && <div className="flex flex-col gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label={t('dash.totalBalance')} icon={Wallet}      value={totalBalance}      onCardClick={() => setActivityKind('balance')} />
+            <StatCard label={t('dash.income')}        icon={TrendingUp}  value={totalIncome}        onCardClick={() => setActivityKind('income')} />
+            <StatCard label={t('dash.expenses')}      icon={TrendingDown} value={totalExpenses}     onCardClick={() => setActivityKind('expenses')} />
+            <StatCard label={t('dash.cash')}          icon={Banknote}    value={cashBalance}        onCardClick={() => setActivityKind('cash')} />
+            <StatCard label={t('dash.savingsMonth')}  icon={PiggyBank}   value={totalSavingsMonth}  onCardClick={() => setActivityKind('savings-month')} />
+            <StatCard label={t('dash.totalSavings')}  icon={PiggyBank}   value={totalSavings}       onCardClick={() => setActivityKind('total-savings')} />
+          </div>
+          <StillToPayCard currentDate={currentDate} />
+          <AccountsList currentDate={currentDate} />
+          <CalendarWidget
+            currentDate={currentDate}
+            onDayClick={day => {
+              const y = currentDate.getFullYear()
+              const m = String(currentDate.getMonth() + 1).padStart(2, '0')
+              const d = String(day).padStart(2, '0')
+              openTransactionModal({ date: `${y}-${m}-${d}` })
+            }}
+          />
+        </div>}
+
+        {/* Financial Insights + Action Center */}
         {(v('dash-showFinancialInsights') || v('dash-showActionCenter')) && (
         <FadeIn delay={100}>
-        <div className="flex gap-4 items-stretch mb-4" style={{ height: '230px' }}>
-          {v('dash-showFinancialInsights') && (
-            <div className="flex-1 min-w-0 h-full">
-              <FinancialInsights currentDate={currentDate} />
-            </div>
-          )}
-          {v('dash-showActionCenter') && (
-            <div className="shrink-0 h-full" style={{ width: '300px' }}>
-              <ActionCenter currentDate={currentDate} />
-            </div>
-          )}
-        </div>
+        {!isMobile && (
+          <div className="flex gap-4 items-stretch mb-4" style={{ height: '230px' }}>
+            {v('dash-showFinancialInsights') && (
+              <div className="flex-1 min-w-0 h-full">
+                <FinancialInsights currentDate={currentDate} />
+              </div>
+            )}
+            {v('dash-showActionCenter') && (
+              <div className="shrink-0 h-full" style={{ width: '300px' }}>
+                <ActionCenter currentDate={currentDate} />
+              </div>
+            )}
+          </div>
+        )}
+        {isMobile && (
+          <div className="flex flex-col gap-3 mb-4">
+            {v('dash-showFinancialInsights') && <FinancialInsights currentDate={currentDate} />}
+            {v('dash-showActionCenter') && <ActionCenter currentDate={currentDate} />}
+          </div>
+        )}
         </FadeIn>
         )}
 
-        {/* Bottom: fixed 2 columns */}
-        <div className="grid grid-cols-2 gap-4 mt-4 items-start">
+        {/* Bottom: 2 columns on desktop, single column on mobile */}
+        <div className={`grid gap-4 mt-4 items-start ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <div className="flex flex-col gap-4">
             {v('dash-showRecurring')     && <FadeIn delay={0}><RecurringBills currentDate={currentDate} /></FadeIn>}
             {v('dash-showPlanned')       && <FadeIn delay={50}><PlannedBills currentDate={currentDate} /></FadeIn>}
             {v('dash-showSubscriptions') && <FadeIn delay={100}><Subscriptions currentDate={currentDate} /></FadeIn>}
             {v('dash-showSavingsGoals')  && <FadeIn delay={150}><SavingsGoals /></FadeIn>}
             {v('dash-showBudgets')       && <FadeIn delay={200}><BudgetsWidget currentDate={currentDate} /></FadeIn>}
-            {v('dash-showTargets')       && <FadeIn delay={250}><TargetsWidget currentDate={currentDate} /></FadeIn>}
           </div>
           <div className="flex flex-col gap-4">
             {v('dash-showPending')    && <FadeIn delay={50}><PendingTransactions currentDate={currentDate} /></FadeIn>}

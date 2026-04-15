@@ -64,17 +64,22 @@ function IconPickerInline({ value, onChange }) {
 }
 
 function CategorySelect({ value, onChange, options, placeholder = 'None', disabled = false }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [open, setOpen]     = useState(false)
+  const [search, setSearch] = useState('')
+  const ref       = useRef(null)
+  const searchRef = useRef(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) { setSearch(''); return }
     const handler = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
     document.addEventListener('mousedown', handler)
+    setTimeout(() => searchRef.current?.focus(), 0)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
   const selected = options.find(o => o.id === value)
+  const q        = search.trim().toLowerCase()
+  const filtered = q ? options.filter(o => o.name.toLowerCase().includes(q)) : options
 
   return (
     <div ref={ref} className="relative">
@@ -84,15 +89,24 @@ function CategorySelect({ value, onChange, options, placeholder = 'None', disabl
         <ChevronDown size={13} className="ml-auto text-white/25 shrink-0" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl max-h-52 overflow-y-auto scrollbar-thin">
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-            className="w-full px-3 py-2.5 text-left text-sm text-white/25 hover:bg-white/5 transition-colors">None</button>
-          {options.map(opt => (
-            <button key={opt.id} type="button" onClick={() => { onChange(opt.id); setOpen(false) }}
-              className={`w-full flex items-center px-3 py-2 hover:bg-white/5 transition-colors ${value === opt.id ? 'bg-white/8' : ''}`}>
-              <CategoryPill name={opt.name} color={opt.color} icon={opt.icon} />
-            </button>
-          ))}
+        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
+          <div className="px-3 py-2 border-b border-white/[0.06]">
+            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search…" className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
+          </div>
+          <div className="max-h-44 overflow-y-auto scrollbar-thin">
+            {!q && <button type="button" onClick={() => { onChange(''); setOpen(false) }}
+              className="w-full px-3 py-2.5 text-left text-sm text-white/25 hover:bg-white/5 transition-colors">None</button>}
+            {filtered.length === 0
+              ? <p className="text-xs text-white/30 px-3 py-3">No results</p>
+              : filtered.map(opt => (
+                  <button key={opt.id} type="button" onClick={() => { onChange(opt.id); setOpen(false) }}
+                    className={`w-full flex items-center px-3 py-2 hover:bg-white/5 transition-colors ${value === opt.id ? 'bg-white/8' : ''}`}>
+                    <CategoryPill name={opt.name} color={opt.color} icon={opt.icon} />
+                  </button>
+                ))
+            }
+          </div>
         </div>
       )}
     </div>
@@ -173,9 +187,9 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92vh] flex flex-col shadow-2xl">
 
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
           <h2 className="text-base font-semibold text-white">{isEdit ? 'Edit Subscription' : 'Add Subscription'}</h2>

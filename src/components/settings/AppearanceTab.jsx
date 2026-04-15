@@ -54,6 +54,50 @@ function ColorTrigger({ label, description, color, btnRef, onClick, preview }) {
 }
 
 
+const STRICTNESS_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
+function getStrictnessColors() {
+  try { return { ...STRICTNESS_DEFAULTS, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return STRICTNESS_DEFAULTS }
+}
+
+function StrictnessColorRow({ id, label, defaultColor }) {
+  const [color, setColor] = useState(() => getStrictnessColors()[id] ?? defaultColor)
+  const picker = useColorPicker()
+
+  function handleSelect(c) {
+    setColor(c)
+    const next = { ...getStrictnessColors(), [id]: c }
+    localStorage.setItem('limits-strictnessColors', JSON.stringify(next))
+    picker.setOpen(false)
+    showToast(`${label} color updated`)
+  }
+
+  return (
+    <>
+      <ColorTrigger
+        label={label}
+        description=""
+        color={color}
+        btnRef={picker.btnRef}
+        onClick={() => picker.toggle(true)}
+        preview={
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+            style={{ background: `color-mix(in srgb, ${color} 18%, transparent)`, color }}>
+            {label}
+          </span>
+        }
+      />
+      {picker.open && (
+        <ColorPickerPopup
+          popupRef={picker.popupRef}
+          pos={picker.pos}
+          selected={color}
+          onSelect={handleSelect}
+        />
+      )}
+    </>
+  )
+}
+
 function ImportanceFlagRow({ value, label, color, onUpdateColor }) {
   const picker = useColorPicker()
 
@@ -811,8 +855,8 @@ export default function AppearanceTab() {
       </div>
 
 
-      {/* Importance flags + Transaction type colors + Income type colors — side by side */}
-      <div className="pt-8 border-t border-white/10 grid grid-cols-3 gap-8">
+      {/* Importance flags + Transaction type colors + Income type colors + Limit strictness — side by side */}
+      <div className="pt-8 border-t border-white/10 grid grid-cols-4 gap-8">
 
         {/* Importance flags */}
         <div className="flex flex-col gap-4">
@@ -858,6 +902,19 @@ export default function AppearanceTab() {
           <div className="flex flex-col gap-4">
             <TypeColorRow typeValue="income-earned"     label="Earned"     userId={user?.id} />
             <TypeColorRow typeValue="income-not-earned" label="Not earned" userId={user?.id} />
+          </div>
+        </div>
+
+        {/* Limit strictness colors */}
+        <div className="flex flex-col gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-white">Limit strictness</h3>
+            <p className="text-xs text-muted mt-0.5">Colors for the strictness indicator when setting a limit.</p>
+          </div>
+          <div className="flex flex-col gap-4">
+            <StrictnessColorRow id="easy"   label="Easy"   defaultColor={STRICTNESS_DEFAULTS.easy}   />
+            <StrictnessColorRow id="medium" label="Medium" defaultColor={STRICTNESS_DEFAULTS.medium} />
+            <StrictnessColorRow id="strict" label="Strict" defaultColor={STRICTNESS_DEFAULTS.strict} />
           </div>
         </div>
 

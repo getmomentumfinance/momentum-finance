@@ -421,10 +421,10 @@ export default function CalendarPage() {
     : currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-dash-bg text-white">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={prevPeriod} onNext={nextPeriod} />
 
-      <div id="page-content" className="px-16 py-4 flex-1 flex flex-col overflow-hidden">
+      <div id="page-content" className="px-4 md:px-16 py-4 flex-1 flex flex-col md:overflow-hidden pb-20 md:pb-4">
 
         {/* Page header */}
         <div className="flex items-center justify-between mb-4 shrink-0">
@@ -477,10 +477,10 @@ export default function CalendarPage() {
         </div>
 
         {/* Calendar + detail panel */}
-        <div className="flex gap-4 flex-1 overflow-hidden">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden">
 
           {/* Main view */}
-          <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-w-0 flex flex-col md:overflow-hidden">
 
             {/* Period budget bar */}
             {matchingBudget && budgetSpent !== null && (
@@ -598,8 +598,9 @@ export default function CalendarPage() {
 
           {/* Detail panel */}
           {selectedDateStr && (
-            <div className="shrink-0 flex flex-col overflow-hidden" style={{ width: '300px' }}>
-              <div className="glass-card rounded-2xl overflow-hidden flex flex-col h-full">
+            <div className="md:shrink-0 flex flex-col md:overflow-hidden" style={{ width: '100%', maxWidth: '100%' }}>
+            <div className="md:w-[300px] md:mx-0">
+              <div className="glass-card rounded-2xl overflow-hidden flex flex-col md:h-full">
 
                 {/* Panel header */}
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-start justify-between gap-2">
@@ -736,6 +737,7 @@ export default function CalendarPage() {
                   </>
                 )}
               </div>
+            </div>
             </div>
           )}
         </div>

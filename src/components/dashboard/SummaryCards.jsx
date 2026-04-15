@@ -42,7 +42,7 @@ export function StatCard({ label, icon: Icon, value = 0, gradient = false, onCar
             <Icon size={14} />
           </button>
         </div>
-        <span className="relative z-10 text-2xl font-bold">{fmt(animatedValue)}</span>
+        <span className="relative z-10 text-lg md:text-2xl font-bold">{fmt(animatedValue)}</span>
       </div>
 
       {c.open && (

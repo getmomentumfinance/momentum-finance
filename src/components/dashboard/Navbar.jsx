@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download } from 'lucide-react'
+import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import ProfileModal from './ProfileModal'
 import NotificationBell from './NotificationBell'
 import { exportPageAsPng } from '../../lib/exportPage'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 export default function Navbar({ currentDate, onPrev, onNext }) {
   const monthLabel = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -23,7 +24,13 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
   ]
   const { pathname } = useLocation()
   const [showProfile, setShowProfile] = useState(false)
-  const [exporting, setExporting] = useState(false)
+  const [exporting, setExporting]     = useState(false)
+  const [moreOpen, setMoreOpen]       = useState(false)
+  const isMobile                      = useIsMobile()
+
+  // On mobile show 4 primary tabs + "more" overflow
+  const primaryNav = navItems.slice(0, 4)
+  const overflowNav = navItems.slice(4)
 
   const pageName = navItems.find(n => n.path === pathname)?.label?.toLowerCase() ?? 'page'
 
@@ -42,8 +49,8 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 drag-region">
-        {/* Blur layer: extends 2rem below the nav and fades out via mask */}
+      {/* ── Desktop navbar ── */}
+      {!isMobile && <nav className="sticky top-0 z-50 drag-region">
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -55,11 +62,7 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
             maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
           }}
         />
-
-        {/* Nav content sits above the blur layer */}
         <div className="relative flex items-center justify-between py-3 no-drag" style={{ paddingLeft: '80px', paddingRight: '24px' }}>
-
-          {/* Left: navigation icons */}
           <div className="flex items-center gap-1">
             {navItems.map(({ icon: Icon, label, path }) => {
               const active = pathname === path
@@ -85,7 +88,6 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
             })}
           </div>
 
-          {/* Right: month nav + utility icons */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm">
               <button onClick={onPrev} className="text-muted hover:text-white transition-colors p-1">
@@ -126,7 +128,89 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
             </div>
           </div>
         </div>
-      </nav>
+      </nav>}
+
+      {/* ── Mobile top bar ── */}
+      {isMobile && <div className="sticky top-0 z-50 flex items-center justify-between px-4 py-2.5"
+        style={{ backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', background: 'var(--color-nav-blur)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        {/* App name / current page */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/10"
+          >
+            {avatarUrl
+              ? <img src={avatarUrl} alt="profile" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-white/10 flex items-center justify-center text-white text-[10px] font-bold">{initials}</div>
+            }
+          </button>
+          <div className="flex items-center gap-1.5 bg-white/[0.06] rounded-lg px-2.5 py-1">
+            <button onClick={onPrev} className="text-white/40 active:text-white transition-colors">
+              <ChevronLeft size={13} />
+            </button>
+            <span className="text-xs font-medium text-white/80 w-24 text-center">{monthLabel}</span>
+            <button onClick={onNext} className="text-white/40 active:text-white transition-colors">
+              <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <NotificationBell currentDate={currentDate} />
+          <Link to="/settings"
+            className={`p-2 transition-colors ${pathname === '/settings' ? 'text-accent' : 'text-white/40'}`}>
+            <Settings size={17} />
+          </Link>
+        </div>
+      </div>}
+
+      {/* ── Mobile bottom tab bar ── */}
+      {isMobile && <nav className="fixed bottom-0 left-0 right-0 z-50"
+        style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', background: 'var(--color-nav-blur)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-around px-1 pt-2 pb-[max(env(safe-area-inset-bottom),8px)]">
+          {primaryNav.map(({ icon: Icon, label, path }) => {
+            const active = pathname === path
+            return (
+              <Link key={path} to={path}
+                className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-colors min-w-0 flex-1 ${active ? 'text-accent' : 'text-white/40'}`}>
+                <Icon size={22} strokeWidth={active ? 2.5 : 1.8} />
+                <span className="text-[9px] font-medium truncate">{label}</span>
+              </Link>
+            )
+          })}
+
+          {/* More menu */}
+          <div className="relative flex-1">
+            <button
+              onClick={() => setMoreOpen(v => !v)}
+              className={`w-full flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-colors ${overflowNav.some(n => n.path === pathname) || pathname === '/calendar' ? 'text-accent' : 'text-white/40'}`}>
+              <MoreHorizontal size={22} strokeWidth={1.8} />
+              <span className="text-[9px] font-medium">More</span>
+            </button>
+            {moreOpen && (
+              <div className="absolute bottom-full right-0 mb-2 glass-popup border border-white/10 rounded-2xl p-2 shadow-xl min-w-[160px]"
+                onClick={() => setMoreOpen(false)}>
+                {overflowNav.map(({ icon: Icon, label, path }) => {
+                  const active = pathname === path
+                  return (
+                    <Link key={path} to={path}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${active ? 'text-accent bg-white/5' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
+                      <Icon size={16} />
+                      <span className="text-sm font-medium">{label}</span>
+                    </Link>
+                  )
+                })}
+                <div className="border-t border-white/[0.06] mt-1 pt-1">
+                  <Link to="/calendar"
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${pathname === '/calendar' ? 'text-accent bg-white/5' : 'text-white/70 hover:text-white hover:bg-white/5'}`}>
+                    <Calendar size={16} />
+                    <span className="text-sm font-medium">Calendar</span>
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>}
 
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </>

@@ -427,14 +427,14 @@ export default function Savings() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-16">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">{t('sav.title')}</h1>
           <p className="text-muted text-sm mt-1">{monthLabel}</p>
         </div>
 
-        {/* Top section: 5-col grid, 2 rows — stats / [flow ×4] [recent activity] */}
-        <div className="mb-4" style={{ display: 'grid', gridTemplateColumns: '1fr 160px 160px 1fr 1fr', gap: '12px', alignItems: 'stretch' }}>
+        {/* Top section: 5-col grid on desktop, stacked on mobile */}
+        <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
 
           {/* Hero balance card */}
           <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">

@@ -267,7 +267,7 @@ export default function Transactions() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-16">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
         <h1 className="text-3xl font-bold mb-1">{t('tx.title')}</h1>
         <p className="text-muted text-sm mb-6">{dateStr}</p>
 
@@ -353,8 +353,8 @@ export default function Transactions() {
               </button>
             )}
 
-            {/* Importance legend */}
-            <div className="flex items-center gap-3 ml-auto">
+            {/* Importance legend — desktop only */}
+            <div className="hidden md:flex items-center gap-3 ml-auto">
               {importance.map(imp => (
                 <span key={imp.value} className="flex items-center gap-1">
                   <span className="flex items-center gap-[3px]">
@@ -368,8 +368,66 @@ export default function Transactions() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-white/[0.04]">
+            {loading ? (
+              <p className="text-center py-12 text-muted text-xs">{t('common.loading')}</p>
+            ) : displayRows.length === 0 ? (
+              <p className="text-center py-12 text-muted text-xs">{hasFilters ? t('tx.noMatch') : t('tx.noTx')}</p>
+            ) : displayRows.map(row => {
+              const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
+              const impValue = row.category?.importance ?? row.subcategory?.importance ?? null
+              const imp = impValue ? impMap[impValue] : null
+              const isChild  = !!row.split_parent_id
+              const isParent = !!row.is_split_parent
+              return (
+                <div key={row.id} className={`flex items-center gap-3 px-4 py-3 ${isChild ? 'bg-white/[0.01] pl-8' : ''}`}>
+                  {isChild && <span className="text-white/20 text-xs shrink-0">↳</span>}
+                  {row.type === 'transfer' || row.type === 'savings' || row.type === 'cash_out' || row.type === 'invest'
+                    ? <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center shrink-0" style={{ color: typeInfo.color }}>
+                        {typeInfo.Icon ? <typeInfo.Icon size={14} /> : <PiggyBank size={14} />}
+                      </div>
+                    : <ReceiverAvatar receiver={row.receiver} />
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white/90 truncate">
+                      {row.description || <span className="text-white/30 italic">—</span>}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[11px] text-white/35">
+                        {new Date(row.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                      {row.category && <CategoryPill name={row.category.name} color={row.category.color} icon={row.category.icon} />}
+                      {imp && (
+                        <span className="flex items-center gap-[2px]">
+                          {Array.from({ length: 4 }).map((_, i) => (
+                            <span key={i} className="w-1 h-1 rounded-full" style={{ background: i < imp.dots ? imp.color : imp.color + '30' }} />
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-sm font-semibold tabular-nums" style={{ color: isParent ? 'rgba(255,255,255,0.2)' : amountColor(row.type, row.source) }}>
+                      {isParent ? <span className="line-through">{amountSign(row.type, row.source)}{fmt(row.amount)}</span>
+                        : <>{amountSign(row.type, row.source)}{fmt(row.amount)}</>}
+                    </span>
+                    {!isChild && (
+                      <button onClick={() => setEditingTx(row)} className="p-1.5 rounded-lg text-white/25 hover:text-white transition-colors">
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                    <button onClick={() => handleDelete(row.id)} className="p-1.5 rounded-lg text-white/25 hover:text-red-400 transition-colors">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="text-sm border-collapse" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
               <thead>
                 <tr className="border-b border-white/[0.04] text-[11px] uppercase tracking-widest text-muted">

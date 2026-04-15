@@ -52,6 +52,26 @@ function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter
   )
 }
 
+function toLocalStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+function getPeriodBounds(period, refDate, resetDay) {
+  const y = refDate.getFullYear(), m = refDate.getMonth()
+  if (period === 'weekly') {
+    const startJsDow = ((resetDay ?? 0) + 1) % 7
+    const diff = (refDate.getDay() - startJsDow + 7) % 7
+    const start = new Date(refDate); start.setDate(refDate.getDate() - diff); start.setHours(0,0,0,0)
+    const end = new Date(start); end.setDate(start.getDate() + 6)
+    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
+  }
+  const rd = resetDay ?? 1
+  let sy = y, sm = m
+  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
+  const end = new Date(new Date(sy, sm + 1, rd).getTime() - 86400000)
+  return { startStr: toLocalStr(new Date(sy, sm, rd)), endStr: toLocalStr(end) }
+}
+
 const RANGE_IDS = ['week', 'month', '3m', 'year', 'all', 'compare', 'tree']
 const RANGE_KEYS = { week: 'an.rangeWeek', month: 'an.rangeMonth', '3m': 'an.range3m', year: 'an.rangeYear', all: 'an.rangeAll', compare: 'an.rangeCompare', tree: 'an.rangeTree' }
 
@@ -498,25 +518,120 @@ export default function Analytics() {
   const getMerchantColor = name => receiverColorMap[name] ?? merchantPalette[hashStr(name || '') % merchantPalette.length]
 
   const [budgets, setBudgets] = useState([])
+  const [targets, setTargets] = useState([])
   useEffect(() => {
     if (!user?.id) return
-    supabase.from('budgets').select('id, monthly_limit, period, reset_day, category_id, subcategory_id, importance, card_id')
-      .eq('user_id', user.id).then(({ data }) => { if (data) setBudgets(data) })
+    function loadBudgets() {
+      supabase.from('budgets').select('id, name, monthly_limit, period, reset_day, category_id, subcategory_id, importance, card_id')
+        .eq('user_id', user.id).then(({ data }) => { if (data) setBudgets(data) })
+      supabase.from('targets').select('*')
+        .eq('user_id', user.id).then(({ data }) => { if (data) setTargets(data) })
+    }
+    loadBudgets()
+    window.addEventListener('transaction-saved', loadBudgets)
+    return () => window.removeEventListener('transaction-saved', loadBudgets)
   }, [user?.id])
 
   // Fetch category importance directly, falling back to parent category if subcategory has none
   const [catImportance, setCatImportance] = useState({})
   useEffect(() => {
     if (!user?.id) return
-    supabase
-      .from('categories')
-      .select('id, importance')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        if (!data) return
-        setCatImportance(Object.fromEntries(data.map(c => [c.id, c.importance])))
-      })
+    function loadCatImportance() {
+      supabase
+        .from('categories')
+        .select('id, importance')
+        .eq('user_id', user.id)
+        .then(({ data }) => {
+          if (!data) return
+          setCatImportance(Object.fromEntries(data.map(c => [c.id, c.importance])))
+        })
+    }
+    loadCatImportance()
+    window.addEventListener('transaction-saved', loadCatImportance)
+    return () => window.removeEventListener('transaction-saved', loadCatImportance)
   }, [user?.id])
+
+  const [periodPerfTab, setPeriodPerfTab] = useState('limits')
+
+  // ── Budget & target performance for this period ───────────────
+  const periodBudgetStats = useMemo(() => {
+    const periodMap = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }
+    const matchPeriod = periodMap[range]
+    if (!matchPeriod) return []
+    return budgets
+      .filter(b => (b.period ?? 'monthly') === matchPeriod)
+      .map(b => {
+        const { startStr, endStr } = getPeriodBounds(matchPeriod, currentDate, b.reset_day)
+        const spent = transactions
+          .filter(t =>
+            !t.is_split_parent && t.type === 'expense' &&
+            t.date >= startStr && t.date <= endStr &&
+            (!b.card_id || t.card_id === b.card_id) &&
+            (b.category_id    ? t.category_id    === b.category_id
+           : b.subcategory_id ? t.subcategory_id === b.subcategory_id
+           : b.importance     ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === b.importance
+                              : true)
+          )
+          .reduce((s, t) => s + Number(t.amount), 0)
+        const pct = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
+        return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, limit: b.monthly_limit, spent, pct, isOver: spent > b.monthly_limit }
+      })
+      .sort((a, b) => b.pct - a.pct)
+  }, [range, budgets, transactions, currentDate, catImportance])
+
+  const periodTargetStats = useMemo(() => {
+    const periodMap = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }
+    const matchPeriod = periodMap[range]
+    if (!matchPeriod) return []
+    return targets
+      .filter(tgt => (tgt.period ?? 'monthly') === matchPeriod)
+      .map(tgt => {
+        const { startStr, endStr } = getPeriodBounds(matchPeriod, currentDate, tgt.reset_day)
+        const spent = transactions
+          .filter(t =>
+            !t.is_split_parent && t.type === 'expense' &&
+            t.date >= startStr && t.date <= endStr &&
+            (tgt.category_id    ? t.category_id    === tgt.category_id
+           : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
+           : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
+           : tgt.importance    ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === tgt.importance
+                               : false)
+          )
+          .reduce((s, t) => s + Number(t.amount), 0)
+        const pct = tgt.target_monthly_spend > 0 ? (spent / tgt.target_monthly_spend) * 100 : 0
+        return { id: tgt.id, category_id: tgt.category_id, subcategory_id: tgt.subcategory_id, importance: tgt.importance, receiver_id: tgt.receiver_id, target: tgt.target_monthly_spend, spent, pct, isOver: spent > tgt.target_monthly_spend }
+      })
+      .sort((a, b) => b.pct - a.pct)
+  }, [range, targets, transactions, currentDate, catImportance])
+
+  // ── Goal sparklines: 6-month per-target history ───────────────
+  const goalSparklines = useMemo(() => {
+    const result = {}
+    for (const tgt of targets) {
+      const pts = []
+      for (let mo = 5; mo >= 0; mo--) {
+        const d       = new Date(currentDate.getFullYear(), currentDate.getMonth() - mo, 1)
+        const start   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+        const endD    = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+        const end     = `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, '0')}-${String(endD.getDate()).padStart(2, '0')}`
+        const label   = d.toLocaleDateString('en-US', { month: 'short' })
+        const spend   = transactions
+          .filter(t =>
+            !t.is_split_parent && t.type === 'expense' &&
+            t.date >= start && t.date <= end &&
+            (tgt.category_id    ? t.category_id    === tgt.category_id
+           : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
+           : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
+           : tgt.importance    ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === tgt.importance
+                               : false)
+          )
+          .reduce((s, t) => s + Number(t.amount), 0)
+        pts.push({ label, spend, isCurrent: mo === 0 })
+      }
+      result[tgt.id] = pts
+    }
+    return result
+  }, [targets, transactions, currentDate, catImportance])
 
   // ── Filter by period ─────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -525,9 +640,10 @@ export default function Analytics() {
     if (range === 'week') {
       const mon = new Date(currentDate)
       mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7))
-      mon.setHours(0, 0, 0, 0)
-      const monStr = mon.toISOString().slice(0, 10)
-      const sunStr = new Date(mon.getTime() + 6 * 86400000).toISOString().slice(0, 10)
+      const pad = n => String(n).padStart(2, '0')
+      const monStr = `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+      const sunStr = `${sun.getFullYear()}-${pad(sun.getMonth() + 1)}-${pad(sun.getDate())}`
       return transactions.filter(t => t.date >= monStr && t.date <= sunStr)
     }
     return transactions.filter(t => {
@@ -1629,15 +1745,15 @@ export default function Analytics() {
         }}
       />
 
-      <div id="page-content" className="py-6 px-16">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
 
         {/* Title + range tabs */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">{t('an.title')}</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">{t('an.title')}</h1>
             <p className="text-muted text-sm mt-1">{periodLabel}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
               {RANGE_IDS.map(id => (
                 <button
@@ -1727,7 +1843,7 @@ export default function Analytics() {
                   </p>
 
                   {/* Per-week amounts: 4-column grid, one card per dimension */}
-                  <div className="grid grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {WEEK_BREAK_DIM_IDS.map(dim => (
                       <WeekBreakCard
                         key={dim}
@@ -1968,7 +2084,7 @@ export default function Analytics() {
               </div>
 
               {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} />
                 <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} />
                 <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
@@ -2050,7 +2166,7 @@ export default function Analytics() {
         <div className="flex flex-col gap-5">
 
         {/* ── Donut row — week and month only ── */}
-        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-4 gap-5">
+        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
           <DonutPanel title={t('an.byCategory')}    data={categoryData}    />
           <DonutPanel title={t('an.bySubcategory')} data={subcategoryData} />
           <DonutPanel title={t('an.byImportance')}  data={importanceData}  />
@@ -2058,10 +2174,10 @@ export default function Analytics() {
         </div>}
 
             {/* Daily/Monthly breakdown + per-type stats side by side */}
-            <div className="flex gap-3 items-stretch" style={{ height: 340 }}>
+            <div className="flex flex-col md:flex-row gap-3 md:items-stretch" style={{ minHeight: 0 }}>
 
               {/* Line chart */}
-              <div className="glass-card rounded-2xl p-5 flex flex-col flex-1">
+              <div className="glass-card rounded-2xl p-5 flex flex-col flex-1" style={{ minHeight: 260 }}>
               <h2 className="text-sm font-semibold mb-0.5">{range === 'month' || range === 'week' ? t('an.dailyBreakdown') : t('an.monthlyBreakdown')}</h2>
               <p className="text-[11px] text-muted mb-4">{periodLabel} · {t('an.incomeVsExp')}</p>
               <div className="flex-1 min-h-0">
@@ -2093,7 +2209,7 @@ export default function Analytics() {
               </div>
 
               {/* Per-type stat cards */}
-              <div className="grid grid-cols-2 grid-rows-3 gap-2 w-72 shrink-0 h-full">
+              <div className="grid grid-cols-3 md:grid-cols-2 gap-2 md:w-72 md:shrink-0">
                 {TRANSACTION_TYPES.map(({ value: type, label, color }) => {
                   const total = typeTotals[type] || 0
                   return (
@@ -2108,6 +2224,151 @@ export default function Analytics() {
             </div>
 
 
+
+            {/* ── Budget & Target performance panel ── */}
+            {(range === 'week' || range === 'month') && (periodBudgetStats.length > 0 || periodTargetStats.length > 0) && (() => {
+              const effectiveTab = periodBudgetStats.length === 0 ? 'goals' : periodTargetStats.length === 0 ? 'limits' : periodPerfTab
+              const items = effectiveTab === 'limits' ? periodBudgetStats : periodTargetStats
+              return (
+                <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-sm font-semibold">Period Performance</h2>
+                      <p className="text-[11px] text-muted mt-0.5">{periodLabel}</p>
+                    </div>
+                    {periodBudgetStats.length > 0 && periodTargetStats.length > 0 && (
+                      <div className="flex bg-white/5 rounded-lg p-0.5 gap-0.5">
+                        {[['limits', 'Budgets'], ['goals', 'Targets']].map(([v, l]) => (
+                          <button key={v} onClick={() => setPeriodPerfTab(v)}
+                            className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${
+                              effectiveTab === v ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/60'
+                            }`}>
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {effectiveTab === 'limits' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {items.map(item => {
+                        let label = '', color = FALLBACK_COLORS[0]
+                        if (item.category_id || item.subcategory_id) {
+                          const cat = categoryMap[item.category_id ?? item.subcategory_id]
+                          label = cat?.name ?? '—'
+                          color = midColor(cat?.color) ?? FALLBACK_COLORS[0]
+                        } else if (item.importance) {
+                          const imp = importanceWithColors.find(i => i.value === item.importance)
+                          label = imp?.label ?? item.importance
+                          color = imp?.color ?? FALLBACK_COLORS[0]
+                        } else {
+                          label = item.name ?? 'Limit'
+                          color = colors.accent ?? FALLBACK_COLORS[0]
+                        }
+                        const pctClamped = Math.min(item.pct, 100)
+                        const barColor   = item.isOver ? 'var(--color-alert)' : item.pct >= 80 ? 'var(--color-warning)' : 'var(--color-progress-bar)'
+                        return (
+                          <div key={item.id} className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                                <span className="text-xs font-medium text-white/80 truncate">{label}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full"
+                                style={{ background: `color-mix(in srgb, ${barColor} 15%, transparent)`, color: barColor }}>
+                                {Math.round(item.pct)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${pctClamped}%`, background: barColor }} />
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] tabular-nums">
+                              <span style={{ color: item.isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.35)' }}>
+                                {item.isOver ? `+${fmt(item.spent - item.limit)} over` : `${fmt(item.limit - item.spent)} left`}
+                              </span>
+                              <span className="text-white/30">{fmt(item.spent)} / {fmt(item.limit)}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {effectiveTab === 'goals' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {items.map(item => {
+                        let label = '', color = FALLBACK_COLORS[0]
+                        if (item.category_id || item.subcategory_id) {
+                          const cat = categoryMap[item.category_id ?? item.subcategory_id]
+                          label = cat?.name ?? '—'; color = midColor(cat?.color) ?? FALLBACK_COLORS[0]
+                        } else if (item.receiver_id) {
+                          label = receiverMap[item.receiver_id]?.name ?? 'Merchant'; color = colors.accent ?? FALLBACK_COLORS[0]
+                        } else if (item.importance) {
+                          const imp = importanceWithColors.find(i => i.value === item.importance)
+                          label = imp?.label ?? item.importance; color = imp?.color ?? FALLBACK_COLORS[0]
+                        } else { label = 'Goal'; color = colors.accent ?? FALLBACK_COLORS[0] }
+                        const barColor = item.isOver ? 'var(--color-alert)' : item.pct >= 80 ? 'var(--color-warning)' : 'var(--color-progress-bar)'
+                        const pts = goalSparklines[item.id] ?? []
+                        const chartMax = Math.max(...pts.map(p => p.spend), item.target) * 1.15 || 1
+                        const W = 220, H = 44, PL = 2, PR = 2, PT = 4, PB = 12
+                        const iW = W - PL - PR, iH = H - PT - PB
+                        const xOf = i => PL + (pts.length > 1 ? (i / (pts.length - 1)) * iW : iW / 2)
+                        const yOf = v => PT + (1 - Math.min(v, chartMax) / chartMax) * iH
+                        const tY = yOf(item.target)
+                        const linePts = pts.map((p, i) => ({ x: xOf(i), y: yOf(p.spend), ...p }))
+                        const linePath = linePts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
+                        const areaPath = linePts.length > 1
+                          ? `${linePts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} L${linePts.at(-1).x.toFixed(1)},${(PT + iH).toFixed(1)} L${linePts[0].x.toFixed(1)},${(PT + iH).toFixed(1)} Z`
+                          : ''
+                        const gradId = `ag-${item.id}`
+                        return (
+                          <div key={item.id} className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                                <span className="text-xs font-medium text-white/80 truncate">{label}</span>
+                              </div>
+                              <span className="text-[10px] font-semibold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full"
+                                style={{ background: `color-mix(in srgb, ${barColor} 15%, transparent)`, color: barColor }}>
+                                {Math.round(item.pct)}%
+                              </span>
+                            </div>
+                            {pts.length > 0 && (
+                              <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 44 }}>
+                                <defs>
+                                  <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="var(--color-progress-bar)" stopOpacity="0.18" />
+                                    <stop offset="100%" stopColor="var(--color-progress-bar)" stopOpacity="0" />
+                                  </linearGradient>
+                                </defs>
+                                {areaPath && <path d={areaPath} fill={`url(#${gradId})`} />}
+                                <line x1={PL} y1={tY} x2={W - PR} y2={tY} stroke="rgba(255,255,255,0.18)" strokeWidth="1" strokeDasharray="3 2" />
+                                {linePath && <path d={linePath} fill="none" stroke="var(--color-progress-bar)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />}
+                                {linePts.map((p, i) => (
+                                  <circle key={i} cx={p.x} cy={p.y} r={p.isCurrent ? 3 : 2}
+                                    fill={p.spend > item.target ? 'var(--color-alert)' : 'var(--color-progress-bar)'}
+                                    opacity={p.isCurrent ? 1 : 0.5} />
+                                ))}
+                                {linePts.map((p, i) => (i === 0 || p.isCurrent) && (
+                                  <text key={`l-${i}`} x={p.x} y={H - 2} textAnchor="middle" fontSize="7" fill={p.isCurrent ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}>{p.label}</text>
+                                ))}
+                              </svg>
+                            )}
+                            <div className="flex items-center justify-between text-[10px] tabular-nums">
+                              <span style={{ color: item.isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.35)' }}>
+                                {item.isOver ? `+${fmt(item.spent - item.target)} over` : `${fmt(item.target - item.spent)} left`}
+                              </span>
+                              <span className="text-white/30">{fmt(item.spent)} / {fmt(item.target)}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Projected spend + Financial Insights side by side */}
             {(showProjected || showInsights) && <div className="flex gap-5 items-stretch">

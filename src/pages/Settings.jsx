@@ -465,34 +465,34 @@ export default function Settings() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-dash-bg text-white overflow-hidden">
+    <div className="min-h-screen md:h-screen flex flex-col bg-dash-bg text-white md:overflow-hidden">
       <Navbar currentDate={currentDate} onPrev={() => {}} onNext={() => {}} />
 
-      <div className="flex-1 flex flex-col overflow-hidden py-6 px-16">
-        <h1 className="text-3xl font-bold mb-6">{t('set.title')}</h1>
+      <div className="flex-1 flex flex-col md:overflow-hidden py-6 px-4 md:px-16 pb-24 md:pb-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-6">{t('set.title')}</h1>
 
-        {/* Tab bar */}
-        <div className="flex items-center gap-1 mb-8 shrink-0">
+        {/* Tab bar — scrollable on mobile */}
+        <div className="flex items-center gap-1 mb-6 shrink-0 overflow-x-auto scrollbar-none pb-1">
           {TABS.map(({ id, label, icon: Icon }) => {
             const active = activeTab === id
             return (
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap shrink-0
                   ${active
                     ? 'bg-white/10 text-white'
                     : 'text-muted hover:text-white hover:bg-white/5'}`}
               >
                 <Icon size={15} />
-                {label}
+                <span className="hidden sm:inline">{label}</span>
               </button>
             )
           })}
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 md:min-h-0 md:overflow-hidden">
           {TAB_CONTENT[activeTab] ?? TAB_CONTENT['account']}
         </div>
       </div>

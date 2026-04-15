@@ -46,8 +46,9 @@ export default function BalanceProjection({ currentDate = new Date() }) {
   async function load() {
     const y = currentDate.getFullYear()
     const m = currentDate.getMonth()
-    const monthStart = new Date(y, m, 1).toISOString().slice(0, 10)
-    const monthEnd   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+    const pad = n => String(n).padStart(2, '0')
+    const monthStart = `${y}-${pad(m + 1)}-01`
+    const monthEnd   = `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`
 
     // ── Recurring bills ───────────────────────────────────────────
     const { data: bills } = await supabase
