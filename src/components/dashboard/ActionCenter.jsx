@@ -20,12 +20,28 @@ export default function ActionCenter({ currentDate = new Date() }) {
   const [dismissed,  setDismissed] = useState(new Set())
   const [resolving,  setResolving] = useState(new Set())
 
+  // Load dismissed keys from Supabase (falls back to localStorage if column missing)
   useEffect(() => {
     if (!user?.id) return
-    try {
-      const saved = JSON.parse(localStorage.getItem(`dismissed-notifs-${user.id}`)) ?? []
-      setDismissed(new Set(saved))
-    } catch {}
+    async function loadDismissed() {
+      try {
+        const { data, error } = await supabase
+          .from('user_preferences')
+          .select('dismissed_notifications')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (!error && data?.dismissed_notifications?.length) {
+          setDismissed(new Set(data.dismissed_notifications))
+          return
+        }
+      } catch {}
+      // Fallback: localStorage
+      try {
+        const saved = JSON.parse(localStorage.getItem(`dismissed-notifs-${user.id}`)) ?? []
+        setDismissed(new Set(saved))
+      } catch {}
+    }
+    loadDismissed()
   }, [user?.id])
 
   function stableKey(item) { return `${item.type}-${item.recordId}` }
@@ -46,7 +62,14 @@ export default function ActionCenter({ currentDate = new Date() }) {
     e.stopPropagation()
     setDismissed(prev => {
       const next = new Set([...prev, stableKey(item)])
-      if (user?.id) localStorage.setItem(`dismissed-notifs-${user.id}`, JSON.stringify([...next]))
+      const arr  = [...next]
+      if (user?.id) {
+        // Persist to Supabase (cross-browser) and localStorage (fallback)
+        supabase.from('user_preferences')
+          .upsert({ user_id: user.id, dismissed_notifications: arr }, { onConflict: 'user_id' })
+          .then() // fire-and-forget
+        localStorage.setItem(`dismissed-notifs-${user.id}`, JSON.stringify(arr))
+      }
       return next
     })
   }
