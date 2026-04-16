@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, Fragment } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Zap } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -1613,6 +1614,9 @@ export default function Budgets() {
   const [modal,         setModal]         = useState(null)
   const [modalDefDim,   setModalDefDim]   = useState('category')
   const [modalDefId,    setModalDefId]    = useState(null)
+  const [modalDefLimit, setModalDefLimit] = useState(0)
+  const [modalDefName,  setModalDefName]  = useState('')
+  const [searchParams, setSearchParams]  = useSearchParams()
   const [infoFilter,    setInfoFilter]    = useState(null)
   const [editTarget,    setEditTarget]    = useState(null)
   const [historyTarget, setHistoryTarget] = useState(null)
@@ -1645,6 +1649,20 @@ export default function Budgets() {
     const { data, error } = await supabase.from('targets').select('*').eq('user_id', user.id)
     if (!error) setTargets(data ?? [])
   }
+
+  // Auto-open budget modal from URL params (e.g. from Financial Situation tab)
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return
+    const name  = searchParams.get('name')  ?? ''
+    const limit = parseFloat(searchParams.get('limit')) || 0
+    const dim   = searchParams.get('dim')   ?? 'all'
+    setModalDefName(name)
+    setModalDefLimit(limit)
+    setModalDefDim(dim)
+    setModalDefId(null)
+    setModal('new')
+    setSearchParams({}, { replace: true })
+  }, [searchParams])
 
   // Year-scoped data (re-fetches when currentDate's year changes)
   useEffect(() => {
@@ -2297,6 +2315,8 @@ export default function Budgets() {
           categories={categories}
           defaultDimension={modal === 'new' ? modalDefDim : undefined}
           defaultId={modal === 'new' ? modalDefId : undefined}
+          defaultLimit={modal === 'new' ? modalDefLimit : undefined}
+          defaultName={modal === 'new' ? modalDefName : undefined}
           avgByCategory={avgByCategory}
           avgBySubcategory={avgBySubcategory}
           avgByImportance={avgByImportance}

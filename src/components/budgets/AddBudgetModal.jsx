@@ -88,6 +88,8 @@ export default function AddBudgetModal({
   categories,
   defaultDimension,
   defaultId,
+  defaultLimit = 0,
+  defaultName = '',
   avgByCategory = {},
   avgBySubcategory = {},
   avgByImportance = {},
@@ -100,7 +102,7 @@ export default function AddBudgetModal({
   const { fmt, fmtK } = usePreferences()
   const { importance: importanceLevels } = useImportance()
 
-  const [name,             setName]             = useState(budget?.name ?? '')
+  const [name,             setName]             = useState(budget?.name ?? defaultName)
   const [dimension,        setDimension]        = useState(
     budget?.receiver_id    ? 'merchant'    :
     budget?.importance     ? 'importance'  :
@@ -113,7 +115,7 @@ export default function AddBudgetModal({
   const [subcategoryId,    setSubcategoryId]    = useState(budget?.subcategory_id ?? (defaultDimension === 'subcategory' ? defaultId : '') ?? '')
   const [importance,       setImportance]       = useState(budget?.importance     ?? (defaultDimension === 'importance'  ? defaultId : '') ?? '')
   const [receiverId,       setReceiverId]       = useState(budget?.receiver_id    ?? (defaultDimension === 'merchant'    ? defaultId : '') ?? '')
-  const [limit,            setLimit]            = useState(budget?.monthly_limit  ?? 0)
+  const [limit,            setLimit]            = useState(budget?.monthly_limit  ?? defaultLimit)
   const [period,           setPeriod]           = useState(budget?.period         ?? 'monthly')
   const [resetDay,         setResetDay]         = useState(budget?.reset_day      ?? null)
   const [rolloverBehavior, setRolloverBehavior] = useState(budget?.rollover_behavior ?? 'expire')

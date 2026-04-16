@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
@@ -31,12 +32,12 @@ function calcBudget(income, rent) {
 
   // Tips
   const tips = []
-  if (savings >= income * 0.20) tips.push({ icon: '💰', text: `Save ${Math.round(savings / income * 100)}% of income — you're on track for financial independence.` })
-  else tips.push({ icon: '⚠️', text: 'Try to save at least 20% of your income each month.' })
-  tips.push({ icon: '🛒', text: `Budget ~€${needs} for essentials like groceries, transport and utilities.` })
-  tips.push({ icon: '🎉', text: `Keep wants (dining, fun, shopping) to ~€${wants}/mo to stay on plan.` })
-  if (rentPct > 0.35) tips.push({ icon: '🏠', text: 'Your rent is above 35% of income. Consider ways to increase income or reduce fixed costs.' })
-  if (remaining > 0 && wants > 0) tips.push({ icon: '📈', text: `If you invest your savings at a 7% annual return, you'd have €${Math.round(savings * 12 * 10 * 1.967).toLocaleString()} after 10 years.` })
+  if (savings >= income * 0.20) tips.push({ icon: '●', text: `Save ${Math.round(savings / income * 100)}% of income — you're on track for financial independence.` })
+  else tips.push({ icon: '!', text: 'Try to save at least 20% of your income each month.' })
+  tips.push({ icon: '●', text: `Budget ~€${needs} for essentials like groceries, transport and utilities.` })
+  tips.push({ icon: '●', text: `Keep wants (dining, fun, shopping) to ~€${wants}/mo to stay on plan.` })
+  if (rentPct > 0.35) tips.push({ icon: '!', text: 'Your rent is above 35% of income. Consider ways to increase income or reduce fixed costs.' })
+  if (remaining > 0 && wants > 0) tips.push({ icon: '●', text: `If you invest your savings at a 7% annual return, you'd have €${Math.round(savings * 12 * 10 * 1.967).toLocaleString()} after 10 years.` })
 
   return { slices, rentStatus, rentColor, rentPct, savings, needs, wants, remaining, tips }
 }
@@ -44,6 +45,7 @@ function calcBudget(income, rent) {
 export default function FinancialSituationTab() {
   const { user } = useAuth()
   const { fmt }  = usePreferences()
+  const navigate = useNavigate()
 
   const [income, setIncome] = useState('')
   const [rent,   setRent]   = useState('')
@@ -152,11 +154,47 @@ export default function FinancialSituationTab() {
           <div className="flex flex-col gap-2">
             {budget.tips.map((tip, i) => (
               <div key={i} className="flex items-start gap-3 glass-card rounded-xl px-4 py-3">
-                <span className="text-base shrink-0 leading-tight">{tip.icon}</span>
+                <span className="text-[8px] shrink-0 mt-1 font-bold"
+                  style={{ color: tip.icon === '!' ? '#f59e0b' : '#22c55e' }}>
+                  {tip.icon === '!' ? '▲' : '●'}
+                </span>
                 <p className="text-xs text-white/55 leading-relaxed">{tip.text}</p>
               </div>
             ))}
           </div>
+
+          {/* Suggested budgets CTA */}
+          {budget.needs > 0 || budget.wants > 0 ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-white/35 text-center uppercase tracking-widest">Set up suggested budgets</p>
+              <div className="grid grid-cols-2 gap-3">
+                {budget.needs > 0 && (
+                  <button
+                    onClick={() => navigate(`/budgets?new=1&name=Needs&limit=${budget.needs}&dim=all`)}
+                    className="flex flex-col gap-1 glass-card rounded-xl px-4 py-3 text-left hover:bg-white/10 transition-colors group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-white/35 uppercase tracking-wider">Essentials</span>
+                      <span className="text-[10px] text-white/20 group-hover:text-white/50 transition-colors">→ Create</span>
+                    </div>
+                    <span className="text-base font-bold tabular-nums" style={{ color: '#3b82f6' }}>{fmt(budget.needs)}</span>
+                    <span className="text-[10px] text-white/30">groceries · transport · bills</span>
+                  </button>
+                )}
+                {budget.wants > 0 && (
+                  <button
+                    onClick={() => navigate(`/budgets?new=1&name=Wants&limit=${budget.wants}&dim=all`)}
+                    className="flex flex-col gap-1 glass-card rounded-xl px-4 py-3 text-left hover:bg-white/10 transition-colors group">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-white/35 uppercase tracking-wider">Discretionary</span>
+                      <span className="text-[10px] text-white/20 group-hover:text-white/50 transition-colors">→ Create</span>
+                    </div>
+                    <span className="text-base font-bold tabular-nums" style={{ color: '#f59e0b' }}>{fmt(budget.wants)}</span>
+                    <span className="text-[10px] text-white/30">dining · fun · shopping</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
         </>
       )}
 
