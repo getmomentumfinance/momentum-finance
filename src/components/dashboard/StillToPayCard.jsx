@@ -3,12 +3,33 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 
-function getPeriodKey(frequency, date) {
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  if (frequency === 'monthly')   return `${y}-${String(m).padStart(2, '0')}`
-  if (frequency === 'quarterly') return `${y}-Q${Math.ceil(m / 3)}`
-  return `${y}`
+// Matches the period key logic in RecurringBills.jsx exactly
+function getNextDueDate(nextDueDateStr, frequency) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  let d = new Date(nextDueDateStr + 'T00:00:00')
+  while (d < today) {
+    if (frequency === 'quarterly') d.setMonth(d.getMonth() + 3)
+    else d.setFullYear(d.getFullYear() + 1)
+  }
+  return d
+}
+
+function getBillPeriodKey(bill, date) {
+  if ((bill.frequency === 'quarterly' || bill.frequency === 'yearly') && bill.next_due_date) {
+    const d = getNextDueDate(bill.next_due_date, bill.frequency)
+    const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate()
+    return `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  }
+  const y = date.getFullYear(), m = date.getMonth() + 1
+  return `${y}-${String(m).padStart(2,'0')}`
+}
+
+function getBillDueDate(bill, date) {
+  if ((bill.frequency === 'quarterly' || bill.frequency === 'yearly') && bill.next_due_date) {
+    return getNextDueDate(bill.next_due_date, bill.frequency)
+  }
+  const y = date.getFullYear(), m = date.getMonth()
+  return new Date(y, m, Math.min(bill.due_day ?? 1, new Date(y, m + 1, 0).getDate()))
 }
 
 export default function StillToPayCard({ currentDate = new Date() }) {
@@ -36,9 +57,9 @@ export default function StillToPayCard({ currentDate = new Date() }) {
     const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
     const monthEnd   = `${y}-${String(m + 1).padStart(2, '0')}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
 
-    // Recurring bills unpaid this period
+    // Recurring bills: unpaid AND due this month
     const { data: bills } = await supabase
-      .from('recurring_bills').select('id, amount, frequency').eq('user_id', user.id)
+      .from('recurring_bills').select('id, amount, frequency, due_day, next_due_date').eq('user_id', user.id)
 
     let recurringCount = 0, recurringTotal = 0
     if (bills?.length) {
@@ -46,25 +67,29 @@ export default function StillToPayCard({ currentDate = new Date() }) {
         .from('recurring_bill_payments').select('bill_id, period')
         .in('bill_id', bills.map(b => b.id))
       bills.forEach(b => {
-        const period = getPeriodKey(b.frequency, currentDate)
+        const dueDate = getBillDueDate(b, currentDate)
+        const dueYear = dueDate.getFullYear(), dueMo = dueDate.getMonth()
+        const curYear = currentDate.getFullYear(), curMo = currentDate.getMonth()
+        if (dueYear !== curYear || dueMo !== curMo) return // not due this month
+        const period = getBillPeriodKey(b, currentDate)
         const paid = (payments ?? []).some(p => p.bill_id === b.id && p.period === period)
         if (!paid) { recurringCount++; recurringTotal += Number(b.amount) }
       })
     }
 
-    // Pending items due this month
+    // Pending items: overdue or due this month (pay_before <= monthEnd, or no date set)
     const { data: pendingItems } = await supabase
-      .from('pending_items').select('amount').eq('user_id', user.id).eq('status', 'pending')
-      .gte('pay_before', monthStart).lte('pay_before', monthEnd)
-    const pendingCount = (pendingItems ?? []).length
-    const pendingTotal = (pendingItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
+      .from('pending_items').select('amount, pay_before').eq('user_id', user.id).eq('status', 'pending')
+    const pendingFiltered = (pendingItems ?? []).filter(i => !i.pay_before || i.pay_before <= monthEnd)
+    const pendingCount = pendingFiltered.length
+    const pendingTotal = pendingFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // Planned bills due this month
+    // Planned bills: overdue or due this month
     const { data: plannedItems } = await supabase
-      .from('planned_bills').select('amount').eq('user_id', user.id).eq('status', 'pending')
-      .gte('pay_before', monthStart).lte('pay_before', monthEnd)
-    const plannedCount = (plannedItems ?? []).length
-    const plannedTotal = (plannedItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
+      .from('planned_bills').select('amount, pay_before').eq('user_id', user.id).eq('status', 'pending')
+    const plannedFiltered = (plannedItems ?? []).filter(i => !i.pay_before || i.pay_before <= monthEnd)
+    const plannedCount = plannedFiltered.length
+    const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
     // Active subscriptions unpaid this month
     const { data: allSubs } = await supabase
