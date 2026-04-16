@@ -89,7 +89,7 @@ export default function FinancialSituationTab() {
   const budget = useMemo(() => calcBudget(Number(income), Number(rent)), [income, rent])
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-6 py-2">
+    <div className="flex flex-col gap-6 py-2">
 
       {/* ── Inputs ── */}
       <div className="glass-card rounded-2xl p-5">
