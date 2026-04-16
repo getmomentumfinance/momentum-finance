@@ -22,6 +22,7 @@ import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { txMatchesBudget } from '../utils/budgetMatch'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -557,7 +558,7 @@ export default function Analytics() {
   useEffect(() => {
     if (!user?.id) return
     function loadBudgets() {
-      supabase.from('budgets').select('id, name, monthly_limit, rollover_amount, period, reset_day, category_id, subcategory_id, importance, receiver_id, card_id')
+      supabase.from('budgets').select('id, name, monthly_limit, rollover_amount, period, reset_day, category_id, subcategory_id, importance, receiver_id, category_ids, subcategory_ids, importance_ids, receiver_ids, card_id')
         .eq('user_id', user.id).then(({ data }) => { if (data) setBudgets(data) })
       supabase.from('targets').select('*')
         .eq('user_id', user.id).then(({ data }) => { if (data) setTargets(data) })
@@ -603,15 +604,11 @@ export default function Analytics() {
             !t.is_split_parent && t.type === 'expense' &&
             t.date >= startStr && t.date <= endStr &&
             (!b.card_id || t.card_id === b.card_id) &&
-            (b.category_id    ? t.category_id    === b.category_id
-           : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-           : b.importance     ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === b.importance
-           : b.receiver_id    ? t.receiver_id    === b.receiver_id
-                              : true)
+            txMatchesBudget(t, b, Object.fromEntries(Object.entries(catImportance).map(([k, v]) => [k, { importance: v }])))
           )
           .reduce((s, t) => s + Number(t.amount), 0)
         const pct = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0
-        return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, receiver_id: b.receiver_id, limit: effectiveLimit, spent, pct, isOver: spent > effectiveLimit }
+        return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, receiver_id: b.receiver_id, category_ids: b.category_ids, subcategory_ids: b.subcategory_ids, importance_ids: b.importance_ids, receiver_ids: b.receiver_ids, limit: effectiveLimit, spent, pct, isOver: spent > effectiveLimit }
       })
       .sort((a, b) => b.pct - a.pct)
   }, [range, budgets, transactions, currentDate, catImportance])

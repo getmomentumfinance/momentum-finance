@@ -83,6 +83,79 @@ function DropdownSelect({ value, onChange, options, placeholder = 'Select…' })
   )
 }
 
+function MultiDropdownSelect({ values, onChange, options, placeholder = 'Select…' }) {
+  const [open, setOpen]     = useState(false)
+  const [search, setSearch] = useState('')
+  const ref       = useRef(null)
+  const searchRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) { setSearch(''); return }
+    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  useEffect(() => {
+    if (open) setTimeout(() => searchRef.current?.focus(), 0)
+  }, [open])
+
+  const q        = search.trim().toLowerCase()
+  const filtered = q ? options.filter(o => o.label.toLowerCase().includes(q)) : options
+
+  function toggle(val) {
+    onChange(values.includes(val) ? values.filter(x => x !== val) : [...values, val])
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex flex-wrap gap-1.5 items-center min-h-[2.6rem] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-left hover:border-white/20 transition-colors">
+        {values.length === 0
+          ? <span className="text-white/25">{placeholder}</span>
+          : values.map(v => {
+              const opt = options.find(o => o.value === v)
+              return opt ? (
+                <span key={v} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/10 text-white/80 text-xs">
+                  <CategoryPill name={opt.label} color={opt.color} icon={opt.icon} />
+                  <button type="button" onClick={e => { e.stopPropagation(); onChange(values.filter(x => x !== v)) }}
+                    className="text-white/35 hover:text-white ml-1 leading-none">×</button>
+                </span>
+              ) : null
+            })
+        }
+        <ChevronDown size={13} className="text-white/25 ml-auto shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
+          <div className="px-3 py-2 border-b border-white/[0.06]">
+            <input ref={searchRef} value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search…"
+              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
+          </div>
+          <div className="max-h-44 overflow-y-auto scrollbar-thin">
+            {filtered.length === 0
+              ? <p className="text-xs text-white/30 px-3 py-3">No results</p>
+              : filtered.map(opt => {
+                  const selected = values.includes(opt.value)
+                  return (
+                    <button key={opt.value} type="button" onClick={() => toggle(opt.value)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors ${selected ? 'bg-white/[0.08]' : ''}`}>
+                      <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors ${selected ? 'bg-white/25 border-white/40' : 'border-white/20'}`}>
+                        {selected && <span className="text-[9px] text-white font-bold leading-none">✓</span>}
+                      </div>
+                      <CategoryPill name={opt.label} color={opt.color} icon={opt.icon} />
+                    </button>
+                  )
+                })
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AddBudgetModal({
   budget = null,
   categories,
@@ -104,17 +177,32 @@ export default function AddBudgetModal({
 
   const [name,             setName]             = useState(budget?.name ?? defaultName)
   const [dimension,        setDimension]        = useState(
-    budget?.receiver_id    ? 'merchant'    :
-    budget?.importance     ? 'importance'  :
-    budget?.subcategory_id ? 'subcategory' :
-    budget?.category_id    ? 'category'    :
-    defaultDimension       ? defaultDimension :
-    'category'
+    (budget?.receiver_ids?.length || budget?.receiver_id)       ? 'merchant'    :
+    (budget?.importance_ids?.length || budget?.importance)       ? 'importance'  :
+    (budget?.subcategory_ids?.length || budget?.subcategory_id)  ? 'subcategory' :
+    (budget?.category_ids?.length || budget?.category_id)        ? 'category'    :
+    defaultDimension ?? 'category'
   )
-  const [categoryId,       setCategoryId]       = useState(budget?.category_id    ?? (defaultDimension === 'category'    ? defaultId : '') ?? '')
-  const [subcategoryId,    setSubcategoryId]    = useState(budget?.subcategory_id ?? (defaultDimension === 'subcategory' ? defaultId : '') ?? '')
-  const [importance,       setImportance]       = useState(budget?.importance     ?? (defaultDimension === 'importance'  ? defaultId : '') ?? '')
-  const [receiverId,       setReceiverId]       = useState(budget?.receiver_id    ?? (defaultDimension === 'merchant'    ? defaultId : '') ?? '')
+  const [categoryIds,    setCategoryIds]    = useState(
+    budget?.category_ids?.length    ? budget.category_ids    :
+    budget?.category_id             ? [budget.category_id]   :
+    (defaultDimension === 'category'    && defaultId) ? [defaultId] : []
+  )
+  const [subcategoryIds, setSubcategoryIds] = useState(
+    budget?.subcategory_ids?.length ? budget.subcategory_ids :
+    budget?.subcategory_id          ? [budget.subcategory_id] :
+    (defaultDimension === 'subcategory' && defaultId) ? [defaultId] : []
+  )
+  const [importanceIds,  setImportanceIds]  = useState(
+    budget?.importance_ids?.length  ? budget.importance_ids  :
+    budget?.importance              ? [budget.importance]    :
+    (defaultDimension === 'importance'  && defaultId) ? [defaultId] : []
+  )
+  const [receiverIds,    setReceiverIds]    = useState(
+    budget?.receiver_ids?.length    ? budget.receiver_ids    :
+    budget?.receiver_id             ? [budget.receiver_id]   :
+    (defaultDimension === 'merchant'    && defaultId) ? [defaultId] : []
+  )
   const [limit,            setLimit]            = useState(budget?.monthly_limit  ?? defaultLimit)
   const [period,           setPeriod]           = useState(budget?.period         ?? 'monthly')
   const [resetDay,         setResetDay]         = useState(budget?.reset_day      ?? null)
@@ -167,9 +255,11 @@ export default function AddBudgetModal({
   const categoryOptions = topCategories.map(c => ({ value: c.id, label: c.name, color: c.color, icon: c.icon }))
   const subcategoryOpts = subcategories.map(c  => ({ value: c.id, label: c.name, color: c.color, icon: c.icon }))
 
-  const selId      = dimension === 'category' ? categoryId : dimension === 'subcategory' ? subcategoryId : dimension === 'importance' ? importance : receiverId
-  const avgMaps    = { category: avgByCategory, subcategory: avgBySubcategory, importance: avgByImportance, merchant: avgByReceiver }
-  const avgMonthly = (selId && dimension !== 'all' && avgMaps[dimension]?.[selId]) || null
+  const avgMaps = { category: avgByCategory, subcategory: avgBySubcategory, importance: avgByImportance, merchant: avgByReceiver }
+  const selIds  = dimension === 'category' ? categoryIds : dimension === 'subcategory' ? subcategoryIds : dimension === 'importance' ? importanceIds : receiverIds
+  const avgMonthly = dimension !== 'all' && selIds.length
+    ? (selIds.reduce((s, id) => s + (avgMaps[dimension]?.[id] ?? 0), 0) || null)
+    : null
 
   const periodMult  = PERIOD_MULTIPLIER[period] ?? 1
   const periodShort = PERIOD_SHORT[period] ?? '/mo'
@@ -189,11 +279,11 @@ export default function AddBudgetModal({
   const aggressiveColor = getStrictnessColors().medium
 
   const isValid = limitVal > 0 && (
-    dimension === 'all'                                ||
-    (dimension === 'category'    && categoryId)        ||
-    (dimension === 'subcategory' && subcategoryId)     ||
-    (dimension === 'importance'  && importance)        ||
-    (dimension === 'merchant'    && receiverId)
+    dimension === 'all'                                  ||
+    (dimension === 'category'    && categoryIds.length)  ||
+    (dimension === 'subcategory' && subcategoryIds.length) ||
+    (dimension === 'importance'  && importanceIds.length)  ||
+    (dimension === 'merchant'    && receiverIds.length)
   )
 
   const ctaLabel = saving ? 'Saving…'
@@ -208,10 +298,16 @@ export default function AddBudgetModal({
     const payload = {
       name:              name.trim() || null,
       monthly_limit:     limitVal,
-      category_id:       dimension === 'category'    ? categoryId    : null,
-      subcategory_id:    dimension === 'subcategory' ? subcategoryId : null,
-      importance:        dimension === 'importance'  ? importance    : null,
-      receiver_id:       dimension === 'merchant'    ? receiverId    : null,
+      // New multi-select columns
+      category_ids:    dimension === 'category'    ? categoryIds    : [],
+      subcategory_ids: dimension === 'subcategory' ? subcategoryIds : [],
+      importance_ids:  dimension === 'importance'  ? importanceIds  : [],
+      receiver_ids:    dimension === 'merchant'    ? receiverIds    : [],
+      // Clear legacy single-value columns
+      category_id:    null,
+      subcategory_id: null,
+      importance:     null,
+      receiver_id:    null,
       period,
       reset_day:         (period === 'weekly' || period === 'monthly') ? (resetDay ?? null) : null,
       card_id:           cardId || null,
@@ -297,24 +393,30 @@ export default function AddBudgetModal({
                     {dimension === 'importance' ? 'Importance level' : dimension === 'subcategory' ? 'Subcategory' : dimension === 'merchant' ? 'Merchant' : 'Category'}
                   </label>
                   {dimension === 'category' && (
-                    <DropdownSelect value={categoryId} onChange={setCategoryId} options={categoryOptions} placeholder="Select category…" />
+                    <MultiDropdownSelect values={categoryIds} onChange={setCategoryIds} options={categoryOptions} placeholder="Select categories…" />
                   )}
                   {dimension === 'subcategory' && (
-                    <DropdownSelect value={subcategoryId} onChange={setSubcategoryId} options={subcategoryOpts} placeholder="Select subcategory…" />
+                    <MultiDropdownSelect values={subcategoryIds} onChange={setSubcategoryIds} options={subcategoryOpts} placeholder="Select subcategories…" />
                   )}
                   {dimension === 'merchant' && (
                     <div ref={recRef} className="relative">
                       <button type="button" onClick={() => setRecOpen(v => !v)}
-                        className="w-full flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-left hover:border-white/20">
-                        {receiverId && receivers.find(r => r.id === receiverId) ? (
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <ReceiverAvatar receiver={receivers.find(r => r.id === receiverId)} />
-                            <span className="text-sm text-white truncate">{receivers.find(r => r.id === receiverId)?.name}</span>
-                          </div>
-                        ) : (
-                          <span className="text-white/25">Select merchant…</span>
-                        )}
-                        <ChevronDown size={13} className="text-white/25 shrink-0 ml-2" />
+                        className="w-full flex flex-wrap gap-1.5 items-center min-h-[2.6rem] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-left hover:border-white/20 transition-colors">
+                        {receiverIds.length === 0
+                          ? <span className="text-white/25">Select merchants…</span>
+                          : receiverIds.map(id => {
+                              const r = receivers.find(x => x.id === id)
+                              return r ? (
+                                <span key={id} className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white/10 text-xs text-white/80">
+                                  <ReceiverAvatar receiver={r} />
+                                  <span>{r.name}</span>
+                                  <button type="button" onClick={e => { e.stopPropagation(); setReceiverIds(prev => prev.filter(x => x !== id)) }}
+                                    className="text-white/35 hover:text-white ml-0.5 leading-none">×</button>
+                                </span>
+                              ) : null
+                            })
+                        }
+                        <ChevronDown size={13} className="text-white/25 ml-auto shrink-0" />
                       </button>
                       {recOpen && (
                         <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
@@ -331,15 +433,21 @@ export default function AddBudgetModal({
                                   const filtered = q ? receivers.filter(r => r.name.toLowerCase().includes(q)) : receivers
                                   return filtered.length === 0
                                     ? <p className="text-xs text-white/30 px-3 py-3">No results</p>
-                                    : filtered.map(r => (
-                                        <button key={r.id} type="button"
-                                          onClick={() => { setReceiverId(r.id); setRecOpen(false) }}
-                                          className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/8 text-left ${receiverId === r.id ? 'bg-white/8' : ''}`}>
-                                          <ReceiverAvatar receiver={r} />
-                                          <span className="text-sm text-white">{r.name}</span>
-                                          {r.domain && <span className="text-xs text-muted ml-auto">{r.domain}</span>}
-                                        </button>
-                                      ))
+                                    : filtered.map(r => {
+                                        const selected = receiverIds.includes(r.id)
+                                        return (
+                                          <button key={r.id} type="button"
+                                            onClick={() => setReceiverIds(prev => selected ? prev.filter(x => x !== r.id) : [...prev, r.id])}
+                                            className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 text-left transition-colors ${selected ? 'bg-white/[0.08]' : ''}`}>
+                                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${selected ? 'bg-white/25 border-white/40' : 'border-white/20'}`}>
+                                              {selected && <span className="text-[9px] text-white font-bold leading-none">✓</span>}
+                                            </div>
+                                            <ReceiverAvatar receiver={r} />
+                                            <span className="text-sm text-white">{r.name}</span>
+                                            {r.domain && <span className="text-xs text-muted ml-auto">{r.domain}</span>}
+                                          </button>
+                                        )
+                                      })
                                 })()
                             }
                           </div>
@@ -349,22 +457,26 @@ export default function AddBudgetModal({
                   )}
                   {dimension === 'importance' && (
                     <div className="grid grid-cols-2 gap-2">
-                      {importanceLevels.map(imp => (
-                        <button key={imp.value} type="button" onClick={() => setImportance(imp.value)}
-                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left"
-                          style={{
-                            borderColor: importance === imp.value ? imp.color : 'rgba(255,255,255,0.08)',
-                            background:  importance === imp.value ? `color-mix(in srgb, ${imp.color} 12%, transparent)` : 'rgba(255,255,255,0.03)',
-                          }}>
-                          <span className="flex gap-[3px] shrink-0">
-                            {Array.from({ length: 4 }).map((_, i) => (
-                              <span key={i} className="w-1.5 h-1.5 rounded-full"
-                                style={{ background: i < imp.dots ? imp.color : imp.color + '30' }} />
-                            ))}
-                          </span>
-                          <span className="text-xs text-white/70">{imp.label}</span>
-                        </button>
-                      ))}
+                      {importanceLevels.map(imp => {
+                        const selected = importanceIds.includes(imp.value)
+                        return (
+                          <button key={imp.value} type="button"
+                            onClick={() => setImportanceIds(prev => selected ? prev.filter(x => x !== imp.value) : [...prev, imp.value])}
+                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left"
+                            style={{
+                              borderColor: selected ? imp.color : 'rgba(255,255,255,0.08)',
+                              background:  selected ? `color-mix(in srgb, ${imp.color} 12%, transparent)` : 'rgba(255,255,255,0.03)',
+                            }}>
+                            <span className="flex gap-[3px] shrink-0">
+                              {Array.from({ length: 4 }).map((_, i) => (
+                                <span key={i} className="w-1.5 h-1.5 rounded-full"
+                                  style={{ background: i < imp.dots ? imp.color : imp.color + '30' }} />
+                              ))}
+                            </span>
+                            <span className="text-xs text-white/70">{imp.label}</span>
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>

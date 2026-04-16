@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { txMatchesBudget } from '../utils/budgetMatch'
 
 function getPeriodBounds(period, refDate, resetDay) {
   const y = refDate.getFullYear()
@@ -180,11 +181,7 @@ export function useNotifications(userId, currentDate) {
         .filter(t =>
           t.date >= startStr && t.date <= endStr &&
           (!b.card_id || t.card_id === b.card_id) &&
-          (b.category_id    ? t.category_id    === b.category_id
-         : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-         : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
-         : b.receiver_id    ? t.receiver_id    === b.receiver_id
-                            : true)
+          txMatchesBudget(t, b, catMap)
         )
         .reduce((s, t) => s + t.amount, 0)
 
@@ -227,10 +224,7 @@ export function useNotifications(userId, currentDate) {
           .filter(t =>
             t.date >= prevStart && t.date <= prevEnd &&
             (!b.card_id || t.card_id === b.card_id) &&
-            (b.category_id    ? t.category_id    === b.category_id
-           : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-           : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
-                              : true)
+            txMatchesBudget(t, b, catMap)
           )
           .reduce((s, t) => s + t.amount, 0)
 

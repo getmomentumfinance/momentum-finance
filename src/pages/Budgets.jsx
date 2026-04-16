@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { txMatchesBudget } from '../utils/budgetMatch'
 import { createPortal } from 'react-dom'
 import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Zap } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -1764,11 +1765,7 @@ export default function Budgets() {
         .filter(t =>
           t.date >= startStr && t.date <= endStr &&
           (!b.card_id || t.card_id === b.card_id) &&
-          (b.category_id    ? t.category_id    === b.category_id
-         : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-         : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
-         : b.receiver_id   ? t.receiver_id    === b.receiver_id
-                            : true)
+          txMatchesBudget(t, b, catMap)
         )
         .reduce((s, t) => s + t.amount, 0)
     }
@@ -1816,11 +1813,11 @@ export default function Budgets() {
   const avgByReceiver    = useMemo(() => buildAvgMap(t => t.receiver_id),    [allExpenses])
 
   // Summary stats
-  const allBudgets  = budgets.filter(b => !b.category_id && !b.subcategory_id && !b.importance && !b.receiver_id)
-  const catBudgets  = budgets.filter(b => b.category_id)
-  const subBudgets  = budgets.filter(b => b.subcategory_id)
-  const impBudgets  = budgets.filter(b => b.importance)
-  const recBudgets  = budgets.filter(b => b.receiver_id)
+  const allBudgets  = budgets.filter(b => !b.category_id && !b.subcategory_id && !b.importance && !b.receiver_id && !b.category_ids?.length && !b.subcategory_ids?.length && !b.importance_ids?.length && !b.receiver_ids?.length)
+  const catBudgets  = budgets.filter(b => b.category_id || b.category_ids?.length)
+  const subBudgets  = budgets.filter(b => b.subcategory_id || b.subcategory_ids?.length)
+  const impBudgets  = budgets.filter(b => b.importance || b.importance_ids?.length)
+  const recBudgets  = budgets.filter(b => b.receiver_id || b.receiver_ids?.length)
 
   const totalBudgeted = budgets.reduce((s, b) => s + b.monthly_limit, 0)
   const totalSpent    = Object.values(budgetSpends).reduce((s, v) => s + v, 0)
