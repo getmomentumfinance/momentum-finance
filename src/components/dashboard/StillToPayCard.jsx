@@ -31,6 +31,11 @@ export default function StillToPayCard({ currentDate = new Date() }) {
   async function load() {
     setLoading(true)
 
+    const y         = currentDate.getFullYear()
+    const m         = currentDate.getMonth()
+    const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
+    const monthEnd   = `${y}-${String(m + 1).padStart(2, '0')}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
+
     // Recurring bills unpaid this period
     const { data: bills } = await supabase
       .from('recurring_bills').select('id, amount, frequency').eq('user_id', user.id)
@@ -47,15 +52,17 @@ export default function StillToPayCard({ currentDate = new Date() }) {
       })
     }
 
-    // Pending items
+    // Pending items due this month
     const { data: pendingItems } = await supabase
       .from('pending_items').select('amount').eq('user_id', user.id).eq('status', 'pending')
+      .gte('pay_before', monthStart).lte('pay_before', monthEnd)
     const pendingCount = (pendingItems ?? []).length
     const pendingTotal = (pendingItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
 
-    // Planned bills
+    // Planned bills due this month
     const { data: plannedItems } = await supabase
       .from('planned_bills').select('amount').eq('user_id', user.id).eq('status', 'pending')
+      .gte('pay_before', monthStart).lte('pay_before', monthEnd)
     const plannedCount = (plannedItems ?? []).length
     const plannedTotal = (plannedItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
 
