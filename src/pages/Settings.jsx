@@ -9,6 +9,7 @@ import Navbar from '../components/dashboard/Navbar'
 import CategoriesTab from '../components/settings/CategoriesTab'
 import AppearanceTab from '../components/settings/AppearanceTab'
 import CardsTab from '../components/settings/CardsTab'
+import FinancialSituationTab from '../components/settings/FinancialSituationTab'
 
 const CURRENCIES = [
   { value: 'EUR', label: '€ Euro' },
@@ -72,6 +73,7 @@ const TAB_IDS = [
   { id: 'appearance', labelKey: 'set.appearance', icon: Palette },
   { id: 'categories', labelKey: 'set.library',    icon: BookOpen },
   { id: 'cards',      labelKey: 'set.cards',      icon: CreditCard },
+  { id: 'financial',  labelKey: 'set.financial',  icon: TrendingUp },
   { id: 'data',       labelKey: 'set.data',       icon: Database },
   { id: 'help',       labelKey: 'set.help',       icon: HelpCircle },
 ]
@@ -460,6 +462,7 @@ export default function Settings() {
     appearance: <AppearanceTab />,
     categories: <CategoriesTab />,
     cards:      <CardsTab />,
+    financial:  <FinancialSituationTab />,
     data:       <DataTab />,
     help:       <HelpTab onTabSwitch={setActiveTab} />,
   }

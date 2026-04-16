@@ -377,6 +377,7 @@ const en = {
   'set.appearance':    'Appearance',
   'set.library':       'Library',
   'set.cards':         'Cards',
+  'set.financial':     'Financial Situation',
   'set.data':          'Data',
   'set.help':          'Help',
   'set.yourName':      'Your name',

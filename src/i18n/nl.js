@@ -377,6 +377,7 @@ const nl = {
   'set.appearance':    'Weergave',
   'set.library':       'Bibliotheek',
   'set.cards':         'Kaarten',
+  'set.financial':     'Financiële situatie',
   'set.data':          'Gegevens',
   'set.help':          'Help',
   'set.yourName':      'Je naam',
