@@ -905,16 +905,16 @@ export default function AppearanceTab() {
           </div>
         </div>
 
-        {/* Limit strictness colors */}
+        {/* Positive / Neutral / Negative color coding */}
         <div className="flex flex-col gap-4">
           <div>
-            <h3 className="text-sm font-medium text-white">Limit strictness</h3>
-            <p className="text-xs text-muted mt-0.5">Colors for the strictness indicator when setting a limit.</p>
+            <h3 className="text-sm font-medium text-white">Color coding</h3>
+            <p className="text-xs text-muted mt-0.5">Colors applied to positive, neutral, and negative values across the app — trends, indicators, and limits.</p>
           </div>
           <div className="flex flex-col gap-4">
-            <StrictnessColorRow id="easy"   label="Easy"   defaultColor={STRICTNESS_DEFAULTS.easy}   />
-            <StrictnessColorRow id="medium" label="Medium" defaultColor={STRICTNESS_DEFAULTS.medium} />
-            <StrictnessColorRow id="strict" label="Strict" defaultColor={STRICTNESS_DEFAULTS.strict} />
+            <StrictnessColorRow id="easy"   label="Positive" defaultColor={STRICTNESS_DEFAULTS.easy}   />
+            <StrictnessColorRow id="medium" label="Neutral"  defaultColor={STRICTNESS_DEFAULTS.medium} />
+            <StrictnessColorRow id="strict" label="Negative" defaultColor={STRICTNESS_DEFAULTS.strict} />
           </div>
         </div>
 

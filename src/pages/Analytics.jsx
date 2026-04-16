@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { DEFAULT_IMPORTANCE } from '../constants/importance'
-import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X } from 'lucide-react'
+import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X, Info } from 'lucide-react'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -305,39 +305,71 @@ function ComparisonCard({ title, rows, colors }) {
 // ── Per-week amounts card (tabbed, controlled dim) ────────────────
 const WEEK_BREAK_DIM_IDS = ['category', 'subcategory', 'importance', 'type']
 const WEEK_BREAK_DIM_KEYS = { category: 'an.dimCategory', subcategory: 'an.dimSubcategory', importance: 'an.dimImportance', type: 'an.dimType' }
+const TREND_COLOR_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
+function getTrendColors() {
+  try { return { ...TREND_COLOR_DEFAULTS, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return TREND_COLOR_DEFAULTS }
+}
 function WeekBreakPanel({ dims, weekLabels, dim, onDimChange }) {
   const { fmtK, t } = usePreferences()
   const rows = dims[dim] ?? []
   return (
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5">
-          {WEEK_BREAK_DIM_IDS.map(id => (
-            <button key={id} onClick={() => onDimChange(id)}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${
-                dim === id ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
-              }`}>
-              {t(WEEK_BREAK_DIM_KEYS[id])}
-            </button>
-          ))}
-        </div>
-        <span className="text-[11px] text-white/30 ml-3 whitespace-nowrap">{weekLabels.join(' · ')}</span>
+      <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 self-start">
+        {WEEK_BREAK_DIM_IDS.map(id => (
+          <button key={id} onClick={() => onDimChange(id)}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-colors ${
+              dim === id ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
+            }`}>
+            {t(WEEK_BREAK_DIM_KEYS[id])}
+          </button>
+        ))}
       </div>
       {rows.length === 0 ? (
         <p className="text-sm text-muted py-2">{t('an.noDataShort')}</p>
       ) : (
         <div className="flex flex-col divide-y divide-white/[0.04]">
-          {rows.map(({ name, color, weeks }) => (
-            <div key={name} className="flex items-center gap-3 py-2">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-              <span className="text-sm text-white/80 flex-1 truncate min-w-0">{name}</span>
-              {weeks.map((v, i) => (
-                <span key={i} className="text-xs tabular-nums text-white/50 shrink-0 w-14 text-right">
-                  {v > 0 ? fmtK(v) : '—'}
+          {/* Column headers aligned with data columns */}
+          <div className="flex items-center gap-3 pb-2">
+            <div className="w-2 h-2 shrink-0" />
+            <span className="flex-1 min-w-0" />
+            {weekLabels.map((lbl, i) => (
+              <span key={i} className="text-[10px] text-white/30 shrink-0 w-16 text-right tabular-nums">{lbl}</span>
+            ))}
+            <span className="relative group flex items-center justify-end gap-0.5 shrink-0 w-14 cursor-default">
+              <span className="text-[10px] text-white/30">{t('an.trend')}</span>
+              <Info size={10} className="text-white/20 group-hover:text-white/50 transition-colors" />
+              <div className="absolute bottom-full right-0 mb-2 w-56 p-2.5 rounded-xl bg-[#16162a] border border-white/10 text-[11px] text-white/65 leading-relaxed hidden group-hover:block z-30 pointer-events-none text-left shadow-xl">
+                <span className="font-medium text-white/80 block mb-1">How trend is calculated</span>
+                A linear regression is fitted across the weekly spend values. The trend shows the estimated net change from the first to last week — positive means spend is rising, negative means it's falling.
+              </div>
+            </span>
+          </div>
+          {rows.map(({ name, color, weeks }) => {
+            const tc = getTrendColors()
+            const nonZeroWeeks = weeks.filter(v => v > 0).length
+            const n = weeks.length
+            const xMean = (n - 1) / 2
+            const yMean = weeks.reduce((a, b) => a + b, 0) / n
+            const num = weeks.reduce((sum, y, i) => sum + (i - xMean) * (y - yMean), 0)
+            const den = weeks.reduce((sum, _, i) => sum + (i - xMean) ** 2, 0)
+            const delta = nonZeroWeeks < 2 || den === 0 ? null : Math.round((num / den) * (n - 1))
+            const trendLabel = delta === null || delta === 0 ? '—' : delta > 0 ? `+${fmtK(delta)}` : `-${fmtK(Math.abs(delta))}`
+            const trendColor = delta === null || delta === 0 ? tc.medium : delta > 0 ? tc.easy : tc.strict
+            return (
+              <div key={name} className="flex items-center gap-3 py-2">
+                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                <span className="text-sm text-white/80 flex-1 truncate min-w-0">{name}</span>
+                {weeks.map((v, i) => (
+                  <span key={i} className="text-xs tabular-nums text-white/50 shrink-0 w-16 text-right">
+                    {v > 0 ? fmtK(v) : '—'}
+                  </span>
+                ))}
+                <span className="text-xs tabular-nums shrink-0 w-14 text-right" style={{ color: trendColor }}>
+                  {trendLabel}
                 </span>
-              ))}
-            </div>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -505,6 +537,7 @@ export default function Analytics() {
   })
   const [compareSubMode, setCompareSubMode] = useState('months') // 'months' | 'weeks'
   const [weekBreakdownDim, setWeekBreakdownDim] = useState('category') // 'category'|'subcategory'|'importance'|'type'
+  const [weekChartType, setWeekChartType] = useState('bar') // 'bar' | 'line'
 
   const { transactions } = useTransactions()
   const { categoryMap, receiverMap, receiverColorMap } = useSharedData()
@@ -524,7 +557,7 @@ export default function Analytics() {
   useEffect(() => {
     if (!user?.id) return
     function loadBudgets() {
-      supabase.from('budgets').select('id, name, monthly_limit, period, reset_day, category_id, subcategory_id, importance, card_id')
+      supabase.from('budgets').select('id, name, monthly_limit, rollover_amount, period, reset_day, category_id, subcategory_id, importance, receiver_id, card_id')
         .eq('user_id', user.id).then(({ data }) => { if (data) setBudgets(data) })
       supabase.from('targets').select('*')
         .eq('user_id', user.id).then(({ data }) => { if (data) setTargets(data) })
@@ -563,6 +596,7 @@ export default function Analytics() {
     return budgets
       .filter(b => (b.period ?? 'monthly') === matchPeriod)
       .map(b => {
+        const effectiveLimit = b.monthly_limit + (b.rollover_amount ?? 0)
         const { startStr, endStr } = getPeriodBounds(matchPeriod, currentDate, b.reset_day)
         const spent = transactions
           .filter(t =>
@@ -572,11 +606,12 @@ export default function Analytics() {
             (b.category_id    ? t.category_id    === b.category_id
            : b.subcategory_id ? t.subcategory_id === b.subcategory_id
            : b.importance     ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === b.importance
+           : b.receiver_id    ? t.receiver_id    === b.receiver_id
                               : true)
           )
           .reduce((s, t) => s + Number(t.amount), 0)
-        const pct = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
-        return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, limit: b.monthly_limit, spent, pct, isOver: spent > b.monthly_limit }
+        const pct = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0
+        return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, receiver_id: b.receiver_id, limit: effectiveLimit, spent, pct, isOver: spent > effectiveLimit }
       })
       .sort((a, b) => b.pct - a.pct)
   }, [range, budgets, transactions, currentDate, catImportance])
@@ -1860,59 +1895,76 @@ export default function Analytics() {
                     {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} · {t('an.weekByWeek')}
                   </p>
 
-                  {/* Per-week amounts: 4-column grid, one card per dimension */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {WEEK_BREAK_DIM_IDS.map(dim => (
-                      <WeekBreakCard
-                        key={dim}
-                        title={t(WEEK_BREAK_DIM_KEYS[dim])}
-                        rows={weeklyAllDimsBreakdown.dims[dim] ?? []}
+                  {/* List + Chart side by side: 35% / 65% */}
+                  <div className={isMobile ? 'flex flex-col gap-4' : 'flex gap-4 items-start'}>
+                    {/* List — 35% */}
+                    <div style={isMobile ? undefined : { width: '45%' }}>
+                      <WeekBreakPanel
+                        dims={weeklyAllDimsBreakdown.dims}
                         weekLabels={weeklyAllDimsBreakdown.weekLabels}
+                        dim={weekBreakdownDim}
+                        onDimChange={setWeekBreakdownDim}
                       />
-                    ))}
-                  </div>
+                    </div>
 
-                  {/* Weekly stacked breakdown with dimension toggle */}
-                  <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 300 }}>
-                    <div className="flex items-start justify-between mb-0.5">
-                      <h2 className="text-sm font-semibold">{t('an.weekBreakdown')}</h2>
-                      <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 shrink-0">
-                        {WEEK_BREAK_DIM_IDS.map(id => (
-                          <button key={id} onClick={() => setWeekBreakdownDim(id)}
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors ${
-                              weekBreakdownDim === id ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
-                            }`}>
-                            {t(WEEK_BREAK_DIM_KEYS[id])}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-muted mb-3">
-                      {weekBreakdownDim === 'type' ? t('an.allTypes') : t('an.expOnly')} · {t('an.stackedByWeek')}
-                    </p>
-                    <div className="flex-1 min-h-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={weeklyBreakdownData.data} barCategoryGap="30%">
-                          <CartesianGrid vertical={false} stroke={GRID} />
-                          <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
-                          <Tooltip content={<FilteredTooltip valueFormatter={fmtK} />} cursor={false} />
-                          {weeklyBreakdownData.series.map(s => (
-                            <Bar key={s.name} dataKey={s.name} stackId="a" fill={s.color} shape={<StackedBarShape />} />
+                    {/* Chart — 65% */}
+                    <div className="glass-card rounded-2xl p-5 flex flex-col"
+                      style={isMobile ? { height: 260 } : { flex: 1, height: 340 }}>
+                      <div className="flex items-start justify-between mb-0.5">
+                        <div>
+                          <h2 className="text-sm font-semibold">{t('an.weekBreakdown')}</h2>
+                          <p className="text-[11px] text-muted mt-0.5">
+                            {weekBreakdownDim === 'type' ? t('an.allTypes') : t('an.expOnly')} · {t('an.stackedByWeek')}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 shrink-0">
+                          {['bar', 'line'].map(type => (
+                            <button key={type} onClick={() => setWeekChartType(type)}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium capitalize transition-colors ${
+                                weekChartType === type ? 'bg-white/15 text-white' : 'text-white/35 hover:text-white/60'
+                              }`}>
+                              {type}
+                            </button>
                           ))}
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {weeklyBreakdownData.series.length > 0 && (
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
-                        {weeklyBreakdownData.series.map(s => (
-                          <div key={s.name} className="flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                            <span className="text-[11px] text-white/50 truncate max-w-[120px]">{s.name}</span>
-                          </div>
-                        ))}
+                        </div>
                       </div>
-                    )}
+                      <div className="flex-1 min-h-0 mt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          {weekChartType === 'bar' ? (
+                            <BarChart data={weeklyBreakdownData.data} barCategoryGap="30%">
+                              <CartesianGrid vertical={false} stroke={GRID} />
+                              <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+                              <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                              <Tooltip content={<FilteredTooltip valueFormatter={fmtK} />} cursor={false} />
+                              {weeklyBreakdownData.series.map(s => (
+                                <Bar key={s.name} dataKey={s.name} stackId="a" fill={s.color} shape={<StackedBarShape />} />
+                              ))}
+                            </BarChart>
+                          ) : (
+                            <LineChart data={weeklyBreakdownData.data}>
+                              <CartesianGrid vertical={false} stroke={GRID} />
+                              <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
+                              <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                              <Tooltip content={<FilteredTooltip valueFormatter={fmtK} />} cursor={false} />
+                              {weeklyBreakdownData.series.map(s => (
+                                <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2}
+                                  dot={{ fill: s.color, r: 3, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                              ))}
+                            </LineChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+                      {weeklyBreakdownData.series.length > 0 && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                          {weeklyBreakdownData.series.map(s => (
+                            <div key={s.name} className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                              <span className="text-[11px] text-white/50 truncate max-w-[120px]">{s.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Week summary table */}
@@ -2280,6 +2332,9 @@ export default function Analytics() {
                           const imp = importanceWithColors.find(i => i.value === item.importance)
                           label = imp?.label ?? item.importance
                           color = imp?.color ?? FALLBACK_COLORS[0]
+                        } else if (item.receiver_id) {
+                          label = receiverMap[item.receiver_id]?.name ?? '—'
+                          color = colors.accent ?? FALLBACK_COLORS[0]
                         } else {
                           label = item.name ?? 'Limit'
                           color = colors.accent ?? FALLBACK_COLORS[0]

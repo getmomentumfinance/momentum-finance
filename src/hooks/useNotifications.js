@@ -162,7 +162,7 @@ export function useNotifications(userId, currentDate) {
     // 5. Budgets ≥80% used
     const [{ data: budgets }, { data: yearExpenses }, { data: categories }] = await Promise.all([
       supabase.from('budgets').select('*').eq('user_id', userId),
-      supabase.from('transactions').select('category_id, subcategory_id, card_id, amount, date')
+      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date')
         .eq('user_id', userId).eq('is_deleted', false).eq('type', 'expense')
         .eq('is_split_parent', false)
         .gte('date', `${currentDate.getFullYear()}-01-01`)
@@ -174,6 +174,7 @@ export function useNotifications(userId, currentDate) {
 
     for (const b of budgets ?? []) {
       if (b.monthly_limit <= 0) continue
+      const effectiveLimit = b.monthly_limit + (b.rollover_amount ?? 0)
       const { startStr, endStr } = getPeriodBounds(b.period ?? 'monthly', currentDate, b.reset_day)
       const spent = (yearExpenses ?? [])
         .filter(t =>
@@ -182,11 +183,12 @@ export function useNotifications(userId, currentDate) {
           (b.category_id    ? t.category_id    === b.category_id
          : b.subcategory_id ? t.subcategory_id === b.subcategory_id
          : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
+         : b.receiver_id    ? t.receiver_id    === b.receiver_id
                             : true)
         )
         .reduce((s, t) => s + t.amount, 0)
 
-      const pct = (spent / b.monthly_limit) * 100
+      const pct = (spent / effectiveLimit) * 100
       if (pct >= 80) {
         const cat = catMap[b.category_id ?? b.subcategory_id]
         actions.push({
@@ -194,8 +196,8 @@ export function useNotifications(userId, currentDate) {
           severity: pct >= 100 ? 'alert' : 'warning',
           label: b.name || cat?.name || 'Budget',
           detail: pct >= 100
-            ? `Over by ${fmtAmt(spent - b.monthly_limit)}`
-            : `${Math.round(pct)}% of ${fmtAmt(b.monthly_limit)} used`,
+            ? `Over by ${fmtAmt(spent - effectiveLimit)}`
+            : `${Math.round(pct)}% of ${fmtAmt(effectiveLimit)} used`,
           amount: null, period: null, canPay: false,
         })
       }

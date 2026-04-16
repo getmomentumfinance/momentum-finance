@@ -3,6 +3,60 @@ import { ArrowRight, Check, TrendingUp, TrendingDown } from 'lucide-react'
 
 const BTN = 'linear-gradient(to right, #c084fc, #3b82f6)'
 
+// ── Marquee ────────────────────────────────────────────────────────
+function Marquee({ children, reverse = false, pauseOnHover = false }) {
+  return (
+    <div className={`overflow-hidden ${pauseOnHover ? 'marquee-pause' : ''}`}>
+      <div
+        className="marquee-track flex w-max"
+        style={{ animation: `${reverse ? 'marquee-reverse' : 'marquee'} 30s linear infinite` }}
+      >
+        {children}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+const REVIEWS = [
+  { name: 'Sarah M.',  handle: '@sarah_m',  body: 'Finally understand where every euro goes. The analytics are insanely detailed.', color: '#c084fc' },
+  { name: 'Tom V.',   handle: '@tomv',      body: 'Budgets are actually fun to manage now. Never thought I'd say that.', color: '#3b82f6' },
+  { name: 'Lena K.',  handle: '@lena.k',   body: 'Set my first savings goal and actually hit it. The tracking made all the difference.', color: '#22c55e' },
+  { name: 'James F.', handle: '@jamesf',   body: 'Caught two forgotten subscriptions in the first week. Already paid for itself.', color: '#f59e0b' },
+  { name: 'Mia P.',   handle: '@mia_p',    body: 'The calendar view is beautiful. I check it every morning with my coffee.', color: '#ec4899' },
+  { name: 'Kai D.',   handle: '@kai_dev',  body: 'Dark mode, custom themes, everything feels polished. Love the attention to detail.', color: '#06b6d4' },
+  { name: 'Anna R.',  handle: '@anna.r',   body: 'Split bills across categories — game changer. My partner and I finally agree on spending.', color: '#8b5cf6' },
+  { name: 'Felix B.', handle: '@felixb',   body: 'Used to dread month end. Now I actually look forward to seeing the numbers.', color: '#f97316' },
+]
+
+const firstRow  = REVIEWS.slice(0, REVIEWS.length / 2)
+const secondRow = REVIEWS.slice(REVIEWS.length / 2)
+
+function ReviewCard({ name, handle, body, color }) {
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2)
+  return (
+    <figure
+      className="relative mx-2 flex h-full w-64 shrink-0 flex-col gap-3 cursor-default overflow-hidden rounded-2xl p-4"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+          style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
+          {initials}
+        </div>
+        <div className="flex flex-col leading-tight">
+          <span className="text-xs font-semibold text-white/80">{name}</span>
+          <span className="text-[11px] text-white/30">{handle}</span>
+        </div>
+      </div>
+      <blockquote className="text-xs text-white/50 leading-relaxed">{body}</blockquote>
+    </figure>
+  )
+}
+
 const FEATURES = [
   { title: 'Expense Tracking',   desc: 'Log every transaction, split bills, and categorize your spending automatically.' },
   { title: 'Budgets & Targets',  desc: 'Set spending limits per category and get alerted before you overspend.' },
@@ -166,6 +220,24 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* ── Testimonials marquee ── */}
+      <section className="relative z-10 pb-28 overflow-hidden">
+        <p className="text-xs uppercase tracking-widest text-white/30 text-center mb-12">What people are saying</p>
+        <div className="flex flex-col gap-3">
+          <Marquee pauseOnHover>
+            {firstRow.map(r => <ReviewCard key={r.handle} {...r} />)}
+          </Marquee>
+          <Marquee reverse pauseOnHover>
+            {secondRow.map(r => <ReviewCard key={r.handle} {...r} />)}
+          </Marquee>
+        </div>
+        {/* Fade edges */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-32"
+          style={{ background: 'linear-gradient(to right, #09070f, transparent)' }} />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-32"
+          style={{ background: 'linear-gradient(to left, #09070f, transparent)' }} />
       </section>
 
       {/* ── Included / CTA ── */}

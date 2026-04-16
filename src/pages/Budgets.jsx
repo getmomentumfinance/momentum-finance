@@ -2057,7 +2057,7 @@ export default function Budgets() {
                 </p>
               ) : (
                 <div className="grid gap-4 grid-cols-1">
-                  {allBudgets.slice(0, 1).map(b => {
+                  {allBudgets.map(b => {
                     const spent     = budgetSpends[b.id] ?? 0
                     const pct       = b.monthly_limit > 0 ? Math.min((spent / b.monthly_limit) * 100, 100) : 0
                     const over      = spent > b.monthly_limit
@@ -2088,7 +2088,7 @@ export default function Budgets() {
                         <div className="flex items-start justify-between">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-white">Main Budget</span>
+                              <span className="text-sm font-semibold text-white">{b.name || 'Main Budget'}</span>
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/35">{PERIOD_LABELS[b.period] ?? 'Monthly'}</span>
                               {b.card_id && cardMap[b.card_id] && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/35">{cardMap[b.card_id].name}</span>
