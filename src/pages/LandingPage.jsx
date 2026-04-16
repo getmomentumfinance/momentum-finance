@@ -34,7 +34,7 @@ function FlickeringGrid({
       canvas.height = canvas.offsetHeight
       cols      = Math.ceil(canvas.width  / cell) + 1
       rows      = Math.ceil(canvas.height / cell) + 1
-      opacities = new Float32Array(cols * rows).map(() => Math.random() * maxOpacity)
+      opacities = new Float32Array(cols * rows).map(() => Math.random() < 0.15 ? maxOpacity : 0)
     }
 
     function draw() {
@@ -42,11 +42,14 @@ function FlickeringGrid({
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const idx = row * cols + col
+          // Binary flicker: each square is either ON or OFF
           if (Math.random() < flickerChance) {
-            opacities[idx] = Math.random() * maxOpacity
+            opacities[idx] = opacities[idx] > 0 ? 0 : maxOpacity
           }
-          ctx.fillStyle = `rgba(${r},${g},${b},${opacities[idx].toFixed(3)})`
-          ctx.fillRect(col * cell, row * cell, squareSize, squareSize)
+          if (opacities[idx] > 0) {
+            ctx.fillStyle = `rgba(${r},${g},${b},${maxOpacity})`
+            ctx.fillRect(col * cell, row * cell, squareSize, squareSize)
+          }
         }
       }
       rafId = requestAnimationFrame(draw)
@@ -169,9 +172,9 @@ export default function LandingPage() {
         <FlickeringGrid
           squareSize={4}
           gridGap={6}
-          color="#a78bfa"
-          maxOpacity={0.045}
-          flickerChance={0.07}
+          color="#ddd6fe"
+          maxOpacity={0.12}
+          flickerChance={0.04}
         />
       </div>
 
