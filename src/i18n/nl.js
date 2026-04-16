@@ -166,8 +166,12 @@ const nl = {
   'pending.returned':   'Je hebt {amount} teruggekregen!',
   'pending.markPaid':   'Markeren als betaald',
   'pending.undoPaid':   'Betaling ongedaan maken',
-  'pending.markReturn': 'Markeren als geretourneerd',
-  'pending.return':     'Retourneren',
+  'pending.markReturn':   'Markeren als geretourneerd',
+  'pending.return':       'Retourneren',
+  'pending.markReceived': 'Markeren als ontvangen',
+  'pending.finalAmount':  'Definitief bedrag',
+  'pending.returnDiff':   '{amount}',
+  'pending.confirm':      'Bevestigen',
 
   // ── Balance Projection ───────────────────────────────────────
   'proj.title':     'Balansoverzicht',

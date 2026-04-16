@@ -166,8 +166,12 @@ const en = {
   'pending.returned':   'You saved {amount} by returning this!',
   'pending.markPaid':   'Mark as paid',
   'pending.undoPaid':   'Undo payment',
-  'pending.markReturn': 'Mark as returned',
-  'pending.return':     'Return',
+  'pending.markReturn':   'Mark as returned',
+  'pending.return':       'Return',
+  'pending.markReceived': 'Mark as received',
+  'pending.finalAmount':  'Final amount',
+  'pending.returnDiff':   '{amount}',
+  'pending.confirm':      'Confirm',
 
   // ── Balance Projection ───────────────────────────────────────
   'proj.title':     'Balance Projection',

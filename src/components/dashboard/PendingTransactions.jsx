@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Clock, Plus, Check, Undo2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Clock, Plus, Check, Undo2, PackageCheck } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -73,12 +73,15 @@ export default function PendingTransactions({ currentDate = new Date() }) {
   const { categoryMap, receiverMap } = useSharedData()
   const c = useCardCustomization('Pending Transactions')
 
-  const [items,      setItems]      = useState([])
-  const [showModal,  setShowModal]  = useState(false)
-  const [editItem,   setEditItem]   = useState(null)
-  const [loading,    setLoading]    = useState(false)
-  const [savedFlash, setSavedFlash] = useState(null) // { id, amount }
-  const [collapsed, setCollapsed] = useCollapsed('PendingTransactions')
+  const [items,         setItems]         = useState([])
+  const [showModal,     setShowModal]     = useState(false)
+  const [editItem,      setEditItem]      = useState(null)
+  const [loading,       setLoading]       = useState(false)
+  const [savedFlash,    setSavedFlash]    = useState(null) // { id, amount }
+  const [collapsed,     setCollapsed]     = useCollapsed('PendingTransactions')
+  const [receiveItem,   setReceiveItem]   = useState(null)  // item pending confirmation
+  const [receiveAmount, setReceiveAmount] = useState('')
+  const receiveInputRef = useRef(null)
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 
@@ -96,9 +99,24 @@ export default function PendingTransactions({ currentDate = new Date() }) {
     }))
   }
 
-  async function markPaid(item) {
+  function openReceiveModal(item) {
+    setReceiveItem(item)
+    setReceiveAmount(String(item.amount))
+    setTimeout(() => receiveInputRef.current?.select(), 50)
+  }
+
+  async function confirmReceived() {
+    if (!receiveItem) return
+    const finalAmount = parseFloat(receiveAmount)
+    if (isNaN(finalAmount) || finalAmount <= 0) return
+    setReceiveItem(null)
+    await markPaid(receiveItem, finalAmount)
+  }
+
+  async function markPaid(item, customAmount) {
     if (loading) return
     setLoading(true)
+    const finalAmount = customAmount ?? item.amount
     const receiver = receiverById(item.receiver_id)
     const desc = receiver ? receiver.name : item.name
     const commentParts = []
@@ -111,7 +129,7 @@ export default function PendingTransactions({ currentDate = new Date() }) {
       user_id:        user.id,
       type:           'expense',
       description:    desc,
-      amount:         item.amount,
+      amount:         finalAmount,
       date:           today,
       source:         'pending',
       receiver_id:    item.receiver_id    || null,
@@ -223,7 +241,7 @@ export default function PendingTransactions({ currentDate = new Date() }) {
 
                     {/* Check button — filled when paid, outline when pending, disabled when returned */}
                     <button
-                      onClick={() => item.status === 'paid' ? undoPaid(item) : markPaid(item)}
+                      onClick={() => item.status === 'paid' ? undoPaid(item) : openReceiveModal(item)}
                       disabled={loading || item.status === 'returned'}
                       title={item.status === 'paid' ? t('pending.undoPaid') : t('pending.markPaid')}
                       className="mt-0.5 w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all disabled:pointer-events-none"
@@ -304,6 +322,68 @@ export default function PendingTransactions({ currentDate = new Date() }) {
           onClose={() => { setShowModal(false); setEditItem(null) }}
           onSaved={load}
         />
+      )}
+
+      {/* Mark as Received popup */}
+      {receiveItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={e => { if (e.target === e.currentTarget) setReceiveItem(null) }}>
+          <div className="glass-popup border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}>
+                <PackageCheck size={16} style={{ color: 'var(--color-accent)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">{t('pending.markReceived')}</p>
+                <p className="text-[11px] text-white/40 truncate max-w-[200px]">{receiveItem.name}</p>
+              </div>
+            </div>
+
+            {/* Amount field */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white/50">{t('pending.finalAmount')}</label>
+              <div className="relative">
+                <input
+                  ref={receiveInputRef}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={receiveAmount}
+                  onChange={e => setReceiveAmount(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmReceived(); if (e.key === 'Escape') setReceiveItem(null) }}
+                  className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/25 transition-colors tabular-nums"
+                />
+              </div>
+              {parseFloat(receiveAmount) < receiveItem.amount && parseFloat(receiveAmount) >= 0 && (
+                <p className="text-[11px]" style={{ color: 'var(--color-progress-bar)' }}>
+                  {t('pending.returnDiff', { amount: fmt(receiveItem.amount - parseFloat(receiveAmount)) })} returned
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setReceiveItem(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={confirmReceived}
+                disabled={loading || !receiveAmount || parseFloat(receiveAmount) <= 0}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
+                style={{ background: 'var(--color-accent)' }}
+              >
+                {t('pending.confirm')}
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </>
   )
