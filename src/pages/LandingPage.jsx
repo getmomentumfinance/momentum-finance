@@ -20,7 +20,7 @@ function Marquee({ children, reverse = false, pauseOnHover = false }) {
 
 const REVIEWS = [
   { name: 'Sarah M.',  handle: '@sarah_m',  body: 'Finally understand where every euro goes. The analytics are insanely detailed.', color: '#c084fc' },
-  { name: 'Tom V.',   handle: '@tomv',      body: 'Budgets are actually fun to manage now. Never thought I'd say that.', color: '#3b82f6' },
+  { name: 'Tom V.',   handle: '@tomv',      body: "Budgets are actually fun to manage now. Never thought I'd say that.", color: '#3b82f6' },
   { name: 'Lena K.',  handle: '@lena.k',   body: 'Set my first savings goal and actually hit it. The tracking made all the difference.', color: '#22c55e' },
   { name: 'James F.', handle: '@jamesf',   body: 'Caught two forgotten subscriptions in the first week. Already paid for itself.', color: '#f59e0b' },
   { name: 'Mia P.',   handle: '@mia_p',    body: 'The calendar view is beautiful. I check it every morning with my coffee.', color: '#ec4899' },
