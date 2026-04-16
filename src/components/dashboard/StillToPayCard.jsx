@@ -97,7 +97,7 @@ export default function StillToPayCard({ currentDate = new Date() }) {
 
     let subsCount = 0, subsTotal = 0
     if (allSubs?.length) {
-      const period = getPeriodKey('monthly', currentDate)
+      const period = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
       const { data: subPayments } = await supabase
         .from('subscription_payments').select('subscription_id, period')
         .in('subscription_id', allSubs.map(s => s.id))
