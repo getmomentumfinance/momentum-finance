@@ -5,7 +5,12 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 
-function calcBudget(income, rent) {
+const COLOR_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
+function getColorCoding() {
+  try { return { ...COLOR_DEFAULTS, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return COLOR_DEFAULTS }
+}
+
+function calcBudget(income, rent, c) {
   if (!income || income <= 0) return null
 
   const rentPct   = rent / income
@@ -15,32 +20,32 @@ function calcBudget(income, rent) {
   const wants     = Math.max(0, remaining - needs)
 
   const slices = [
-    { label: 'Rent',    amount: rent,    pct: rent    / income, color: '#a78bfa' },
-    { label: 'Savings', amount: savings, pct: savings / income, color: '#22c55e' },
-    { label: 'Needs',   amount: needs,   pct: needs   / income, color: '#3b82f6' },
-    { label: 'Wants',   amount: wants,   pct: wants   / income, color: '#f59e0b' },
+    { label: 'Rent',    amount: rent,    pct: rent    / income, color: c.strict  },
+    { label: 'Savings', amount: savings, pct: savings / income, color: c.easy    },
+    { label: 'Needs',   amount: needs,   pct: needs   / income, color: c.medium  },
+    { label: 'Wants',   amount: wants,   pct: wants   / income, color: '#a78bfa' },
   ]
 
   let rentStatus, rentColor
-  if (rentPct < 0.25)      { rentStatus = 'Well within budget';          rentColor = '#22c55e' }
-  else if (rentPct < 0.30) { rentStatus = 'Healthy range';               rentColor = '#22c55e' }
-  else if (rentPct < 0.40) { rentStatus = 'A little high';               rentColor = '#f59e0b' }
-  else                     { rentStatus = 'High — limits flexibility';    rentColor = '#ef4444' }
+  if (rentPct < 0.25)      { rentStatus = 'Well within budget';       rentColor = c.easy   }
+  else if (rentPct < 0.30) { rentStatus = 'Healthy range';            rentColor = c.easy   }
+  else if (rentPct < 0.40) { rentStatus = 'A little high';            rentColor = c.medium }
+  else                     { rentStatus = 'High — limits flexibility'; rentColor = c.strict }
 
   const insights = []
   if (savings >= income * 0.20)
-    insights.push({ Icon: CheckCircle2, color: '#22c55e', text: `You're saving ${Math.round(savings / income * 100)}% — on track for financial independence.` })
+    insights.push({ Icon: CheckCircle2,  color: c.easy,   text: `You're saving ${Math.round(savings / income * 100)}% — on track for financial independence.` })
   else
-    insights.push({ Icon: AlertTriangle, color: '#f59e0b', text: 'Try to save at least 20% of your income each month.' })
+    insights.push({ Icon: AlertTriangle, color: c.medium, text: 'Try to save at least 20% of your income each month.' })
 
-  insights.push({ Icon: ShoppingCart, color: '#3b82f6', text: `Budget ~€${needs}/mo for groceries, transport and utilities.` })
-  insights.push({ Icon: Sparkles,     color: '#f59e0b', text: `Keep discretionary spending (dining, fun, shopping) under €${wants}/mo.` })
+  insights.push({ Icon: ShoppingCart, color: c.medium, text: `Budget ~€${needs}/mo for groceries, transport and utilities.` })
+  insights.push({ Icon: Sparkles,     color: '#a78bfa', text: `Keep discretionary spending (dining, fun, shopping) under €${wants}/mo.` })
 
   if (rentPct > 0.35)
-    insights.push({ Icon: Home, color: '#ef4444', text: 'Rent is above 35% of income. Consider ways to grow income or cut fixed costs.' })
+    insights.push({ Icon: Home, color: c.strict, text: 'Rent is above 35% of income. Consider ways to grow income or cut fixed costs.' })
 
   if (remaining > 0 && wants > 0)
-    insights.push({ Icon: TrendingUp, color: '#a78bfa', text: `Investing your €${savings}/mo savings at 7%/yr could grow to €${Math.round(savings * 12 * 10 * 1.967).toLocaleString()} in 10 years.` })
+    insights.push({ Icon: TrendingUp, color: c.easy, text: `Investing your €${savings}/mo savings at 7%/yr could grow to €${Math.round(savings * 12 * 10 * 1.967).toLocaleString()} in 10 years.` })
 
   return { slices, rentStatus, rentColor, rentPct, savings, needs, wants, remaining, insights }
 }
@@ -86,7 +91,7 @@ export default function FinancialSituationTab() {
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const budget = useMemo(() => calcBudget(Number(income), Number(rent)), [income, rent])
+  const budget = useMemo(() => calcBudget(Number(income), Number(rent), getColorCoding()), [income, rent])
 
   return (
     <div className="flex flex-col gap-6 py-2">
@@ -184,12 +189,12 @@ export default function FinancialSituationTab() {
                   <button
                     onClick={() => navigate(`/budgets?new=1&name=Essentials&limit=${budget.needs}&dim=all`)}
                     className="group flex flex-col gap-2 rounded-2xl px-5 py-4 text-left transition-all"
-                    style={{ background: '#3b82f612', border: '1px solid #3b82f625' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#3b82f620'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#3b82f612'}>
+                    style={{ background: `${budget.slices[2].color}12`, border: `1px solid ${budget.slices[2].color}25` }}
+                    onMouseEnter={e => e.currentTarget.style.background = `${budget.slices[2].color}20`}
+                    onMouseLeave={e => e.currentTarget.style.background = `${budget.slices[2].color}12`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold" style={{ color: '#3b82f6' }}>Essentials</span>
-                      <ArrowRight size={13} style={{ color: '#3b82f6' }} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                      <span className="text-xs font-semibold" style={{ color: budget.slices[2].color }}>Essentials</span>
+                      <ArrowRight size={13} style={{ color: budget.slices[2].color }} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                     </div>
                     <span className="text-2xl font-bold tabular-nums text-white">{fmt(budget.needs)}</span>
                     <span className="text-[10px] text-white/30">groceries · transport · bills</span>
@@ -199,12 +204,12 @@ export default function FinancialSituationTab() {
                   <button
                     onClick={() => navigate(`/budgets?new=1&name=Wants&limit=${budget.wants}&dim=all`)}
                     className="group flex flex-col gap-2 rounded-2xl px-5 py-4 text-left transition-all"
-                    style={{ background: '#f59e0b12', border: '1px solid #f59e0b25' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f59e0b20'}
-                    onMouseLeave={e => e.currentTarget.style.background = '#f59e0b12'}>
+                    style={{ background: `${budget.slices[3].color}12`, border: `1px solid ${budget.slices[3].color}25` }}
+                    onMouseEnter={e => e.currentTarget.style.background = `${budget.slices[3].color}20`}
+                    onMouseLeave={e => e.currentTarget.style.background = `${budget.slices[3].color}12`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold" style={{ color: '#f59e0b' }}>Discretionary</span>
-                      <ArrowRight size={13} style={{ color: '#f59e0b' }} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+                      <span className="text-xs font-semibold" style={{ color: budget.slices[3].color }}>Discretionary</span>
+                      <ArrowRight size={13} style={{ color: budget.slices[3].color }} className="opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
                     </div>
                     <span className="text-2xl font-bold tabular-nums text-white">{fmt(budget.wants)}</span>
                     <span className="text-[10px] text-white/30">dining · fun · shopping</span>
