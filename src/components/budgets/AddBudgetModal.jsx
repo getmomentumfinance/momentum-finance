@@ -364,7 +364,7 @@ export default function AddBudgetModal({
 
               {/* Name */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest">Name <span className="normal-case text-white/25">(optional)</span></label>
+                <label className="text-xs text-muted uppercase tracking-widest">Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} type="text"
                   placeholder="e.g. Groceries, Rent…" className={inp} />
               </div>

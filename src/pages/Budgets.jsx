@@ -66,10 +66,15 @@ function getPeriodPct(period, currentDate, resetDay) {
   return Math.min((daysElapsed / totalDays) * 100, 100)
 }
 
+const COLOR_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
+function getStrictnessColors() {
+  try { return { ...COLOR_DEFAULTS, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return COLOR_DEFAULTS }
+}
 function barColor(pct, strict = false) {
-  if (pct >= 100) return 'var(--color-alert)'
-  if (pct >= (strict ? 70 : 80)) return 'var(--color-warning)'
-  return 'var(--color-progress-bar)'
+  const c = getStrictnessColors()
+  if (pct >= 100) return c.strict
+  if (pct >= (strict ? 70 : 80)) return c.medium
+  return c.easy
 }
 
 // Returns a plain-text "what to do" hint, or null if no action needed
@@ -295,7 +300,7 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
 }
 
 // ── Budget card (category / subcategory / importance) ──────────
-function BudgetCard({ label, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, strictMode, onEdit, onInfo }) {
+function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, strictMode, onEdit, onInfo }) {
   const { fmt } = usePreferences()
   const rollover       = rolloverAmount > 0 ? rolloverAmount : 0
   const effectiveLimit = limit + rollover
@@ -326,8 +331,18 @@ function BudgetCard({ label, color, icon, imp, spent, limit, rolloverAmount, pro
 
       {/* Label + actions */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          {imp ? <ImpDots imp={imp} /> : <CategoryPill name={label} color={color} icon={icon} />}
+        <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+          {imp && !label ? (
+            <ImpDots imp={imp} />
+          ) : (
+            <div className="flex items-center gap-1.5">
+              {color && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />}
+              <span className="text-sm font-semibold text-white leading-tight truncate">{label || '—'}</span>
+            </div>
+          )}
+          {subtitle && (
+            <span className="text-[10px] text-white/30 truncate pl-3.5">{subtitle}</span>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
           <button type="button" onClick={e => { e.stopPropagation(); onInfo() }}
@@ -2166,11 +2181,33 @@ export default function Budgets() {
               const sortedLimits  = sortBudgets(allDimBudgets, limitsSortBy)
 
               const getBudgetMeta = b => {
-                if (b.category_id)    { const cat = catMap[b.category_id];    return { label: b.name || cat?.name || '—', color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: undefined, info: { dimension: 'category',    id: b.category_id,    label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, budget: b } } }
-                if (b.subcategory_id) { const cat = catMap[b.subcategory_id]; return { label: b.name || cat?.name || '—', color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: undefined, info: { dimension: 'subcategory', id: b.subcategory_id, label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, budget: b } } }
-                if (b.importance)     { const imp = importanceLevels.find(i => i.value === b.importance); return { label: b.name, color: b.name ? imp?.color : undefined, icon: undefined, imp: b.name ? undefined : imp, info: { dimension: 'importance',  id: b.importance, imp, budget: b } } }
-                if (b.receiver_id)    { const rec = receivers.find(r => r.id === b.receiver_id);          return { label: b.name || rec?.name || 'Merchant', color: undefined, icon: undefined, imp: undefined, info: { dimension: 'merchant', id: b.receiver_id, label: rec?.name ?? 'Merchant', budget: b } } }
-                return { label: '—', color: undefined, icon: undefined, imp: undefined, info: null }
+                // Multi-select (new array columns)
+                if (b.category_ids?.length) {
+                  const cats = b.category_ids.map(id => catMap[id]).filter(Boolean)
+                  const sub  = cats.map(c => c.name).join(' · ')
+                  return { label: b.name || sub || '—', subtitle: b.name ? sub : null, color: cats[0]?.color, icon: undefined, imp: undefined, info: { dimension: 'category', id: b.category_ids[0], label: b.name || sub, color: cats[0]?.color, budget: b } }
+                }
+                if (b.subcategory_ids?.length) {
+                  const cats = b.subcategory_ids.map(id => catMap[id]).filter(Boolean)
+                  const sub  = cats.map(c => c.name).join(' · ')
+                  return { label: b.name || sub || '—', subtitle: b.name ? sub : null, color: cats[0]?.color, icon: undefined, imp: undefined, info: { dimension: 'subcategory', id: b.subcategory_ids[0], label: b.name || sub, color: cats[0]?.color, budget: b } }
+                }
+                if (b.importance_ids?.length) {
+                  const imps = b.importance_ids.map(v => importanceLevels.find(i => i.value === v)).filter(Boolean)
+                  const sub  = imps.map(i => i.label).join(' · ')
+                  return { label: b.name || sub || '—', subtitle: b.name ? sub : null, color: imps[0]?.color, icon: undefined, imp: !b.name && imps.length === 1 ? imps[0] : undefined, info: { dimension: 'importance', id: b.importance_ids[0], budget: b } }
+                }
+                if (b.receiver_ids?.length) {
+                  const recs = b.receiver_ids.map(id => receivers.find(r => r.id === id)).filter(Boolean)
+                  const sub  = recs.map(r => r.name).join(' · ')
+                  return { label: b.name || sub || 'Merchant', subtitle: b.name ? sub : null, color: undefined, icon: undefined, imp: undefined, info: { dimension: 'merchant', id: b.receiver_ids[0], label: b.name || sub, budget: b } }
+                }
+                // Legacy single-value
+                if (b.category_id)    { const cat = catMap[b.category_id];    return { label: b.name || cat?.name || '—', subtitle: null, color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: undefined, info: { dimension: 'category',    id: b.category_id,    label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, budget: b } } }
+                if (b.subcategory_id) { const cat = catMap[b.subcategory_id]; return { label: b.name || cat?.name || '—', subtitle: null, color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: undefined, info: { dimension: 'subcategory', id: b.subcategory_id, label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, budget: b } } }
+                if (b.importance)     { const imp = importanceLevels.find(i => i.value === b.importance); return { label: b.name, subtitle: null, color: b.name ? imp?.color : undefined, icon: undefined, imp: b.name ? undefined : imp, info: { dimension: 'importance',  id: b.importance, imp, budget: b } } }
+                if (b.receiver_id)    { const rec = receivers.find(r => r.id === b.receiver_id);          return { label: b.name || rec?.name || 'Merchant', subtitle: null, color: undefined, icon: undefined, imp: undefined, info: { dimension: 'merchant', id: b.receiver_id, label: rec?.name ?? 'Merchant', budget: b } } }
+                return { label: '—', subtitle: null, color: undefined, icon: undefined, imp: undefined, info: null }
               }
 
               // Goals for dims that don't already have a budget limit
@@ -2234,7 +2271,7 @@ export default function Budgets() {
                         return (
                           <div key={`b-${b.id}`} data-flip-id={b.id}
                             style={{ borderRadius: 12, boxShadow: limitsPromoted.has(String(b.id)) ? '0 0 10px color-mix(in srgb, var(--color-warning) 30%, transparent)' : undefined }}>
-                            <BudgetCard label={meta.label} color={meta.color} icon={meta.icon} imp={meta.imp}
+                            <BudgetCard label={meta.label} subtitle={meta.subtitle} color={meta.color} icon={meta.icon} imp={meta.imp}
                               spent={spent} limit={b.monthly_limit} rolloverAmount={b.rollover_amount ?? 0}
                               projectedEnd={calcProjected(b, spent)} periodPct={pPct}
                               period={b.period} cardName={b.card_id ? cardMap[b.card_id]?.name : null}
