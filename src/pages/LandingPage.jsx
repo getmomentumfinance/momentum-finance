@@ -1,73 +1,5 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, TrendingUp, TrendingDown } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-
-// ── Flickering Grid ───────────────────────────────────────────────
-function FlickeringGrid({
-  squareSize    = 4,
-  gridGap       = 6,
-  color         = '#6B7280',
-  maxOpacity    = 0.15,
-  flickerChance = 0.08,
-  className     = '',
-}) {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-
-    // Parse color to rgb components once
-    const tmp = document.createElement('canvas')
-    tmp.width = tmp.height = 1
-    const tmpCtx = tmp.getContext('2d')
-    tmpCtx.fillStyle = color
-    tmpCtx.fillRect(0, 0, 1, 1)
-    const [r, g, b] = tmpCtx.getImageData(0, 0, 1, 1).data
-
-    const cell = squareSize + gridGap
-    let cols, rows, opacities, rafId
-
-    function resize() {
-      canvas.width  = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-      cols      = Math.ceil(canvas.width  / cell) + 1
-      rows      = Math.ceil(canvas.height / cell) + 1
-      opacities = new Float32Array(cols * rows).map(() => Math.random() < 0.15 ? maxOpacity : 0)
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const idx = row * cols + col
-          // Binary flicker: each square is either ON or OFF
-          if (Math.random() < flickerChance) {
-            opacities[idx] = opacities[idx] > 0 ? 0 : maxOpacity
-          }
-          if (opacities[idx] > 0) {
-            ctx.fillStyle = `rgba(${r},${g},${b},${maxOpacity})`
-            ctx.fillRect(col * cell, row * cell, squareSize, squareSize)
-          }
-        }
-      }
-      rafId = requestAnimationFrame(draw)
-    }
-
-    const ro = new ResizeObserver(resize)
-    ro.observe(canvas)
-    resize()
-    rafId = requestAnimationFrame(draw)
-
-    return () => {
-      cancelAnimationFrame(rafId)
-      ro.disconnect()
-    }
-  }, [squareSize, gridGap, color, maxOpacity, flickerChance])
-
-  return <canvas ref={canvasRef} className={`w-full h-full ${className}`} />
-}
 
 const BTN = 'linear-gradient(to right, #c084fc, #3b82f6)'
 
@@ -166,17 +98,6 @@ function FloatCard({ children, style = {}, className = '' }) {
 export default function LandingPage() {
   return (
     <div className="min-h-screen text-white overflow-x-hidden" style={{ background: '#09070f' }}>
-
-      {/* Flickering grid — full page background */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
-        <FlickeringGrid
-          squareSize={4}
-          gridGap={6}
-          color="#ddd6fe"
-          maxOpacity={0.12}
-          flickerChance={0.04}
-        />
-      </div>
 
       {/* Large ambient glow behind hero */}
       <div className="fixed inset-0 pointer-events-none" style={{
