@@ -91,7 +91,7 @@ function CardsShowcase() {
       <Card
         gradient="linear-gradient(140deg, #c94878 0%, #8b2550 50%, #4a0d28 100%)"
         number="•••• •••• •••• 5524"
-        name="T. Brzyk"
+        name="S. Lambert"
         expiry="12/28"
         style={{
           left: '50%', top: 0,
