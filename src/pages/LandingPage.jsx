@@ -150,12 +150,24 @@ export default function LandingPage() {
           <div style={{
             width: '100%', maxWidth: 560,
             background: GLASS,
-            backdropFilter: 'blur(40px) saturate(1.5)',
-            WebkitBackdropFilter: 'blur(40px) saturate(1.5)',
-            border: `1px solid ${BORDER}`,
+            /* Refraction 97 + Depth 100 */
+            backdropFilter: 'blur(54px) saturate(2) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(54px) saturate(2) brightness(1.04)',
+            /* Frost 13 — faint white haze at very low opacity */
+            backgroundImage: 'radial-gradient(ellipse at 60% 20%, rgba(255,255,255,0.03) 0%, transparent 70%)',
+            border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 28,
             padding: 'clamp(32px, 5vw, 54px)',
-            boxShadow: `0 12px 72px rgba(0,0,0,0.55), inset 0 1px 0 rgba(220,170,120,0.08)`,
+            /* Light -45° (top-right) 80% · Splay 31 · Dispersion 51 */
+            boxShadow: [
+              '0 24px 80px rgba(0,0,0,0.6)',                         // depth outer
+              'inset 0 1.5px 0 rgba(255,255,255,0.45)',              // top edge — main light hit
+              'inset -1.5px 0 0 rgba(255,255,255,0.28)',             // right edge highlight
+              'inset 0 -1px 0 rgba(0,0,0,0.18)',                     // bottom shadow edge
+              'inset 1px 0 0 rgba(0,0,0,0.1)',                       // left shadow edge
+              'inset 0 4px 8px rgba(160,185,255,0.06)',              // dispersion — blue fringe (light side)
+              'inset -4px 0 8px rgba(255,160,100,0.04)',             // dispersion — warm fringe (shadow side)
+            ].join(', '),
           }}>
 
             {/* Badge */}
