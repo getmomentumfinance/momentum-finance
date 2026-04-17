@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Download, SlidersHorizontal } from 'lucide-react'
+import { Plus, Download, SlidersHorizontal, GripVertical } from 'lucide-react'
+import {
+  DndContext, DragOverlay,
+  closestCenter,
+  KeyboardSensor, PointerSensor,
+  useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, sortableKeyboardCoordinates,
+  rectSortingStrategy, useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../context/AuthContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
 import { supabase } from '../lib/supabase'
@@ -31,6 +42,37 @@ import { useIsMobile } from '../hooks/useIsMobile'
 const BALANCE_TYPES = ['debit', 'credit']
 const CREDIT_TYPES  = new Set(['income'])
 
+// ── Drag-and-drop widget order ─────────────────────────────────────
+const DEFAULT_WIDGET_ORDER = [
+  'recurring', 'pending',
+  'planned',   'wishlist',
+  'subscriptions', 'projection',
+  'savings-goals', 'recent',
+  'budgets',
+]
+
+function SortableWidget({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+      className="relative group"
+    >
+      {/* Drag handle — appears on hover */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-50 hover:!opacity-100 cursor-grab active:cursor-grabbing touch-none transition-opacity p-1 rounded"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        <GripVertical size={14} />
+      </div>
+      {children}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const { openTransactionModal } = useTransactionModal()
@@ -45,6 +87,38 @@ export default function Dashboard() {
   const [totalSavings,      setTotalSavings]      = useState(0)
   const [activityKind,      setActivityKind]      = useState(null)
   const isMobile = useIsMobile()
+
+  // ── Widget drag-and-drop order ─────────────────────────────────
+  const [widgetOrder, setWidgetOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dash-widget-order')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // merge: keep saved order, append any new keys that aren't in saved
+        const merged = [...parsed, ...DEFAULT_WIDGET_ORDER.filter(k => !parsed.includes(k))]
+        return merged
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_WIDGET_ORDER
+  })
+  const [activeWidgetId, setActiveWidgetId] = useState(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragStart({ active }) { setActiveWidgetId(active.id) }
+  function handleDragEnd({ active, over }) {
+    setActiveWidgetId(null)
+    if (!over || active.id === over.id) return
+    setWidgetOrder(prev => {
+      const next = arrayMove(prev, prev.indexOf(active.id), prev.indexOf(over.id))
+      localStorage.setItem('dash-widget-order', JSON.stringify(next))
+      return next
+    })
+  }
+  function handleDragCancel() { setActiveWidgetId(null) }
 
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
@@ -274,22 +348,49 @@ export default function Dashboard() {
         </FadeIn>
         )}
 
-        {/* Bottom: 2 columns on desktop, single column on mobile */}
-        <div className={`grid gap-4 mt-4 items-start ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-          <div className="flex flex-col gap-4">
-            {v('dash-showRecurring')     && <FadeIn delay={0}><RecurringBills currentDate={currentDate} /></FadeIn>}
-            {v('dash-showPlanned')       && <FadeIn delay={50}><PlannedBills currentDate={currentDate} /></FadeIn>}
-            {v('dash-showSubscriptions') && <FadeIn delay={100}><Subscriptions currentDate={currentDate} /></FadeIn>}
-            {v('dash-showSavingsGoals')  && <FadeIn delay={150}><SavingsGoals /></FadeIn>}
-            {v('dash-showBudgets')       && <FadeIn delay={200}><BudgetsWidget currentDate={currentDate} /></FadeIn>}
-          </div>
-          <div className="flex flex-col gap-4">
-            {v('dash-showPending')    && <FadeIn delay={50}><PendingTransactions currentDate={currentDate} /></FadeIn>}
-            {v('dash-showWishlist')   && <FadeIn delay={100}><Wishlist currentDate={currentDate} /></FadeIn>}
-            {v('dash-showProjection') && <FadeIn delay={150}><BalanceProjection currentDate={currentDate} /></FadeIn>}
-            {v('dash-showRecent')     && <FadeIn delay={200}><RecentTransactions currentDate={currentDate} /></FadeIn>}
-          </div>
-        </div>
+        {/* Bottom: drag-and-drop widget grid */}
+        {(() => {
+          const WIDGET_MAP = {
+            'recurring':     { visKey: 'dash-showRecurring',      node: <RecurringBills currentDate={currentDate} /> },
+            'planned':       { visKey: 'dash-showPlanned',        node: <PlannedBills currentDate={currentDate} /> },
+            'subscriptions': { visKey: 'dash-showSubscriptions',  node: <Subscriptions currentDate={currentDate} /> },
+            'savings-goals': { visKey: 'dash-showSavingsGoals',   node: <SavingsGoals /> },
+            'budgets':       { visKey: 'dash-showBudgets',        node: <BudgetsWidget currentDate={currentDate} /> },
+            'pending':       { visKey: 'dash-showPending',        node: <PendingTransactions currentDate={currentDate} /> },
+            'wishlist':      { visKey: 'dash-showWishlist',       node: <Wishlist currentDate={currentDate} /> },
+            'projection':    { visKey: 'dash-showProjection',     node: <BalanceProjection currentDate={currentDate} /> },
+            'recent':        { visKey: 'dash-showRecent',         node: <RecentTransactions currentDate={currentDate} /> },
+          }
+          const visibleIds = widgetOrder.filter(id => WIDGET_MAP[id] && v(WIDGET_MAP[id].visKey))
+
+          return (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              <SortableContext items={visibleIds} strategy={rectSortingStrategy}>
+                <div className={`grid gap-4 mt-4 items-start ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {visibleIds.map((id, i) => (
+                    <SortableWidget key={id} id={id}>
+                      <FadeIn delay={i * 40}>
+                        {WIDGET_MAP[id].node}
+                      </FadeIn>
+                    </SortableWidget>
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay>
+                {activeWidgetId && (
+                  <div className="rounded-2xl border w-full h-24 backdrop-blur-sm"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', opacity: 0.7 }} />
+                )}
+              </DragOverlay>
+            </DndContext>
+          )
+        })()}
       </div>
 
       {activityKind && (
