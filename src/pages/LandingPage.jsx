@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 
 // ── Palette ────────────────────────────────────────────────────────
-const BG        = '#f1eae4'                 // warm cream (oklch 0.94 0.012 45)
+const BG        = '#e0cad4'                 // soft mauve-pink
 const BLACK     = '#0f0d0c'
 const BLUSH     = '#f0afc5'                 // blush pink
 const BLUSH_MID = '#c97a90'                 // deeper blush for text/icons
