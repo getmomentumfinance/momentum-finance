@@ -9,11 +9,11 @@ import {
 // ── Palette ────────────────────────────────────────────────────────
 const BG        = '#e0cad4'                 // soft mauve-pink
 const BLACK     = '#0f0d0c'
-const BLUSH     = '#f0afc5'                 // blush pink
-const BLUSH_MID = '#c97a90'                 // deeper blush for text/icons
+const BLUSH     = '#c4305e'                 // deep rose — pops on mauve bg
+const BLUSH_MID = '#8c1f44'                 // dark wine — readable on mauve bg
 const MUTED     = 'rgba(15,13,12,0.44)'
 const BORDER    = 'rgba(15,13,12,0.09)'
-const CARD_BG   = 'rgba(255,255,255,0.65)'
+const CARD_BG   = 'rgba(255,255,255,0.5)'
 
 const FEATURES = [
   { Icon: BarChart3,    title: 'Deep Analytics',     desc: 'Click any chart to drill into transactions by category, merchant, or importance.' },
