@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom'
 import { LayoutGrid, Info, HelpCircle, LogIn, UserPlus } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { title: 'Features',     href: '#features',     Icon: LayoutGrid, gradientFrom: '#56CCF2', gradientTo: '#2F80ED', scroll: true  },
-  { title: 'How It Works', href: '#how-it-works', Icon: Info,        gradientFrom: '#FF9966', gradientTo: '#FF5E62', scroll: true  },
-  { title: 'FAQ',          href: '#faq',          Icon: HelpCircle,  gradientFrom: '#80FF72', gradientTo: '#7EE8FA', scroll: true  },
-  { title: 'Log in',       href: '/login',        Icon: LogIn,       gradientFrom: '#a955ff', gradientTo: '#ea51ff', scroll: false },
-  { title: 'Sign up',      href: '/register',     Icon: UserPlus,    gradientFrom: '#ffa9c6', gradientTo: '#f434e2', scroll: false },
+  { title: 'Features',     href: '#features',     Icon: LayoutGrid, gradientFrom: '#ffc8da', gradientTo: '#e0608a', scroll: true  },
+  { title: 'How It Works', href: '#how-it-works', Icon: Info,        gradientFrom: '#f5a0c0', gradientTo: '#c84878', scroll: true  },
+  { title: 'FAQ',          href: '#faq',          Icon: HelpCircle,  gradientFrom: '#f0b0cc', gradientTo: '#b83870', scroll: true  },
+  { title: 'Log in',       href: '/login',        Icon: LogIn,       gradientFrom: '#e890b8', gradientTo: '#a02860', scroll: false },
+  { title: 'Sign up',      href: '/register',     Icon: UserPlus,    gradientFrom: '#ff9cca', gradientTo: '#d43878', scroll: false },
 ]
 
 export default function GradientMenu() {
