@@ -6,12 +6,12 @@ import {
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 
-const GRAD  = 'linear-gradient(135deg, #986798, #e7d2ac)'
-const BLACK = '#0f0d0c'
-const ROSE  = '#8a4a7a'
-const MUTED = 'rgba(15,13,12,0.48)'
-const GLASS = 'rgba(255,255,255,0.18)'
-const GLASS_BORDER = 'rgba(255,255,255,0.35)'
+const GRAD  = '#ffb5ba'
+const BLACK = '#6b1f40'
+const ROSE  = '#986798'
+const MUTED = 'rgba(107,31,64,0.55)'
+const GLASS = 'rgba(255,255,255,0.3)'
+const GLASS_BORDER = 'rgba(255,255,255,0.55)'
 
 // ── Fake donut chart ───────────────────────────────────────────────
 function FakeDonut({ pct = 68, color = '#c97aaa', size = 72 }) {
@@ -116,8 +116,8 @@ function AppPreview() {
 
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = '#986798'
-    document.documentElement.style.background = '#986798'
+    document.body.style.background = '#ffb5ba'
+    document.documentElement.style.background = '#ffb5ba'
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
@@ -163,7 +163,7 @@ export default function LandingPage() {
           margin: '0 0 22px', color: BLACK,
         }}>
           Your money,{' '}
-          <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+          <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 700, color: ROSE }}>
             finally
           </em>
           <br />on your side.
