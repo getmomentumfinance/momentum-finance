@@ -9,7 +9,9 @@ import blob1 from '../assets/blob_1.png'
 import blob2 from '../assets/blob_2.png'
 import blob3 from '../assets/blob_3.png'
 
-const BG = '#08070d'
+const BG      = '#08070d'
+const GLASS   = 'rgba(12, 9, 22, 0.42)'
+const BORDER  = 'rgba(255, 255, 255, 0.09)'
 
 const FEATURES = [
   { Icon: BarChart3,    title: 'Deep Analytics',     desc: 'Click any chart to drill into the transactions behind it — by category, merchant, or importance.' },
@@ -40,30 +42,40 @@ const INCLUDED = [
   'Smart budgeting tools',         'Customizable design themes',
 ]
 
-// ── Blob with vignette so it bleeds into the dark background ──────
-function Blob({ src, size, animation, delay = '0s', className = '', style = {} }) {
+// ── Blob helpers ─────────────────────────────────────────────────
+function HeroBlob({ src }) {
   return (
-    <div
-      className={`relative shrink-0 pointer-events-none select-none ${className}`}
-      style={{ width: size, height: size, ...style }}
-    >
-      <img
-        src={src}
-        alt=""
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'contain',
-          animation: `${animation} linear infinite`,
-          animationDelay: delay,
-          filter: 'brightness(1.05) saturate(1.1)',
-        }}
-      />
-      {/* Vignette fades the gray bg into the page */}
+    <div style={{
+      position: 'absolute',
+      top: '50%', left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: 'min(110vw, 110vh)',
+      height: 'min(110vw, 110vh)',
+      animation: 'blobFloat1 20s ease-in-out infinite',
+      pointerEvents: 'none',
+      zIndex: 1,
+    }}>
+      <img src={src} alt="" style={{
+        width: '100%', height: '100%',
+        objectFit: 'contain',
+        mixBlendMode: 'screen',
+        filter: 'contrast(1.25) saturate(1.5) brightness(0.88)',
+      }} />
+    </div>
+  )
+}
+
+function Blob({ src, size, animation, delay = '0s', style = {} }) {
+  return (
+    <div style={{ position: 'relative', width: size, height: size, pointerEvents: 'none', ...style }}>
+      <img src={src} alt="" style={{
+        width: '100%', height: '100%', objectFit: 'contain',
+        animation: `${animation} linear infinite`, animationDelay: delay,
+        filter: 'brightness(1.05) saturate(1.1)',
+      }} />
       <div style={{
         position: 'absolute', inset: 0,
         background: `radial-gradient(circle at 50% 50%, transparent 38%, ${BG} 72%)`,
-        pointerEvents: 'none',
       }} />
     </div>
   )
@@ -129,49 +141,49 @@ export default function LandingPage() {
       </nav>
 
       {/* ════════════════════════════════════════════════════════════
-          HERO — full viewport
+          HERO — full viewport: one blob, one glass card
       ════════════════════════════════════════════════════════════ */}
-      <section className="relative z-10" style={{ minHeight: 'calc(100vh - 76px)', overflow: 'hidden' }}>
+      <section className="relative z-10" style={{ height: 'calc(100vh - 76px)', overflow: 'hidden' }}>
 
-        {/* Blob cluster — right side, bleeds off-screen */}
-        <div className="absolute top-1/2 right-0 -translate-y-1/2 flex items-center"
-          style={{ pointerEvents: 'none' }}>
-          {/* Main blob 2 — large purple/fuchsia */}
-          <Blob src={blob2} size={680} animation="blobFloat1 18s" style={{ marginRight: -120 }} />
-          {/* Blob 3 — blue/lavender, offset */}
-          <Blob src={blob3} size={360} animation="blobFloat2 13s"
-            style={{ position: 'absolute', top: -60, right: 60, opacity: 0.7 }} />
-        </div>
+        {/* ── THE BLOB — fills the entire view ── */}
+        <HeroBlob src={blob2} />
 
-        {/* Small rosy blob — bottom left */}
-        <Blob src={blob1} size={280} animation="blobFloat3 16s" delay="2s"
-          style={{ position: 'absolute', bottom: -60, left: -60, opacity: 0.5, pointerEvents: 'none' }} />
+        {/* Edge darkening so the blob bleeds cleanly into the dark page */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2,
+          background: `radial-gradient(ellipse 75% 75% at 50% 50%, transparent 45%, ${BG} 85%)`,
+        }} />
 
-        {/* Text content */}
-        <div className="relative z-10 flex flex-col justify-center h-full px-8 md:px-16 max-w-7xl mx-auto py-16"
-          style={{ minHeight: 'calc(100vh - 76px)' }}>
-
-          <div className="max-w-xl">
+        {/* ── FROSTED GLASS CARD — centred over the blob ── */}
+        <div className="absolute inset-0 flex items-center justify-center px-5" style={{ zIndex: 10 }}>
+          <div style={{
+            width: '100%',
+            maxWidth: 540,
+            background: GLASS,
+            backdropFilter: 'blur(36px) saturate(1.6)',
+            WebkitBackdropFilter: 'blur(36px) saturate(1.6)',
+            border: `1px solid ${BORDER}`,
+            borderRadius: 28,
+            padding: 'clamp(32px, 5vw, 52px)',
+            boxShadow: '0 8px 64px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)',
+          }}>
 
             {/* Badge */}
-            <div className="hero-text-1 inline-flex items-center gap-2 mb-7">
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)' }} />
-              <span className="text-xs font-medium tracking-widest uppercase"
-                style={{ color: 'rgba(232,121,249,0.75)' }}>
+            <div className="hero-text-1 inline-flex items-center gap-2 mb-6">
+              <div className="w-1.5 h-1.5 rounded-full"
+                style={{ background: 'linear-gradient(135deg, #e879f9, #818cf8)', boxShadow: '0 0 6px #e879f980' }} />
+              <span className="text-[11px] font-semibold tracking-widest uppercase"
+                style={{ color: 'rgba(232,121,249,0.7)' }}>
                 Personal Finance · Reinvented
               </span>
             </div>
 
             {/* Headline */}
-            <h1 className="hero-text-2 font-black leading-[0.95] tracking-tighter mb-7"
-              style={{ fontSize: 'clamp(3.2rem, 8vw, 6.5rem)' }}>
+            <h1 className="hero-text-2 font-black leading-[1.0] tracking-tight mb-5"
+              style={{ fontSize: 'clamp(2.2rem, 5.5vw, 3.8rem)' }}>
               Your money,{' '}
               <span style={{
-                backgroundImage: 'linear-gradient(135deg, #f472b6 0%, #c084fc 50%, #93c5fd 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
+                backgroundImage: 'linear-gradient(135deg, #f472b6 0%, #c084fc 55%, #93c5fd 100%)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
               }}>
                 finally
               </span>
@@ -179,44 +191,44 @@ export default function LandingPage() {
             </h1>
 
             {/* Subtext */}
-            <p className="hero-text-3 text-base md:text-lg leading-relaxed mb-10 max-w-sm"
-              style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Stop wondering where it all went. Track every transaction, beat every budget, and grow toward the goals that actually matter — all in one place.
+            <p className="hero-text-3 text-sm leading-relaxed mb-8"
+              style={{ color: 'rgba(255,255,255,0.42)', maxWidth: 400 }}>
+              Stop wondering where it all went. Track every transaction, beat every budget, and grow toward the goals that actually matter — all in one place. Free, forever.
             </p>
 
             {/* CTAs */}
-            <div className="hero-text-4 flex flex-wrap gap-3 mb-12">
+            <div className="hero-text-4 flex flex-wrap gap-3 mb-8">
               <Link to="/register"
-                className="flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   background: 'linear-gradient(135deg, #e879f9, #818cf8)',
                   color: '#fff',
-                  boxShadow: '0 0 32px rgba(232,121,249,0.25)',
+                  boxShadow: '0 0 28px rgba(232,121,249,0.28)',
                 }}>
-                Start for free <ArrowRight size={15} />
+                Start for free <ArrowRight size={14} />
               </Link>
               <a href="#features"
-                className="flex items-center gap-2 px-7 py-3.5 rounded-full text-sm font-semibold transition-all hover:bg-white/10"
+                className="flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold transition-all"
                 style={{
                   background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.7)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.6)',
                 }}>
                 See features
               </a>
             </div>
 
             {/* Trust pills */}
-            <div className="hero-text-5 flex flex-wrap gap-3">
+            <div className="hero-text-5 flex flex-wrap gap-2">
               {[
-                { Icon: Shield,  text: 'Private by default' },
-                { Icon: Zap,     text: 'Always free'        },
-                { Icon: Users,   text: 'No account limits'  },
+                { Icon: Shield, text: 'Private by default' },
+                { Icon: Zap,    text: 'Always free'        },
+                { Icon: Users,  text: 'No limits'          },
               ].map(({ Icon, text }) => (
                 <div key={text} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Icon size={11} style={{ color: 'rgba(232,121,249,0.6)' }} />
-                  <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.38)' }}>{text}</span>
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <Icon size={10} style={{ color: 'rgba(232,121,249,0.55)' }} />
+                  <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>{text}</span>
                 </div>
               ))}
             </div>
@@ -224,9 +236,10 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
-          style={{ background: `linear-gradient(to bottom, transparent, ${BG})` }} />
+        {/* Bottom fade into page */}
+        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none" style={{ zIndex: 3,
+          background: `linear-gradient(to bottom, transparent, ${BG})`,
+        }} />
       </section>
 
       {/* ════════════════════════════════════════════════════════════
