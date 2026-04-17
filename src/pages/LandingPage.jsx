@@ -150,8 +150,8 @@ export default function LandingPage() {
             width: '100%', maxWidth: 560,
             background: GLASS,
             /* Refraction 97 + Depth 100 */
-            backdropFilter: 'blur(54px) saturate(2) brightness(1.04)',
-            WebkitBackdropFilter: 'blur(54px) saturate(2) brightness(1.04)',
+            backdropFilter: 'blur(28px) saturate(2) brightness(1.04)',
+            WebkitBackdropFilter: 'blur(28px) saturate(2) brightness(1.04)',
             /* Frost 13 — faint white haze at very low opacity */
             backgroundImage: 'radial-gradient(ellipse at 60% 20%, rgba(255,255,255,0.03) 0%, transparent 70%)',
             border: '1px solid rgba(255,255,255,0.1)',
