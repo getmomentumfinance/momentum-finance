@@ -46,7 +46,7 @@ export default function LandingPage() {
 
         {/* Logo mark */}
         <div style={{
-          width: 52, height: 52, borderRadius: 14, background: BLACK,
+          width: 52, height: 52, borderRadius: '50%', background: BLACK,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           overflow: 'hidden', marginBottom: 28,
         }}>
