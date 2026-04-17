@@ -1,40 +1,47 @@
 import { Link } from 'react-router-dom'
+import { LayoutGrid, Info, HelpCircle, LogIn, UserPlus } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { title: 'Features',     href: '#features',     gradientFrom: '#56CCF2', gradientTo: '#2F80ED', scroll: true  },
-  { title: 'How It Works', href: '#how-it-works', gradientFrom: '#FF9966', gradientTo: '#FF5E62', scroll: true  },
-  { title: 'FAQ',          href: '#faq',          gradientFrom: '#80FF72', gradientTo: '#7EE8FA', scroll: true  },
-  { title: 'Log in',       href: '/login',        gradientFrom: '#a955ff', gradientTo: '#ea51ff', scroll: false },
-  { title: 'Sign up',      href: '/register',     gradientFrom: '#ffa9c6', gradientTo: '#f434e2', scroll: false },
+  { title: 'Features',     href: '#features',     Icon: LayoutGrid, gradientFrom: '#56CCF2', gradientTo: '#2F80ED', scroll: true  },
+  { title: 'How It Works', href: '#how-it-works', Icon: Info,        gradientFrom: '#FF9966', gradientTo: '#FF5E62', scroll: true  },
+  { title: 'FAQ',          href: '#faq',          Icon: HelpCircle,  gradientFrom: '#80FF72', gradientTo: '#7EE8FA', scroll: true  },
+  { title: 'Log in',       href: '/login',        Icon: LogIn,       gradientFrom: '#a955ff', gradientTo: '#ea51ff', scroll: false },
+  { title: 'Sign up',      href: '/register',     Icon: UserPlus,    gradientFrom: '#ffa9c6', gradientTo: '#f434e2', scroll: false },
 ]
 
 export default function GradientMenu() {
   return (
-    <ul className="flex gap-3 items-center">
-      {NAV_ITEMS.map(({ title, href, gradientFrom, gradientTo, scroll }, idx) => {
+    <ul className="flex gap-2 items-center">
+      {NAV_ITEMS.map(({ title, href, Icon, gradientFrom, gradientTo, scroll }, idx) => {
         const inner = (
           <>
-            {/* Pill fill — dim at rest, full on hover */}
+            {/* Pill fill — subtle at rest, full on hover */}
             <span
-              className="absolute inset-0 rounded-full transition-opacity duration-500 opacity-40 group-hover:opacity-100"
+              className="absolute inset-0 rounded-full transition-opacity duration-500 opacity-30 group-hover:opacity-100"
               style={{ background: `linear-gradient(45deg, ${gradientFrom}, ${gradientTo})` }}
             />
             {/* Glow layer */}
             <span
-              className="absolute top-[6px] inset-x-0 h-full rounded-full blur-[12px] -z-10 opacity-0 group-hover:opacity-50 transition-opacity duration-500"
+              className="absolute top-[6px] inset-x-0 h-full rounded-full blur-[14px] -z-10 opacity-0 group-hover:opacity-60 transition-opacity duration-500"
               style={{ background: `linear-gradient(45deg, ${gradientFrom}, ${gradientTo})` }}
             />
-            {/* Label */}
-            <span className="relative z-10 whitespace-nowrap text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-150 pointer-events-none">
+            {/* Icon — visible at rest, fades out on hover */}
+            <span className="relative z-10 flex items-center justify-center transition-all duration-300 group-hover:opacity-0 group-hover:scale-50">
+              <Icon size={16} className="text-white" strokeWidth={2} />
+            </span>
+            {/* Label — hidden at rest, fades in on hover */}
+            <span className="absolute z-10 whitespace-nowrap text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-all duration-300 delay-100 pointer-events-none">
               {title}
             </span>
           </>
         )
 
         const cls = `
-          relative h-[10px] w-[36px] hover:h-[40px] hover:w-[140px]
-          rounded-full flex items-center justify-center overflow-hidden
-          transition-all duration-500 group cursor-pointer
+          relative flex items-center justify-center overflow-hidden rounded-full cursor-pointer
+          w-[36px] h-[36px] hover:w-[140px] hover:h-[40px]
+          transition-all duration-500 group
+          bg-white/10 hover:bg-transparent
+          border border-white/20 hover:border-transparent
         `
 
         return scroll ? (
