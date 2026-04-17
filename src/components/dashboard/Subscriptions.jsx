@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { CreditCard, Plus, Check, Undo2, Eye, EyeOff } from 'lucide-react'
+import { CreditCard, Plus, Check, Undo2 } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -48,7 +48,7 @@ function SubIcon({ iconId, receiver, name }) {
   )
 }
 
-export default function Subscriptions({ currentDate = new Date() }) {
+export default function Subscriptions({ currentDate = new Date(), hidePaid = false }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const c = useCardCustomization('Subscriptions')
@@ -65,7 +65,6 @@ export default function Subscriptions({ currentDate = new Date() }) {
   const [collapsed,   setCollapsed]   = useCollapsed('Subscriptions')
   const [expandedId,  setExpandedId]  = useState(null)
   const [paidAmount,  setPaidAmount]  = useState('')
-  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('subs-hide-paid') === 'true')
 
   useEffect(() => {
     if (!user?.id) return
@@ -186,7 +185,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
 
   return (
     <>
-      <div className="glass-card rounded-2xl p-4 relative overflow-hidden group" style={{ border: c.borderStyle }}>
+      <div className="glass-card rounded-2xl p-4 relative overflow-hidden" style={{ border: c.borderStyle }}>
         {c.bgGradient && (
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: c.bgGradient, opacity: c.opacity / 100 }} />
@@ -205,21 +204,10 @@ export default function Subscriptions({ currentDate = new Date() }) {
               </button>
               <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('subs.title')}</button>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setHidePaid(h => { localStorage.setItem('subs-hide-paid', String(!h)); return !h })}
-                className={`transition-all ${hidePaid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                title={hidePaid ? 'Show paid' : 'Hide paid'}
-                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
-              >
-                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button onClick={() => { setEditingSub(null); setShowModal(true) }}
-                className="text-muted hover:text-white transition-colors">
-                <Plus size={16} />
-              </button>
-            </div>
+            <button onClick={() => { setEditingSub(null); setShowModal(true) }}
+              className="text-muted hover:text-white transition-colors">
+              <Plus size={16} />
+            </button>
           </div>
 
           {!collapsed && (<>

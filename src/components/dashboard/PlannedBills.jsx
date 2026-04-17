@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CalendarDays, Plus, Check, Eye, EyeOff } from 'lucide-react'
+import { CalendarDays, Plus, Check } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -66,7 +66,7 @@ function ItemIcon({ item, receiver }) {
   )
 }
 
-export default function PlannedBills({ currentDate = new Date() }) {
+export default function PlannedBills({ currentDate = new Date(), hidePaid = false }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { categoryMap, receiverMap } = useSharedData()
@@ -78,7 +78,6 @@ export default function PlannedBills({ currentDate = new Date() }) {
   const [loading,   setLoading]   = useState(false)
   const [collapsed, setCollapsed] = useCollapsed('PlannedBills')
   const [filter, setFilter] = useState('month')
-  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('planned-hide-paid') === 'true')
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 
@@ -149,7 +148,7 @@ export default function PlannedBills({ currentDate = new Date() }) {
 
   return (
     <>
-      <div className="glass-card rounded-2xl p-4 relative overflow-hidden group" style={{ border: c.borderStyle }}>
+      <div className="glass-card rounded-2xl p-4 relative overflow-hidden" style={{ border: c.borderStyle }}>
         {c.bgGradient && (
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: c.bgGradient, opacity: c.opacity / 100 }} />
@@ -181,23 +180,12 @@ export default function PlannedBills({ currentDate = new Date() }) {
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setHidePaid(h => { localStorage.setItem('planned-hide-paid', String(!h)); return !h })}
-                className={`transition-all ${hidePaid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                title={hidePaid ? 'Show paid' : 'Hide paid'}
-                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
-              >
-                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button
-                onClick={() => { setEditItem(null); setShowModal(true) }}
-                className="text-muted hover:text-white transition-colors"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
+            <button
+              onClick={() => { setEditItem(null); setShowModal(true) }}
+              className="text-muted hover:text-white transition-colors"
+            >
+              <Plus size={16} />
+            </button>
           </div>
 
           {!collapsed && (<>

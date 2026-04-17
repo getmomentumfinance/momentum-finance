@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Clock, Plus, Check, Undo2, PackageCheck, Eye, EyeOff } from 'lucide-react'
+import { Clock, Plus, Check, Undo2, PackageCheck } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -67,7 +67,7 @@ function ItemIcon({ item, receiver }) {
   )
 }
 
-export default function PendingTransactions({ currentDate = new Date() }) {
+export default function PendingTransactions({ currentDate = new Date(), hidePaid = false }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { categoryMap, receiverMap } = useSharedData()
@@ -81,7 +81,6 @@ export default function PendingTransactions({ currentDate = new Date() }) {
   const [collapsed,     setCollapsed]     = useCollapsed('PendingTransactions')
   const [receiveItem,   setReceiveItem]   = useState(null)  // item pending confirmation
   const [receiveAmount, setReceiveAmount] = useState('')
-  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('pending-hide-paid') === 'true')
   const receiveInputRef = useRef(null)
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
@@ -185,7 +184,7 @@ export default function PendingTransactions({ currentDate = new Date() }) {
 
   return (
     <>
-      <div className="glass-card rounded-2xl p-4 relative overflow-hidden group" style={{ border: c.borderStyle }}>
+      <div className="glass-card rounded-2xl p-4 relative overflow-hidden" style={{ border: c.borderStyle }}>
         {c.bgGradient && (
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: c.bgGradient, opacity: c.opacity / 100 }} />
@@ -208,23 +207,12 @@ export default function PendingTransactions({ currentDate = new Date() }) {
               </button>
               <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('pending.title')}</button>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setHidePaid(h => { localStorage.setItem('pending-hide-paid', String(!h)); return !h })}
-                className={`transition-all ${hidePaid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-                title={hidePaid ? 'Show paid' : 'Hide paid'}
-                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
-              >
-                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-              <button
-                onClick={() => { setEditItem(null); setShowModal(true) }}
-                className="text-muted hover:text-white transition-colors"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
+            <button
+              onClick={() => { setEditItem(null); setShowModal(true) }}
+              className="text-muted hover:text-white transition-colors"
+            >
+              <Plus size={16} />
+            </button>
           </div>
 
           {!collapsed && (<>

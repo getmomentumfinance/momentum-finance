@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { FileText, Plus, Check, Eye, EyeOff } from 'lucide-react'
+import { FileText, Plus, Check } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -73,7 +73,7 @@ function BillIcon({ iconId, receiver, name }) {
 
 
 // ── Main component ────────────────────────────────────────────
-export default function RecurringBills({ currentDate }) {
+export default function RecurringBills({ currentDate, hidePaid = false }) {
   const c = useCardCustomization('Recurring Bills')
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
@@ -88,7 +88,6 @@ export default function RecurringBills({ currentDate }) {
   const [filter, setFilter] = useState('month')
   const [expandedId, setExpandedId] = useState(null)
   const [paidAmount, setPaidAmount] = useState('')
-  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('bills-hide-paid') === 'true')
 
   useEffect(() => {
     if (!user?.id) return
@@ -195,7 +194,7 @@ export default function RecurringBills({ currentDate }) {
 
   return (
     <>
-    <div className="glass-card rounded-2xl p-4 relative overflow-hidden group" style={{ border: c.borderStyle }}>
+    <div className="glass-card rounded-2xl p-4 relative overflow-hidden" style={{ border: c.borderStyle }}>
       {c.bgGradient && (
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: c.bgGradient, opacity: c.opacity / 100 }} />
@@ -227,23 +226,12 @@ export default function RecurringBills({ currentDate }) {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setHidePaid(h => { localStorage.setItem('bills-hide-paid', String(!h)); return !h })}
-            className={`transition-all ${hidePaid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
-            title={hidePaid ? 'Show paid' : 'Hide paid'}
-            style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
-          >
-            {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="text-muted hover:text-white transition-colors"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="text-muted hover:text-white transition-colors"
+        >
+          <Plus size={16} />
+        </button>
       </div>
 
       {!collapsed && (<>
