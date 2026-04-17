@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CUSTOM_DESIGN_DEFAULTS } from '../constants/designs'
+import { useUIPrefs } from '../context/UIPrefContext'
 
 const STORAGE_KEY = (userId) => `app_custom_design_${userId ?? 'guest'}`
 
@@ -39,6 +40,7 @@ export function clearCustomVars() {
 }
 
 export function useCustomDesign(userId) {
+  const { setPref } = useUIPrefs()
   const [vars, setVars] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY(userId)))
@@ -48,20 +50,37 @@ export function useCustomDesign(userId) {
     }
   })
 
+  // Re-apply when prefs sync from Supabase on another device
+  useEffect(() => {
+    if (!userId) return
+    function onLoad() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY(userId)))
+        const next  = saved ? { ...CUSTOM_DESIGN_DEFAULTS, ...saved } : CUSTOM_DESIGN_DEFAULTS
+        setVars(next)
+        applyCustomVars(next)
+      } catch {}
+    }
+    window.addEventListener('ui-prefs-loaded', onLoad)
+    return () => window.removeEventListener('ui-prefs-loaded', onLoad)
+  }, [userId])
+
   const updateVar = useCallback((key, patch) => {
     setVars(prev => {
       const next = { ...prev, [key]: { ...prev[key], ...patch } }
       localStorage.setItem(STORAGE_KEY(userId), JSON.stringify(next))
+      setPref(STORAGE_KEY(userId), next)
       applyCustomVars(next)
       return next
     })
-  }, [userId])
+  }, [userId, setPref])
 
   const resetToDefaults = useCallback(() => {
     setVars(CUSTOM_DESIGN_DEFAULTS)
     localStorage.setItem(STORAGE_KEY(userId), JSON.stringify(CUSTOM_DESIGN_DEFAULTS))
+    setPref(STORAGE_KEY(userId), CUSTOM_DESIGN_DEFAULTS)
     applyCustomVars(CUSTOM_DESIGN_DEFAULTS)
-  }, [userId])
+  }, [userId, setPref])
 
   return { vars, updateVar, resetToDefaults }
 }

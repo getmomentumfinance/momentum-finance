@@ -3,6 +3,7 @@ import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { TransactionModalProvider } from './context/TransactionModalContext'
 import { CardPreferencesProvider } from './context/CardPreferencesContext'
+import { UIPrefProvider } from './context/UIPrefContext'
 import { SharedDataProvider } from './context/SharedDataContext'
 import { PaletteProvider } from './context/PaletteContext'
 import { useTheme } from './hooks/useTheme'
@@ -69,6 +70,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <UIPrefProvider>
         <UserPreferencesProvider>
           <PaletteProvider>
           <CardPreferencesProvider>
@@ -87,6 +89,7 @@ export default function App() {
           </CardPreferencesProvider>
           </PaletteProvider>
         </UserPreferencesProvider>
+        </UIPrefProvider>
       </AuthProvider>
     </BrowserRouter>
   )

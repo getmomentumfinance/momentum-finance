@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useImportance } from '../../hooks/useImportance'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useUIPrefs } from '../../context/UIPrefContext'
 import { calcAllBudgetSpends } from '../../utils/budgetPeriod'
 import {
   DndContext, DragOverlay,
@@ -13,7 +14,7 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext, sortableKeyboardCoordinates,
-  verticalListSortingStrategy, useSortable, arrayMove,
+  rectSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -71,40 +72,42 @@ function BudgetCard({ label, color, impColor, spent, limit, rolloverAmount, peri
     : null
 
   return (
-    <div className="glass-card rounded-2xl p-3.5 relative overflow-hidden">
-      <div className="flex items-center gap-3.5">
+    <div className="glass-card rounded-2xl p-3 relative overflow-hidden">
+      <div className="flex flex-col items-center gap-2">
         {/* Donut */}
-        <div className="relative shrink-0">
-          <DonutChart pct={pct} color={ring} size={68} />
+        <div className="relative">
+          <DonutChart pct={pct} color={ring} size={60} />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-bold tabular-nums leading-none" style={{ color: ring }}>
+            <span className="text-[10px] font-bold tabular-nums leading-none" style={{ color: ring }}>
               {Math.round(pct)}%
             </span>
           </div>
         </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <p className="text-sm font-semibold text-white truncate leading-tight">{label}</p>
+        <div className="w-full text-center min-w-0">
+          <div className="flex items-center justify-center gap-1 mb-0.5">
+            <p className="text-[11px] font-semibold text-white truncate leading-tight">{label}</p>
             {periodBadge && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0"
+              <span className="text-[8px] px-1 py-0.5 rounded-full shrink-0"
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>
                 {periodBadge}
               </span>
             )}
           </div>
-          <p className="text-xs text-white/40 tabular-nums">
+          <p className="text-[10px] text-white/40 tabular-nums">
             {fmt(spent)}
             <span className="text-white/22"> / {fmt(limit)}</span>
-            {rollover > 0 && (
-              <span style={{ color: 'var(--color-accent)' }}> +{fmt(rollover)}</span>
-            )}
           </p>
-          <p className="text-[10px] mt-1 tabular-nums"
+          {rollover > 0 && (
+            <p className="text-[9px] tabular-nums" style={{ color: 'var(--color-accent)' }}>
+              +{fmt(rollover)} rollover
+            </p>
+          )}
+          <p className="text-[9px] mt-0.5 tabular-nums"
             style={{ color: over ? 'var(--color-alert)' : 'rgba(255,255,255,0.22)' }}>
             {over
-              ? `+${fmt(remaining)} ${t('common.over')} budget`
+              ? `+${fmt(remaining)} ${t('common.over')}`
               : `${fmt(remaining)} ${t('common.remaining')}`}
           </p>
         </div>
@@ -140,6 +143,7 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   const { user }                         = useAuth()
   const { t }                            = usePreferences()
   const { importance: importanceLevels } = useImportance()
+  const { setPref, loaded: prefsLoaded } = useUIPrefs()
 
   const [budgets,      setBudgets]      = useState([])
   const [targets,      setTargets]      = useState([])
@@ -149,6 +153,12 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   const [cardOrder,    setCardOrder]    = useState(() => {
     try { return JSON.parse(localStorage.getItem('budgets-card-order') ?? 'null') } catch { return null }
   })
+
+  // Re-sync card order when Supabase prefs are loaded
+  useEffect(() => {
+    if (!prefsLoaded) return
+    try { setCardOrder(JSON.parse(localStorage.getItem('budgets-card-order') ?? 'null')) } catch {}
+  }, [prefsLoaded])
   const [activeId, setActiveId] = useState(null)
 
   useEffect(() => {
@@ -256,7 +266,7 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
     const ids  = sortedRows.map(r => String(r.key))
     const next = arrayMove(ids, ids.indexOf(String(active.id)), ids.indexOf(String(over.id)))
     setCardOrder(next)
-    localStorage.setItem('budgets-card-order', JSON.stringify(next))
+    setPref('budgets-card-order', JSON.stringify(next))
   }
 
   if (allRows.length === 0) return (
@@ -291,8 +301,8 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
         onDragEnd={handleDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-          <div className="flex flex-col gap-3">
+        <SortableContext items={itemIds} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-2 gap-3">
             {sortedRows.map(r => (
               <SortableBudgetCard key={r.key} id={String(r.key)} {...r} />
             ))}
@@ -300,7 +310,7 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
         </SortableContext>
         <DragOverlay>
           {activeId && (
-            <div className="rounded-2xl h-16 w-full"
+            <div className="rounded-2xl h-28 w-full"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', opacity: 0.7 }} />
           )}
         </DragOverlay>

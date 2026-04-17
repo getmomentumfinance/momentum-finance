@@ -37,6 +37,7 @@ import FinancialInsights from '../components/dashboard/FinancialInsights'
 import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useUIPrefs } from '../context/UIPrefContext'
 
 
 const BALANCE_TYPES = ['debit', 'credit']
@@ -71,6 +72,7 @@ function SortableWidget({ id, children }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const { openTransactionModal } = useTransactionModal()
+  const { setPref, deletePrefs, loaded: prefsLoaded } = useUIPrefs()
   const [currentDate,       setCurrentDate]       = useState(new Date())
   const [totalBalance,      setTotalBalance]      = useState(0)
   const [cashBalance,       setCashBalance]       = useState(0)
@@ -126,26 +128,26 @@ export default function Dashboard() {
       // reorder within left column
       const next = arrayMove(leftCol, leftCol.indexOf(active.id), leftCol.indexOf(over.id))
       setLeftCol(next)
-      localStorage.setItem('dash-left-col', JSON.stringify(next))
+      setPref('dash-left-col', JSON.stringify(next))
     } else if (!srcLeft && !dstLeft) {
       // reorder within right column
       const next = arrayMove(rightCol, rightCol.indexOf(active.id), rightCol.indexOf(over.id))
       setRightCol(next)
-      localStorage.setItem('dash-right-col', JSON.stringify(next))
+      setPref('dash-right-col', JSON.stringify(next))
     } else if (srcLeft && !dstLeft) {
       // left → right: remove from left, insert before the over item in right
       const newLeft  = leftCol.filter(id => id !== active.id)
       const overIdx  = rightCol.indexOf(over.id)
       const newRight = [...rightCol.slice(0, overIdx), active.id, ...rightCol.slice(overIdx)]
-      setLeftCol(newLeft);  localStorage.setItem('dash-left-col',  JSON.stringify(newLeft))
-      setRightCol(newRight); localStorage.setItem('dash-right-col', JSON.stringify(newRight))
+      setLeftCol(newLeft);   setPref('dash-left-col',  JSON.stringify(newLeft))
+      setRightCol(newRight); setPref('dash-right-col', JSON.stringify(newRight))
     } else {
       // right → left: remove from right, insert before the over item in left
       const newRight = rightCol.filter(id => id !== active.id)
       const overIdx  = leftCol.indexOf(over.id)
       const newLeft  = [...leftCol.slice(0, overIdx), active.id, ...leftCol.slice(overIdx)]
-      setRightCol(newRight); localStorage.setItem('dash-right-col', JSON.stringify(newRight))
-      setLeftCol(newLeft);   localStorage.setItem('dash-left-col',  JSON.stringify(newLeft))
+      setRightCol(newRight); setPref('dash-right-col', JSON.stringify(newRight))
+      setLeftCol(newLeft);   setPref('dash-left-col',  JSON.stringify(newLeft))
     }
   }
   function handleDragCancel() { setActiveWidgetId(null) }
@@ -153,8 +155,7 @@ export default function Dashboard() {
   function resetWidgetOrder() {
     setLeftCol(DEFAULT_LEFT_COL)
     setRightCol(DEFAULT_RIGHT_COL)
-    localStorage.removeItem('dash-left-col')
-    localStorage.removeItem('dash-right-col')
+    deletePrefs(['dash-left-col', 'dash-right-col'])
   }
 
   // ── Hide-paid toggles ─────────────────────────────────────────
@@ -170,7 +171,7 @@ export default function Dashboard() {
   function toggleHidePaid(key) {
     setHidePaidMap(prev => {
       const next = { ...prev, [key]: !prev[key] }
-      localStorage.setItem(key, String(next[key]))
+      setPref(key, String(next[key]))
       return next
     })
   }
@@ -203,9 +204,30 @@ export default function Dashboard() {
   }, [visOpen])
   function toggleCard(key, val) {
     setCardVis(prev => ({ ...prev, [key]: val }))
-    localStorage.setItem(key, String(val))
+    setPref(key, String(val))
   }
   const v = key => cardVis[key] ?? true
+
+  // Re-initialize all display prefs once Supabase values have been seeded into localStorage
+  useEffect(() => {
+    if (!prefsLoaded) return
+    const ls = localStorage.getItem('dash-left-col')
+    const rs = localStorage.getItem('dash-right-col')
+    if (ls || rs) {
+      try {
+        let left  = ls ? JSON.parse(ls) : DEFAULT_LEFT_COL
+        let right = rs ? JSON.parse(rs) : DEFAULT_RIGHT_COL
+        const rightSet = new Set(right)
+        left = left.filter(k => !rightSet.has(k))
+        const allIds = new Set([...left, ...right])
+        left  = [...left,  ...DEFAULT_LEFT_COL.filter(k  => !allIds.has(k))]
+        right = [...right, ...DEFAULT_RIGHT_COL.filter(k => !allIds.has(k))]
+        setColumns({ leftCol: left, rightCol: right })
+      } catch {}
+    }
+    setHidePaidMap(Object.fromEntries(HIDE_PAID_CARDS.map(c => [c.key, localStorage.getItem(c.key) === 'true'])))
+    setCardVis(Object.fromEntries(DASH_CARDS.map(c => [c.key, (localStorage.getItem(c.key) ?? 'true') === 'true'])))
+  }, [prefsLoaded])
 
   useEffect(() => {
     if (!user?.id) return

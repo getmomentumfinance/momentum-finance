@@ -22,6 +22,7 @@ import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useUIPrefs } from '../context/UIPrefContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
 import { toLocalStr, getPeriodBounds } from '../utils/budgetPeriod'
 
@@ -512,6 +513,7 @@ function LinePanel({ title, subtitle, data, series, xInterval = 0, chartHeight =
 export default function Analytics() {
   const { fmt, fmtK, t } = usePreferences()
   const isMobile = useIsMobile()
+  const { setPref, loaded: prefsLoaded } = useUIPrefs()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [range, setRange] = useState('month')
   const [compareDate, setCompareDate] = useState(() => {
@@ -1002,9 +1004,9 @@ export default function Analytics() {
     let getKey, getColor
     if (ddDimension === 'category') {
       if (ddFilter) {
-        // drill into subcategories of selected category
-        getKey   = t => t.subcategory_id ? (categoryMap[t.subcategory_id]?.name ?? 'Other') : null
-        getColor = t => midColor(categoryMap[t.subcategory_id]?.color)
+        // drill into subcategories of selected category; fall back to category name if no sub
+        getKey   = t => t.subcategory_id ? (categoryMap[t.subcategory_id]?.name ?? 'Other') : (categoryMap[t.category_id]?.name ?? 'Other')
+        getColor = t => midColor(t.subcategory_id ? categoryMap[t.subcategory_id]?.color : categoryMap[t.category_id]?.color)
       } else {
         getKey   = t => t.category_id ? (categoryMap[t.category_id]?.name ?? 'Other') : null
         getColor = t => midColor(categoryMap[t.category_id]?.color)
@@ -1595,7 +1597,7 @@ export default function Analytics() {
   // ── Spending trend (all-time monthly, for habit tracking) ────────
   const [habitDimension, setHabitDimension] = useState('total')
   const [habitChartType, setHabitChartType] = useState(() => localStorage.getItem('analytics-habitChartType') ?? 'bar')
-  function handleHabitChartType(t) { setHabitChartType(t); localStorage.setItem('analytics-habitChartType', t) }
+  function handleHabitChartType(t) { setHabitChartType(t); setPref('analytics-habitChartType', t) }
 
   // ── Appearance settings ───────────────────────────────────────
   const [showDonuts,        setShowDonuts]        = useState(() => (localStorage.getItem('an-showDonuts')        ?? 'true') === 'true')
@@ -1612,7 +1614,19 @@ export default function Analytics() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [appearanceOpen])
-  function toggleAppearance(key, val, setter) { setter(val); localStorage.setItem(key, String(val)) }
+  function toggleAppearance(key, val, setter) { setter(val); setPref(key, String(val)) }
+
+  // Re-initialize analytics display prefs once Supabase values have been seeded
+  useEffect(() => {
+    if (!prefsLoaded) return
+    setHabitChartType(localStorage.getItem('analytics-habitChartType') ?? 'bar')
+    setShowDonuts((localStorage.getItem('an-showDonuts')               ?? 'true') === 'true')
+    setShowDeepDive((localStorage.getItem('an-showDeepDive')           ?? 'true') === 'true')
+    setShowProjected((localStorage.getItem('an-showProjected')         ?? 'true') === 'true')
+    setShowInsights((localStorage.getItem('an-showInsights')           ?? 'true') === 'true')
+    setShowWeekSummary((localStorage.getItem('an-showWeekSummary')     ?? 'true') === 'true')
+    setShowSpendingHabit((localStorage.getItem('an-showSpendingHabit') ?? 'true') === 'true')
+  }, [prefsLoaded])
 
   const allExpenses = useMemo(
     () => transactions.filter(t => t.type === 'expense' && !t.is_split_parent),
