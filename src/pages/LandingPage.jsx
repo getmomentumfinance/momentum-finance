@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, BarChart3, Wallet, PiggyBank,
@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 
 // ── Palette ────────────────────────────────────────────────────────
-const BG        = 'oklch(0.94 0.012 45)'   // warm cream
+const BG        = '#f1eae4'                 // warm cream (oklch 0.94 0.012 45)
 const BLACK     = '#0f0d0c'
 const BLUSH     = '#f0afc5'                 // blush pink
 const BLUSH_MID = '#c97a90'                 // deeper blush for text/icons
@@ -69,6 +69,16 @@ function FAQItem({ q, a }) {
 
 // ── Page ───────────────────────────────────────────────────────────
 export default function LandingPage() {
+  // Override the global body gradient while on this page
+  useEffect(() => {
+    document.body.style.background = BG
+    document.documentElement.style.background = BG
+    return () => {
+      document.body.style.background = ''
+      document.documentElement.style.background = ''
+    }
+  }, [])
+
   return (
     <div style={{ background: BG, color: BLACK, minHeight: '100vh', overflowX: 'hidden' }}>
 
