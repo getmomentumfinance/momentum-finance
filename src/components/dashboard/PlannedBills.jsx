@@ -149,7 +149,7 @@ export default function PlannedBills({ currentDate = new Date() }) {
 
   return (
     <>
-      <div className="glass-card rounded-2xl p-4 relative overflow-hidden" style={{ border: c.borderStyle }}>
+      <div className="glass-card rounded-2xl p-4 relative overflow-hidden group" style={{ border: c.borderStyle }}>
         {c.bgGradient && (
           <div className="absolute inset-0 pointer-events-none"
             style={{ background: c.bgGradient, opacity: c.opacity / 100 }} />
@@ -185,7 +185,7 @@ export default function PlannedBills({ currentDate = new Date() }) {
               <button
                 type="button"
                 onClick={() => setHidePaid(h => { localStorage.setItem('planned-hide-paid', String(!h)); return !h })}
-                className="transition-colors"
+                className={`transition-all ${hidePaid ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                 title={hidePaid ? 'Show paid' : 'Hide paid'}
                 style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
               >
