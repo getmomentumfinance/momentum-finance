@@ -5,6 +5,7 @@ import {
   CalendarDays, Receipt, CreditCard, Check,
   TrendingUp, Shield, Zap,
 } from 'lucide-react'
+import GradientMenu from '../components/ui/gradient-menu'
 
 // ── Palette ────────────────────────────────────────────────────────
 const HERO_BG   = 'radial-gradient(ellipse at 65% 30%, #9e2b5a 0%, #4a0d28 50%, #2d0615 100%)'
@@ -210,50 +211,27 @@ export default function LandingPage() {
     <div style={{ overflowX: 'hidden' }}>
 
       {/* ══════════════════════════════════════════════════
-          NAV — light
+          NAV — transparent over hero
       ══════════════════════════════════════════════════ */}
       <nav style={{
-        background: WHITE, borderBottom: `1px solid ${BORDER_L}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 clamp(24px, 6vw, 72px)', height: 60,
-        position: 'sticky', top: 0, zIndex: 50,
+        padding: '20px clamp(24px, 6vw, 72px)',
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-          <div style={{ width: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg, ${BERRY}, ${ROSE})`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            <img src="/momentum_transparant.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: `linear-gradient(135deg, ${BERRY}, ${ROSE})`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <img src="/momentum_transparant.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em', color: BERRY }}>Momentum</span>
+          <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em', color: WHITE }}>Momentum</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {[['Overview', '#hero'], ['Features', '#features'], ['FAQ', '#faq']].map(([label, href]) => (
-            <a key={label} href={href} style={{
-              fontSize: 13, fontWeight: 500, color: MUTED_L,
-              textDecoration: 'none', padding: '6px 14px', borderRadius: 99,
-              transition: 'color .18s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.color = BERRY}
-              onMouseLeave={e => e.currentTarget.style.color = MUTED_L}>
-              {label}
-            </a>
-          ))}
-        </div>
-
-        <Link to="/register" style={{
-          fontSize: 13, fontWeight: 700, color: BERRY,
-          textDecoration: 'none', padding: '8px 20px', borderRadius: 99,
-          border: `1.5px solid ${BERRY}`, transition: 'background .18s, color .18s',
-        }}
-          onMouseEnter={e => { e.currentTarget.style.background = BERRY; e.currentTarget.style.color = WHITE }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = BERRY }}>
-          Get Started
-        </Link>
+        <GradientMenu />
       </nav>
 
       {/* ══════════════════════════════════════════════════
           HERO — dark
       ══════════════════════════════════════════════════ */}
-      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(64px,10vw,100px) clamp(24px,6vw,72px) 0', textAlign: 'center' }}>
+      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(120px,14vw,160px) clamp(24px,6vw,72px) 0', textAlign: 'center' }}>
 
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
           All-in-one personal finance
