@@ -23,6 +23,7 @@ import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { txMatchesBudget } from '../utils/budgetMatch'
+import { toLocalStr, getPeriodBounds } from '../utils/budgetPeriod'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -52,26 +53,6 @@ function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter
       ))}
     </div>
   )
-}
-
-function toLocalStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear(), m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const diff = (refDate.getDay() - startJsDow + 7) % 7
-    const start = new Date(refDate); start.setDate(refDate.getDate() - diff); start.setHours(0,0,0,0)
-    const end = new Date(start); end.setDate(start.getDate() + 6)
-    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const end = new Date(new Date(sy, sm + 1, rd).getTime() - 86400000)
-  return { startStr: toLocalStr(new Date(sy, sm, rd)), endStr: toLocalStr(end) }
 }
 
 const RANGE_IDS = ['week', 'month', '3m', 'year', 'all', 'compare', 'tree']
@@ -568,25 +549,6 @@ export default function Analytics() {
     return () => window.removeEventListener('transaction-saved', loadBudgets)
   }, [user?.id])
 
-  // Fetch category importance directly, falling back to parent category if subcategory has none
-  const [catImportance, setCatImportance] = useState({})
-  useEffect(() => {
-    if (!user?.id) return
-    function loadCatImportance() {
-      supabase
-        .from('categories')
-        .select('id, importance')
-        .eq('user_id', user.id)
-        .then(({ data }) => {
-          if (!data) return
-          setCatImportance(Object.fromEntries(data.map(c => [c.id, c.importance])))
-        })
-    }
-    loadCatImportance()
-    window.addEventListener('transaction-saved', loadCatImportance)
-    return () => window.removeEventListener('transaction-saved', loadCatImportance)
-  }, [user?.id])
-
   const [periodPerfTab, setPeriodPerfTab] = useState('limits')
 
   // ── Budget & target performance for this period ───────────────
@@ -604,14 +566,14 @@ export default function Analytics() {
             !t.is_split_parent && t.type === 'expense' &&
             t.date >= startStr && t.date <= endStr &&
             (!b.card_id || t.card_id === b.card_id) &&
-            txMatchesBudget(t, b, Object.fromEntries(Object.entries(catImportance).map(([k, v]) => [k, { importance: v }])))
+            txMatchesBudget(t, b)
           )
           .reduce((s, t) => s + Number(t.amount), 0)
         const pct = effectiveLimit > 0 ? (spent / effectiveLimit) * 100 : 0
         return { id: b.id, name: b.name, category_id: b.category_id, subcategory_id: b.subcategory_id, importance: b.importance, receiver_id: b.receiver_id, category_ids: b.category_ids, subcategory_ids: b.subcategory_ids, importance_ids: b.importance_ids, receiver_ids: b.receiver_ids, limit: effectiveLimit, spent, pct, isOver: spent > effectiveLimit }
       })
       .sort((a, b) => b.pct - a.pct)
-  }, [range, budgets, transactions, currentDate, catImportance])
+  }, [range, budgets, transactions, currentDate])
 
   const periodTargetStats = useMemo(() => {
     const periodMap = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }
@@ -628,7 +590,7 @@ export default function Analytics() {
             (tgt.category_id    ? t.category_id    === tgt.category_id
            : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
            : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
-           : tgt.importance    ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === tgt.importance
+           : tgt.importance    ? t.importance === tgt.importance
                                : false)
           )
           .reduce((s, t) => s + Number(t.amount), 0)
@@ -636,7 +598,7 @@ export default function Analytics() {
         return { id: tgt.id, category_id: tgt.category_id, subcategory_id: tgt.subcategory_id, importance: tgt.importance, receiver_id: tgt.receiver_id, target: tgt.target_monthly_spend, spent, pct, isOver: spent > tgt.target_monthly_spend }
       })
       .sort((a, b) => b.pct - a.pct)
-  }, [range, targets, transactions, currentDate, catImportance])
+  }, [range, targets, transactions, currentDate])
 
   // ── Goal sparklines: 6-month per-target history ───────────────
   const goalSparklines = useMemo(() => {
@@ -656,7 +618,7 @@ export default function Analytics() {
             (tgt.category_id    ? t.category_id    === tgt.category_id
            : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
            : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
-           : tgt.importance    ? (catImportance[t.category_id] ?? catImportance[t.subcategory_id]) === tgt.importance
+           : tgt.importance    ? t.importance === tgt.importance
                                : false)
           )
           .reduce((s, t) => s + Number(t.amount), 0)
@@ -665,7 +627,7 @@ export default function Analytics() {
       result[tgt.id] = pts
     }
     return result
-  }, [targets, transactions, currentDate, catImportance])
+  }, [targets, transactions, currentDate])
 
   // ── Filter by period ─────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -811,7 +773,7 @@ export default function Analytics() {
     const map = {}
     expenses.forEach(t => {
       // Importance lives on the subcategory; fall back to parent category
-      const imp = catImportance[t.subcategory_id] ?? catImportance[t.category_id]
+      const imp = t.importance
       if (!imp) return
       const def = DEFAULT_IMPORTANCE.find(d => d.value === imp)
       if (!def) return
@@ -820,7 +782,7 @@ export default function Analytics() {
       map[imp].value += Number(t.amount)
     })
     return DEFAULT_IMPORTANCE.filter(d => map[d.value]).map(d => map[d.value])
-  }, [expenses, catImportance, importanceColors])
+  }, [expenses, importanceColors])
 
   // ── Top receivers ─────────────────────────────────────────────
   const receiverData = useMemo(() => {
@@ -1011,11 +973,11 @@ export default function Analytics() {
     if (ddDimension === 'subcategory') return t.subcategory_id === ddFilter
     if (ddDimension === 'receiver')    return t.receiver_id    === ddFilter
     if (ddDimension === 'importance') {
-      const imp = catImportance[t.subcategory_id] ?? catImportance[t.category_id]
+      const imp = t.importance
       return imp === ddFilter
     }
     return true
-  }), [expenses, ddDimension, ddFilter, catImportance])
+  }), [expenses, ddDimension, ddFilter])
 
   const ddTotal   = useMemo(() => ddFiltered.reduce((s, t) => s + Number(t.amount), 0), [ddFiltered])
   const ddAvg     = ddFiltered.length ? ddTotal / ddFiltered.length : 0
@@ -1066,8 +1028,8 @@ export default function Analytics() {
         getKey   = t => t.category_id ? (categoryMap[t.category_id]?.name ?? 'Other') : null
         getColor = t => midColor(categoryMap[t.category_id]?.color)
       } else {
-        getKey   = t => { const imp = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return imp ? (DEFAULT_IMPORTANCE.find(d => d.value === imp)?.label ?? imp) : null }
-        getColor = t => { const imp = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return imp ? (importanceColors[imp] ?? DEFAULT_IMPORTANCE.find(d => d.value === imp)?.color) : null }
+        getKey   = t => { const imp = t.importance; return imp ? (DEFAULT_IMPORTANCE.find(d => d.value === imp)?.label ?? imp) : null }
+        getColor = t => { const imp = t.importance; return imp ? (importanceColors[imp] ?? DEFAULT_IMPORTANCE.find(d => d.value === imp)?.color) : null }
       }
     }
 
@@ -1128,7 +1090,7 @@ export default function Analytics() {
       data:   Object.entries(byMonth).sort(([a],[b]) => a.localeCompare(b)).map(([mk, v]) => ({ label: toLabel(mk), ...Object.fromEntries(series.map(s => [s.name, v[s.name] || 0])) })),
       series,
     }
-  }, [ddFiltered, ddDimension, ddFilter, categoryMap, catImportance, importanceColors, range, currentDate, receiverMap])
+  }, [ddFiltered, ddDimension, ddFilter, categoryMap, importanceColors, range, currentDate, receiverMap])
 
   const ddColor = useMemo(() => {
     if (!ddFilter) return colors.expense
@@ -1216,7 +1178,7 @@ export default function Analytics() {
   const importanceComparison = useMemo(() => {
     const prevMap = {}
     prevPeriodExpenses.forEach(t => {
-      const imp = catImportance[t.subcategory_id] ?? catImportance[t.category_id]
+      const imp = t.importance
       if (!imp) return
       const def = DEFAULT_IMPORTANCE.find(d => d.value === imp)
       if (!def) return
@@ -1228,7 +1190,7 @@ export default function Analytics() {
         prev: prevMap[c.name] ?? 0,
         pct: (prevMap[c.name] ?? 0) > 0 ? ((c.value - prevMap[c.name]) / prevMap[c.name]) * 100 : null,
       }))
-  }, [importanceData, prevPeriodExpenses, catImportance])
+  }, [importanceData, prevPeriodExpenses])
 
   const receiverComparison = useMemo(() => {
     const prevMap = {}
@@ -1408,8 +1370,8 @@ export default function Analytics() {
       getKey   = t => t.subcategory_id ? (categoryMap[t.subcategory_id]?.name ?? 'Unknown') : null
       getColor = t => midColor(categoryMap[t.subcategory_id]?.color)
     } else if (weekBreakdownDim === 'importance') {
-      getKey   = t => { const i = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null }
-      getColor = t => { const i = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return i ? (importanceColors[i] ?? DEFAULT_IMPORTANCE.find(d => d.value === i)?.color ?? FALLBACK_COLORS[0]) : null }
+      getKey   = t => { const i = t.importance; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null }
+      getColor = t => { const i = t.importance; return i ? (importanceColors[i] ?? DEFAULT_IMPORTANCE.find(d => d.value === i)?.color ?? FALLBACK_COLORS[0]) : null }
     } else {
       getKey   = t => { const k = typeKey(t); return k ? (TYPE_LABELS[k] ?? k) : null }
       getColor = t => { const k = typeKey(t); const b = k === 'cash_out' ? 'cash-out' : k?.replace('_in','').replace('_out',''); return b ? `var(--type-${b.replace(/_/g,'-')})` : FALLBACK_COLORS[0] }
@@ -1429,7 +1391,7 @@ export default function Analytics() {
       return { label, ...Object.fromEntries(series.map(({ name }) => [name, byKey[name] || 0])) }
     })
     return { data, series }
-  }, [transactions, range, currentDate, weekBreakdownDim, categoryMap, catImportance, importanceColors])
+  }, [transactions, range, currentDate, weekBreakdownDim, categoryMap, importanceColors])
 
   // ── All-dimension weekly amounts (for WeekBreakCards) ────────────
   const weeklyAllDimsBreakdown = useMemo(() => {
@@ -1492,14 +1454,14 @@ export default function Analytics() {
           t => t.subcategory_id ? (categoryMap[t.subcategory_id]?.name ?? 'Unknown') : null,
           t => midColor(categoryMap[t.subcategory_id]?.color)),
         importance:  buildRows(expTxs,
-          t => { const i = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null },
-          t => { const i = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return i ? (importanceColors[i] ?? DEFAULT_IMPORTANCE.find(d => d.value === i)?.color ?? FALLBACK_COLORS[0]) : null }),
+          t => { const i = t.importance; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null },
+          t => { const i = t.importance; return i ? (importanceColors[i] ?? DEFAULT_IMPORTANCE.find(d => d.value === i)?.color ?? FALLBACK_COLORS[0]) : null }),
         type:        buildRows(allTxs,
           t => { const k = typeKey(t); return k ? (TYPE_LABELS[k] ?? k) : null },
           t => { const k = typeKey(t); const b = k === 'cash_out' ? 'cash-out' : k?.replace('_in','').replace('_out',''); return b ? `var(--type-${b.replace(/_/g,'-')})` : FALLBACK_COLORS[0] }),
       },
     }
-  }, [transactions, range, currentDate, categoryMap, catImportance, importanceColors])
+  }, [transactions, range, currentDate, categoryMap, importanceColors])
 
   // ── Daily bar data for the compare month ─────────────────────────
   const weekDailyData = useMemo(() => {
@@ -1533,7 +1495,7 @@ export default function Analytics() {
     const getKey = t => {
       if (weekBreakdownDim === 'category')    return t.category_id    ? (categoryMap[t.category_id]?.name    ?? 'Unknown') : null
       if (weekBreakdownDim === 'subcategory') return t.subcategory_id ? (categoryMap[t.subcategory_id]?.name ?? 'Unknown') : null
-      if (weekBreakdownDim === 'importance')  { const i = catImportance[t.subcategory_id] ?? catImportance[t.category_id]; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null }
+      if (weekBreakdownDim === 'importance')  { const i = t.importance; return i ? (DEFAULT_IMPORTANCE.find(d => d.value === i)?.label ?? i) : null }
       const k = typeKey(t); return k ? (TYPE_LABELS[k] ?? k) : null
     }
     const byDay = {}
@@ -1550,7 +1512,7 @@ export default function Analytics() {
       return entry
     })
     return { data, series }
-  }, [filtered, range, currentDate, weekBreakdownDim, weeklyAllDimsBreakdown, categoryMap, catImportance])
+  }, [filtered, range, currentDate, weekBreakdownDim, weeklyAllDimsBreakdown, categoryMap])
 
   // ── Type donut for weeks view ─────────────────────────────────────
   const weekTypeDonutData = useMemo(() => {
@@ -1723,19 +1685,16 @@ export default function Analytics() {
         const subcategories = Object.entries(data.subs)
           .map(([subId, amount]) => {
             const sub = categoryMap[subId] ?? {}
-            const impVal = catImportance[subId] ?? catImportance[catId]
-            const impObj = DEFAULT_IMPORTANCE.find(d => d.value === impVal)
             return {
               id: subId,
               name: sub.name ?? 'Unknown',
               color: midColor(sub.color) ?? midColor(cat.color) ?? FALLBACK_COLORS[0],
               amount,
-              importance: impObj ?? null,
+              importance: null,
             }
           })
           .sort((a, b) => b.amount - a.amount)
-        const impVal = catImportance[catId]
-        const impObj = DEFAULT_IMPORTANCE.find(d => d.value === impVal)
+        const impObj = null
         return {
           id: catId,
           name: cat.name ?? 'Unknown',
@@ -1746,7 +1705,7 @@ export default function Analytics() {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [filtered, categoryMap, catImportance, range])
+  }, [filtered, categoryMap, range])
 
   const prevMonthDate = range === 'compare' ? compareDate : new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
   const periodLabel = range === 'compare'
@@ -2577,15 +2536,41 @@ export default function Analytics() {
                         {ddBarTransactions.length === 0
                           ? <p className="text-xs text-muted py-4 text-center">No transactions</p>
                           : ddBarTransactions.map(tx => {
-                            const cat = categoryMap[tx.subcategory_id] ?? categoryMap[tx.category_id]
-                            const rec = receiverMap[tx.receiver_id]
+                            const mainCat = categoryMap[tx.category_id]
+                            const subCat  = categoryMap[tx.subcategory_id]
+                            const rec     = receiverMap[tx.receiver_id]
+                            const impDef  = tx.importance ? DEFAULT_IMPORTANCE.find(d => d.value === tx.importance) : null
+                            const impColor = impDef ? (importanceColors[tx.importance] ?? impDef.color) : null
                             return (
-                              <div key={tx.id} className="flex items-center gap-2 py-1.5 px-1 rounded-lg hover:bg-white/[0.03]">
-                                <div className="flex flex-col min-w-0 flex-1">
-                                  <span className="text-xs truncate text-white/80">{tx.description || rec?.name || '—'}</span>
-                                  {cat && <span className="text-[10px] text-white/35 truncate">{cat.name}</span>}
+                              <div key={tx.id} className="flex items-start gap-2 py-2 px-1 rounded-lg hover:bg-white/[0.03] border-b border-white/[0.04] last:border-0">
+                                <div className="flex flex-col min-w-0 flex-1 gap-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs truncate text-white/85">{tx.description || rec?.name || '—'}</span>
+                                    <span className="text-xs tabular-nums font-semibold shrink-0" style={{ color: colors.expense }}>−{fmt(tx.amount)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {mainCat && (
+                                      <span className="flex items-center gap-1 text-[10px] text-white/50">
+                                        {mainCat.color && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: mainCat.color }} />}
+                                        {mainCat.name}
+                                      </span>
+                                    )}
+                                    {subCat && (
+                                      <>
+                                        <span className="text-white/20 text-[10px]">›</span>
+                                        <span className="text-[10px] text-white/40">{subCat.name}</span>
+                                      </>
+                                    )}
+                                    {impDef && (
+                                      <span className="flex items-center gap-[3px] ml-auto shrink-0" title={impDef.label}>
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                          <span key={i} className="w-1 h-1 rounded-full"
+                                            style={{ background: i < impDef.dots ? impColor : impColor + '30' }} />
+                                        ))}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="text-xs tabular-nums font-semibold shrink-0" style={{ color: colors.expense }}>−{fmt(tx.amount)}</span>
                               </div>
                             )
                           })
@@ -2628,7 +2613,7 @@ export default function Analytics() {
                               key   = tx.receiver_id ? (receiverMap[tx.receiver_id]?.name ?? 'Unknown') : null
                               color = tx.receiver_id ? getMerchantColor(receiverMap[tx.receiver_id]?.name ?? '') : null
                             } else {
-                              const imp = catImportance[tx.subcategory_id] ?? catImportance[tx.category_id]
+                              const imp = tx.importance
                               key   = imp ? (DEFAULT_IMPORTANCE.find(d => d.value === imp)?.label ?? imp) : null
                               color = imp ? (importanceColors[imp] ?? DEFAULT_IMPORTANCE.find(d => d.value === imp)?.color) : null
                             }

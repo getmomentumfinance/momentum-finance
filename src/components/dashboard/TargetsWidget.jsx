@@ -9,28 +9,7 @@ import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { usePreferences } from '../../context/UserPreferencesContext'
-
-function toLocalStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear(), m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate); start.setDate(refDate.getDate() - diff); start.setHours(0,0,0,0)
-    const end = new Date(start); end.setDate(start.getDate() + 6)
-    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return { startStr: toLocalStr(new Date(sy, sm, rd)), endStr: toLocalStr(end) }
-}
+import { toLocalStr, getPeriodBounds } from '../../utils/budgetPeriod'
 
 function ImpDots({ imp }) {
   return (
@@ -56,10 +35,7 @@ function GoalCard({ target, allExpenses, catMap, importanceLevels, receivers, cu
       if (target.category_id)    return tx.category_id    === target.category_id
       if (target.subcategory_id) return tx.subcategory_id === target.subcategory_id
       if (target.receiver_id)    return tx.receiver_id    === target.receiver_id
-      if (target.importance) {
-        const imp = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
-        return imp === target.importance
-      }
+      if (target.importance) return tx.importance === target.importance
       return false
     })
     const byPeriod = {}
@@ -310,7 +286,7 @@ export default function TargetsWidget({ currentDate = new Date() }) {
   async function load() {
     const [{ data: tData }, { data: txData }, { data: catData }, { data: recData }] = await Promise.all([
       supabase.from('targets').select('*').eq('user_id', user.id),
-      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, amount, date')
+      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, amount, date, importance')
         .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
         .eq('is_split_parent', false),
       supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
@@ -340,10 +316,7 @@ export default function TargetsWidget({ currentDate = new Date() }) {
         if (tgt.category_id)    return tx.category_id    === tgt.category_id
         if (tgt.subcategory_id) return tx.subcategory_id === tgt.subcategory_id
         if (tgt.receiver_id)    return tx.receiver_id    === tgt.receiver_id
-        if (tgt.importance) {
-          const imp = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
-          return imp === tgt.importance
-        }
+        if (tgt.importance) return tx.importance === tgt.importance
         return false
       })
       const currentSpend = txs.reduce((s, tx) => s + tx.amount, 0)

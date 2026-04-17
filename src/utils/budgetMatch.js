@@ -3,7 +3,7 @@
  * Handles both new multi-select (category_ids[]) and legacy single-value (category_id).
  */
 export function txMatchesBudget(tx, budget, catMap = {}) {
-  const imp = () => catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
+  const imp = () => tx.importance
   // Multi-select (new)
   if (budget.category_ids?.length)    return budget.category_ids.includes(tx.category_id)
   if (budget.subcategory_ids?.length) return budget.subcategory_ids.includes(tx.subcategory_id)

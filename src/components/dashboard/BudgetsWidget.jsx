@@ -8,46 +8,7 @@ import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CategoryPill } from '../shared/CategoryPill'
 import { usePreferences } from '../../context/UserPreferencesContext'
-
-// ── Period helpers (kept in sync with Budgets page) ────────────────
-function toLocalStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const diff = (refDate.getDay() - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: toLocalStr(new Date(y, q * 3, 1)),
-      endStr:   toLocalStr(new Date(y, q * 3 + 3, 0)),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  // monthly with custom reset day
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: toLocalStr(new Date(sy, sm, rd)),
-    endStr:   toLocalStr(end),
-  }
-}
+import { calcAllBudgetSpends } from '../../utils/budgetPeriod'
 
 // ── Helpers ────────────────────────────────────────────────────────
 function barColor(pct) {
@@ -146,7 +107,7 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
       supabase.from('budgets').select('*').eq('user_id', user.id),
       supabase.from('targets').select('*').eq('user_id', user.id),
       supabase.from('transactions')
-        .select('category_id, subcategory_id, receiver_id, card_id, amount, date')
+        .select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
         .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
         .eq('is_split_parent', false).gte('date', start).lte('date', end),
       supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
@@ -163,43 +124,15 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   const catMap      = useMemo(() => Object.fromEntries(categories.map(c => [c.id, c])), [categories])
   const receiverMap = useMemo(() => Object.fromEntries(receivers.map(r => [r.id, r])), [receivers])
 
-  // Per-budget spending — matches Budgets page logic exactly
-  const budgetSpends = useMemo(() => {
-    const result = {}
-    for (const b of budgets) {
-      const { startStr, endStr } = getPeriodBounds(b.period ?? 'monthly', currentDate, b.reset_day)
-      result[b.id] = yearExpenses
-        .filter(t =>
-          t.date >= startStr && t.date <= endStr &&
-          (!b.card_id || t.card_id === b.card_id) &&
-          (b.category_id    ? t.category_id    === b.category_id
-         : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-         : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
-         : b.receiver_id   ? t.receiver_id    === b.receiver_id
-                            : true)
-        )
-        .reduce((s, t) => s + t.amount, 0)
-    }
-    return result
-  }, [budgets, yearExpenses, catMap, currentDate])
+  const budgetSpends = useMemo(
+    () => calcAllBudgetSpends(budgets, yearExpenses, currentDate),
+    [budgets, yearExpenses, currentDate]
+  )
 
-  const targetSpends = useMemo(() => {
-    const result = {}
-    for (const tgt of targets) {
-      const { startStr, endStr } = getPeriodBounds(tgt.period ?? 'monthly', currentDate, tgt.reset_day)
-      result[tgt.id] = yearExpenses
-        .filter(t =>
-          t.date >= startStr && t.date <= endStr &&
-          (tgt.category_id    ? t.category_id    === tgt.category_id
-         : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
-         : tgt.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === tgt.importance
-         : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
-                              : false)
-        )
-        .reduce((s, t) => s + t.amount, 0)
-    }
-    return result
-  }, [targets, yearExpenses, catMap, currentDate])
+  const targetSpends = useMemo(
+    () => calcAllBudgetSpends(targets, yearExpenses, currentDate),
+    [targets, yearExpenses, currentDate]
+  )
 
   const allRows = useMemo(() => {
     const now         = new Date()
@@ -210,41 +143,43 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
     const daysElapsed = isCurrentMo ? now.getDate() : daysInMonth
     const pace = spent => isCurrentMo && daysElapsed > 0 ? (spent / daysElapsed) * daysInMonth : null
 
+    const getRowMeta = b => {
+      if (b.category_ids?.length) {
+        const cats = b.category_ids.map(id => catMap[id]).filter(Boolean)
+        const sub  = cats.map(c => c.name).join(' · ')
+        return { label: b.name || sub || '—', color: cats[0]?.color, icon: undefined, imp: null }
+      }
+      if (b.subcategory_ids?.length) {
+        const cats = b.subcategory_ids.map(id => catMap[id]).filter(Boolean)
+        const sub  = cats.map(c => c.name).join(' · ')
+        return { label: b.name || sub || '—', color: cats[0]?.color, icon: undefined, imp: null }
+      }
+      if (b.importance_ids?.length) {
+        const imps = b.importance_ids.map(v => importanceLevels.find(i => i.value === v)).filter(Boolean)
+        const sub  = imps.map(i => i.label).join(' · ')
+        const imp  = !b.name && imps.length === 1 ? imps[0] : null
+        return { label: b.name || sub || '—', color: imps[0]?.color, icon: undefined, imp }
+      }
+      if (b.receiver_ids?.length) {
+        const recs = b.receiver_ids.map(id => receiverMap[id]).filter(Boolean)
+        return { label: b.name || recs.map(r => r.name).join(' · ') || '—', color: undefined, icon: undefined, imp: null }
+      }
+      if (b.category_id)    { const cat = catMap[b.category_id];    return { label: b.name || cat?.name || '—', color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: null } }
+      if (b.subcategory_id) { const cat = catMap[b.subcategory_id]; return { label: b.name || cat?.name || '—', color: cat?.color, icon: b.name ? undefined : cat?.icon, imp: null } }
+      if (b.importance)     { const imp = importanceLevels.find(i => i.value === b.importance); return { label: b.name || null, color: null, icon: null, imp: b.name ? null : imp } }
+      if (b.receiver_id)    { const r = receiverMap[b.receiver_id];  return { label: b.name || r?.name || '—', color: undefined, icon: undefined, imp: null } }
+      return { label: b.name || 'Total', color: null, icon: null, imp: null }
+    }
+
     const budgetRows = budgets.map(b => {
       const spent = budgetSpends[b.id] ?? 0
-      if (b.category_id) {
-        const cat = catMap[b.category_id]
-        return { key: b.id, label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, imp: null, spent, limit: b.monthly_limit, rolloverAmount: b.rollover_amount ?? 0, period: b.period, projectedEnd: pace(spent) }
-      }
-      if (b.subcategory_id) {
-        const cat = catMap[b.subcategory_id]
-        return { key: b.id, label: cat?.name ?? '—', color: cat?.color, icon: cat?.icon, imp: null, spent, limit: b.monthly_limit, rolloverAmount: b.rollover_amount ?? 0, period: b.period, projectedEnd: pace(spent) }
-      }
-      if (b.importance) {
-        const imp = importanceLevels.find(i => i.value === b.importance) ?? null
-        return { key: b.id, label: null, color: null, icon: null, imp, spent, limit: b.monthly_limit, rolloverAmount: b.rollover_amount ?? 0, period: b.period, projectedEnd: pace(spent) }
-      }
-      if (b.receiver_id) {
-        const r = receiverMap[b.receiver_id]
-        return { key: b.id, label: r?.name ?? '—', color: undefined, icon: undefined, imp: null, spent, limit: b.monthly_limit, rolloverAmount: b.rollover_amount ?? 0, period: b.period, projectedEnd: pace(spent) }
-      }
-      return null
-    }).filter(Boolean)
+      const { label, color, icon, imp } = getRowMeta(b)
+      return { key: b.id, label, color, icon, imp, spent, limit: b.monthly_limit, rolloverAmount: b.rollover_amount ?? 0, period: b.period, projectedEnd: pace(spent) }
+    })
 
     const targetRows = targets.map(tgt => {
       const spent = targetSpends[tgt.id] ?? 0
-      let label = '—', color = null, icon = null, imp = null
-      if (tgt.category_id) {
-        const cat = catMap[tgt.category_id]
-        label = cat?.name ?? '—'; color = cat?.color; icon = cat?.icon
-      } else if (tgt.subcategory_id) {
-        const cat = catMap[tgt.subcategory_id]
-        label = cat?.name ?? '—'; color = cat?.color; icon = cat?.icon
-      } else if (tgt.importance) {
-        imp = importanceLevels.find(i => i.value === tgt.importance) ?? null
-      } else if (tgt.receiver_id) {
-        label = receiverMap[tgt.receiver_id]?.name ?? '—'
-      }
+      const { label, color, icon, imp } = getRowMeta(tgt)
       return { key: `tgt-${tgt.id}`, label, color, icon, imp, spent, limit: tgt.target_monthly_spend, rolloverAmount: 0, period: tgt.period, projectedEnd: pace(spent) }
     })
 

@@ -8,8 +8,10 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import useCountUp from '../hooks/useCountUp'
 import FadeIn from '../components/shared/FadeIn'
+import { calcBudgetSpend } from '../utils/budgetPeriod'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { TrendingUp, TrendingDown, PiggyBank, Percent, CreditCard } from 'lucide-react'
+import { TrendingUp, TrendingDown, PiggyBank, Percent, CreditCard, Receipt, RefreshCw } from 'lucide-react'
+import { ReceiverAvatar } from '../components/shared/ReceiverCombobox'
 
 function midColor(v) {
   if (!v) return undefined
@@ -22,41 +24,6 @@ function midColor(v) {
     return '#' + [Math.round((r1+r2)/2), Math.round((g1+g2)/2), Math.round((b1+b2)/2)].map(x => x.toString(16).padStart(2,'0')).join('')
   }
   return stops[Math.floor(stops.length / 2)]
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: start.toISOString().slice(0, 10), endStr: end.toISOString().slice(0, 10) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: new Date(y, q * 3, 1).toISOString().slice(0, 10),
-      endStr:   new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: new Date(sy, sm, rd).toISOString().slice(0, 10),
-    endStr:   end.toISOString().slice(0, 10),
-  }
 }
 
 function getPeriodKey(frequency, date) {
@@ -91,18 +58,23 @@ export default function Summary() {
     const year  = currentDate.getFullYear()
     const start = `${year}-01-01`
     const end   = `${year}-12-31`
-    Promise.all([
-      supabase.from('transactions')
-        .select('amount, category_id, subcategory_id, card_id, date')
-        .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
-        .eq('is_split_parent', false).gte('date', start).lte('date', end),
-      supabase.from('categories').select('*').eq('user_id', user.id),
-      supabase.from('budgets').select('*').eq('user_id', user.id),
-    ]).then(([{ data: txs }, { data: cats }, { data: bgets }]) => {
-      setYearExpenses(txs  ?? [])
-      setCategories(cats   ?? [])
-      setBudgets(bgets     ?? [])
-    })
+    function loadAll() {
+      Promise.all([
+        supabase.from('transactions')
+          .select('amount, category_id, subcategory_id, card_id, date, importance')
+          .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
+          .eq('is_split_parent', false).gte('date', start).lte('date', end),
+        supabase.from('categories').select('*').eq('user_id', user.id),
+        supabase.from('budgets').select('*').eq('user_id', user.id),
+      ]).then(([{ data: txs }, { data: cats }, { data: bgets }]) => {
+        setYearExpenses(txs  ?? [])
+        setCategories(cats   ?? [])
+        setBudgets(bgets     ?? [])
+      })
+    }
+    loadAll()
+    window.addEventListener('transaction-saved', loadAll)
+    return () => window.removeEventListener('transaction-saved', loadAll)
   }, [user?.id, currentDate])
 
   useEffect(() => {
@@ -115,7 +87,7 @@ export default function Summary() {
     Promise.all([
       supabase.from('pending_items').select('id,name,amount,pay_before').eq('user_id', user.id).eq('status', 'pending'),
       supabase.from('planned_bills').select('id,name,amount,pay_before').eq('user_id', user.id).eq('status', 'pending').lte('pay_before', monthEnd),
-      supabase.from('recurring_bills').select('id,name,amount,due_day,frequency,next_due_date').eq('user_id', user.id),
+      supabase.from('recurring_bills').select('id,name,amount,due_day,frequency,next_due_date,receiver_id').eq('user_id', user.id),
       supabase.from('subscriptions').select('id,name,amount,billing_day').eq('user_id', user.id).eq('status', 'active'),
     ]).then(async ([{ data: pending }, { data: planned }, { data: bills }, { data: subs }]) => {
       const items = []
@@ -152,7 +124,8 @@ export default function Summary() {
           }
           if ((billPayments ?? []).some(p => p.bill_id === b.id && p.period === period)) continue
           const daysLeft = Math.round((dueDate - today) / 86400000)
-          items.push({ id: `bill-${b.id}`, label: b.name, amount: b.amount,
+          const billLabel = (b.receiver_id ? receiverMap[b.receiver_id]?.name : null) || b.name
+          items.push({ id: `bill-${b.id}`, label: billLabel, amount: b.amount,
             detail: daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
             severity: daysLeft <= 0 ? 'alert' : 'warning' })
         }
@@ -179,8 +152,8 @@ export default function Summary() {
   useEffect(() => {
     if (!user?.id) return
     Promise.all([
-      supabase.from('subscriptions').select('id,name,amount').eq('user_id', user.id).eq('status', 'active'),
-      supabase.from('recurring_bills').select('id,name,amount,frequency').eq('user_id', user.id),
+      supabase.from('subscriptions').select('id,name,amount,receiver_id').eq('user_id', user.id).eq('status', 'active'),
+      supabase.from('recurring_bills').select('id,name,amount,frequency,receiver_id').eq('user_id', user.id),
     ]).then(([{ data: subs }, { data: bills }]) => {
       setAllSubs(subs ?? [])
       setAllBills(bills ?? [])
@@ -250,17 +223,7 @@ export default function Summary() {
     return budgets
       .filter(b => b.monthly_limit > 0)
       .map(b => {
-        const { startStr, endStr } = getPeriodBounds(b.period ?? 'monthly', currentDate, b.reset_day)
-        const spent = yearExpenses
-          .filter(t =>
-            t.date >= startStr && t.date <= endStr &&
-            (!b.card_id || t.card_id === b.card_id) &&
-            (b.category_id    ? t.category_id    === b.category_id
-           : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-           : b.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === b.importance
-                              : true)
-          )
-          .reduce((s, t) => s + Number(t.amount), 0)
+        const spent = calcBudgetSpend(b, yearExpenses, currentDate)
         const name  = b.name || (b.category_id ? (catMap[b.category_id]?.name ?? 'Budget') : b.subcategory_id ? (catMap[b.subcategory_id]?.name ?? 'Budget') : 'Total')
         const color = b.category_id ? midColor(catMap[b.category_id]?.color) : b.subcategory_id ? midColor(catMap[b.subcategory_id]?.color) : colors.expense
         const pct   = Math.min((spent / b.monthly_limit) * 100, 100)
@@ -288,20 +251,26 @@ export default function Summary() {
 
   const optimizerRows = useMemo(() => {
     const freqMultiplier = f => f === 'quarterly' ? 4 : f === 'yearly' ? 1 : f === 'weekly' ? 52 : 12
-    const subRows  = allSubs.map(s => ({
-      key: `sub-${s.id}`, name: s.name, monthly: s.amount,
-      yearly: s.amount * 12, period: 'Monthly',
-    }))
+    const subRows  = allSubs.map(s => {
+      const receiver = s.receiver_id ? receiverMap[s.receiver_id] : null
+      return {
+        key: `sub-${s.id}`, name: s.name, monthly: s.amount,
+        yearly: s.amount * 12, period: 'Monthly', receiver,
+      }
+    })
     const billRows = allBills.map(b => {
       const mult = freqMultiplier(b.frequency)
       const monthly = b.frequency === 'monthly' ? b.amount
                     : b.frequency === 'quarterly' ? b.amount / 3
                     : b.frequency === 'yearly'    ? b.amount / 12
                     : b.amount
-      return { key: `bill-${b.id}`, name: b.name, monthly, yearly: b.amount * mult, period: b.frequency ?? 'Monthly' }
+      const receiver = b.receiver_id ? receiverMap[b.receiver_id] : null
+      const name     = receiver?.name || b.name
+      const comment  = receiver && b.name ? b.name : null
+      return { key: `bill-${b.id}`, name, comment, monthly, yearly: b.amount * mult, period: b.frequency ?? 'Monthly', receiver }
     })
     return [...subRows, ...billRows].sort((a, b) => b.yearly - a.yearly)
-  }, [allSubs, allBills])
+  }, [allSubs, allBills, receiverMap])
 
   const yearlyTotal        = useMemo(() => optimizerRows.reduce((s, r) => s + r.yearly, 0), [optimizerRows])
   const cancellableSavings = useMemo(() =>
@@ -319,8 +288,7 @@ export default function Summary() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 pb-24 md:pb-6 flex flex-col items-center">
-        <div className="w-full max-w-5xl px-4 md:px-6 flex flex-col gap-5">
+      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6 flex flex-col gap-5">
 
           {/* ── Section label ── */}
           <p className="text-xs text-white/30 uppercase tracking-widest">{monthLabel}</p>
@@ -510,6 +478,113 @@ export default function Summary() {
             </div>
           </FadeIn>
 
+          {/* ── All-time Fixed Costs ── */}
+          {(allSubs.length > 0 || allBills.length > 0) && (
+            <FadeIn delay={210}>
+              <div className="glass-card rounded-2xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Receipt size={13} className="text-white/35" />
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">Fixed Costs — All Time</p>
+                </div>
+
+                {/* Summary tiles */}
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  {(() => {
+                    const subsMonthly = allSubs.reduce((s, r) => s + r.amount, 0)
+                    const billsMonthly = allBills.reduce((s, b) => {
+                      if (b.frequency === 'quarterly') return s + b.amount / 3
+                      if (b.frequency === 'yearly')    return s + b.amount / 12
+                      return s + b.amount
+                    }, 0)
+                    const totalMonthly = subsMonthly + billsMonthly
+                    return (
+                      <>
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <p className="text-[10px] text-white/35 mb-1">Subscriptions</p>
+                          <p className="text-sm font-bold tabular-nums">{fmt(subsMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
+                          <p className="text-[10px] text-white/30 mt-0.5">{allSubs.length} active · {fmt(subsMonthly * 12)}/yr</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <p className="text-[10px] text-white/35 mb-1">Recurring Bills</p>
+                          <p className="text-sm font-bold tabular-nums">{fmt(billsMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
+                          <p className="text-[10px] text-white/30 mt-0.5">{allBills.length} bills · {fmt(yearlyTotal - subsMonthly * 12)}/yr</p>
+                        </div>
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <p className="text-[10px] text-white/35 mb-1">Total Committed</p>
+                          <p className="text-sm font-bold tabular-nums" style={{ color: colors.expense }}>{fmt(totalMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
+                          <p className="text-[10px] text-white/30 mt-0.5">{fmt(yearlyTotal)}/yr</p>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+
+                {/* Item list */}
+                <div className="flex flex-col">
+                  {allSubs.length > 0 && (
+                    <>
+                      <p className="text-[10px] text-white/25 uppercase tracking-widest pb-2 flex items-center gap-1.5">
+                        <CreditCard size={10} className="text-white/25" /> Subscriptions
+                      </p>
+                      {allSubs.map(s => {
+                        const receiver = s.receiver_id ? receiverMap[s.receiver_id] : null
+                        return (
+                          <div key={`sub-${s.id}`} className="flex items-center gap-3 py-2 border-t border-white/[0.04]">
+                            {receiver
+                              ? <ReceiverAvatar receiver={receiver} size="md" />
+                              : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold text-white/40 shrink-0">
+                                  {s.name[0]?.toUpperCase()}
+                                </div>
+                            }
+                            <span className="text-sm text-white/75 flex-1 truncate">{s.name}</span>
+                            <span className="text-xs tabular-nums text-white/50">{fmt(s.amount)}/mo</span>
+                            <span className="text-[11px] tabular-nums text-white/25 w-20 text-right">{fmt(s.amount * 12)}/yr</span>
+                          </div>
+                        )
+                      })}
+                    </>
+                  )}
+                  {allBills.length > 0 && (
+                    <>
+                      <p className="text-[10px] text-white/25 uppercase tracking-widest py-2 mt-2 flex items-center gap-1.5">
+                        <RefreshCw size={10} className="text-white/25" /> Recurring Bills
+                      </p>
+                      {allBills.map(b => {
+                        const monthly = b.frequency === 'quarterly' ? b.amount / 3
+                                      : b.frequency === 'yearly'    ? b.amount / 12
+                                      : b.amount
+                        const yearly  = b.frequency === 'quarterly' ? b.amount * 4
+                                      : b.frequency === 'yearly'    ? b.amount
+                                      : b.amount * 12
+                        const receiver = b.receiver_id ? receiverMap[b.receiver_id] : null
+                        const title    = receiver?.name || b.name
+                        const comment  = receiver && b.name ? b.name : null
+                        return (
+                          <div key={`bill-${b.id}`} className="flex items-center gap-3 py-2 border-t border-white/[0.04]">
+                            {receiver
+                              ? <ReceiverAvatar receiver={receiver} size="md" />
+                              : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold text-white/40 shrink-0">
+                                  {title[0]?.toUpperCase()}
+                                </div>
+                            }
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-white/75 truncate block">{title}</span>
+                              <span className="text-[10px] text-white/30 capitalize">
+                                {comment ? `${comment} · ` : ''}{b.frequency ?? 'Monthly'}
+                              </span>
+                            </div>
+                            <span className="text-xs tabular-nums text-white/50">{fmt(monthly)}/mo</span>
+                            <span className="text-[11px] tabular-nums text-white/25 w-20 text-right">{fmt(yearly)}/yr</span>
+                          </div>
+                        )
+                      })}
+                    </>
+                  )}
+                </div>
+              </div>
+            </FadeIn>
+          )}
+
           {/* ── Subscription Optimizer ── */}
           {optimizerRows.length > 0 && (
             <FadeIn delay={240}>
@@ -537,12 +612,17 @@ export default function Summary() {
                       : colors.income
                     return (
                       <div key={item.key} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                        <div className="w-7 h-7 rounded-full bg-white/8 flex items-center justify-center text-[11px] font-bold text-white/40 shrink-0">
-                          {item.name[0]?.toUpperCase()}
-                        </div>
+                        {item.receiver
+                          ? <ReceiverAvatar receiver={item.receiver} size="md" />
+                          : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[11px] font-bold text-white/40 shrink-0">
+                              {item.name[0]?.toUpperCase()}
+                            </div>
+                        }
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-white/80 truncate">{item.name}</p>
-                          <p className="text-[10px] text-white/30 capitalize">{item.period}</p>
+                          <p className="text-[10px] text-white/30 capitalize">
+                            {item.comment ? `${item.comment} · ` : ''}{item.period}
+                          </p>
                         </div>
                         <div className="text-right mr-3 shrink-0">
                           <p className="text-xs font-medium tabular-nums text-white/70">{fmt(item.yearly)}<span className="text-white/30">/yr</span></p>
@@ -588,7 +668,6 @@ export default function Summary() {
             </FadeIn>
           )}
 
-        </div>
       </div>
     </div>
   )

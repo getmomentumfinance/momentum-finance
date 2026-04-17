@@ -126,6 +126,7 @@ export default function Transactions() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [filterType, setFilterType] = useState('')
+  const [filterImportance, setFilterImportance] = useState(new Set())
 
   useEffect(() => {
     if (!user?.id) return
@@ -145,7 +146,7 @@ export default function Transactions() {
         { data: receivers },
       ] = await Promise.all([
         supabase.from('transactions')
-          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id')
+          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .gte('date', start)
@@ -202,19 +203,20 @@ export default function Transactions() {
 
   const filteredRows = useMemo(() => {
     let result = sortedRows
-    if (search)          result = result.filter(r => r.description?.toLowerCase().includes(search.toLowerCase()))
-    if (filterCat)       result = result.filter(r => r.category_id === filterCat)
-    if (filterSub)       result = result.filter(r => r.subcategory_id === filterSub)
-    if (filterReceiver)  result = result.filter(r => r.receiver_id === filterReceiver)
-    if (filterDateFrom)  result = result.filter(r => r.date >= filterDateFrom)
-    if (filterDateTo)    result = result.filter(r => r.date <= filterDateTo)
-    if (filterType)      result = result.filter(r => r.type === filterType)
+    if (search)                    result = result.filter(r => r.description?.toLowerCase().includes(search.toLowerCase()))
+    if (filterCat)                 result = result.filter(r => r.category_id === filterCat)
+    if (filterSub)                 result = result.filter(r => r.subcategory_id === filterSub)
+    if (filterReceiver)            result = result.filter(r => r.receiver_id === filterReceiver)
+    if (filterDateFrom)            result = result.filter(r => r.date >= filterDateFrom)
+    if (filterDateTo)              result = result.filter(r => r.date <= filterDateTo)
+    if (filterType)                result = result.filter(r => r.type === filterType)
+    if (filterImportance.size > 0) result = result.filter(r => filterImportance.has(r.importance ?? ''))
     return result
-  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType])
+  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance])
 
   const topCategories = allCategories.filter(c => !c.parent_id)
   const subCategories = allCategories.filter(c => c.parent_id === filterCat)
-  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType
+  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0
 
   // ── Totals (filtered, exclude split parents to avoid double-count) ──
   const totalIncome   = filteredRows.filter(r => r.type === 'income'  && !r.is_split_parent).reduce((s, r) => s + r.amount, 0)
@@ -242,6 +244,7 @@ export default function Transactions() {
   function clearFilters() {
     setSearch(''); setFilterCat(''); setFilterSub('')
     setFilterReceiver(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterType('')
+    setFilterImportance(new Set())
   }
 
   async function handleDelete(id) {
@@ -353,6 +356,36 @@ export default function Transactions() {
               </button>
             )}
 
+            {/* Importance filter — multi-select pills */}
+            <div className="flex items-center gap-1">
+              {importance.map(imp => {
+                const active = filterImportance.has(imp.value)
+                return (
+                  <button key={imp.value} type="button"
+                    onClick={() => setFilterImportance(prev => {
+                      const next = new Set(prev)
+                      if (next.has(imp.value)) next.delete(imp.value)
+                      else next.add(imp.value)
+                      return next
+                    })}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] transition-all"
+                    style={{
+                      borderColor: active ? imp.color : 'rgba(255,255,255,0.06)',
+                      background:  active ? `color-mix(in srgb, ${imp.color} 15%, transparent)` : 'transparent',
+                      color:       active ? imp.color : 'rgba(255,255,255,0.3)',
+                    }}
+                  >
+                    <span className="flex gap-[2px]">
+                      {Array.from({ length: imp.dots }).map((_, i) => (
+                        <span key={i} className="w-1 h-1 rounded-full" style={{ background: active ? imp.color : 'rgba(255,255,255,0.25)' }} />
+                      ))}
+                    </span>
+                    {imp.label}
+                  </button>
+                )
+              })}
+            </div>
+
             {/* Importance legend — desktop only */}
             <div className="hidden md:flex items-center gap-3 ml-auto">
               {importance.map(imp => (
@@ -376,7 +409,7 @@ export default function Transactions() {
               <p className="text-center py-12 text-muted text-xs">{hasFilters ? t('tx.noMatch') : t('tx.noTx')}</p>
             ) : displayRows.map(row => {
               const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
-              const impValue = row.category?.importance ?? row.subcategory?.importance ?? null
+              const impValue = row.importance ?? null
               const imp = impValue ? impMap[impValue] : null
               const isChild  = !!row.split_parent_id
               const isParent = !!row.is_split_parent
@@ -471,7 +504,7 @@ export default function Transactions() {
                   </tr>
                 ) : displayRows.map(row => {
                   const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
-                  const impValue = row.category?.importance ?? row.subcategory?.importance ?? null
+                  const impValue = row.importance ?? null
                   const imp = impValue ? impMap[impValue] : null
                   const isChild  = !!row.split_parent_id
                   const isParent = !!row.is_split_parent

@@ -1,8 +1,9 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, Fragment } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { txMatchesBudget } from '../utils/budgetMatch'
+import { toLocalStr, getPeriodBounds, getPeriodPct, calcAllBudgetSpends } from '../utils/budgetPeriod'
 import { createPortal } from 'react-dom'
-import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Zap } from 'lucide-react'
+import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Zap, Pin, PinOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -13,58 +14,6 @@ import { useThemeColors } from '../hooks/useThemeColors'
 import AddBudgetModal from '../components/budgets/AddBudgetModal'
 import { usePreferences } from '../context/UserPreferencesContext'
 
-function toLocalStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    // resetDay: 0=Mon … 6=Sun; convert to JS getDay() (0=Sun,1=Mon…)
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: toLocalStr(start), endStr: toLocalStr(end) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: toLocalStr(new Date(y, q * 3, 1)),
-      endStr:   toLocalStr(new Date(y, q * 3 + 3, 0)),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  // monthly — resetDay: 1-28 (day of month the period starts)
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: toLocalStr(new Date(sy, sm, rd)),
-    endStr:   toLocalStr(end),
-  }
-}
-
-// Returns 0-100 (% through the current period), or null if viewing a past/future period
-function getPeriodPct(period, currentDate, resetDay) {
-  const { startStr, endStr } = getPeriodBounds(period ?? 'monthly', currentDate, resetDay)
-  const start = new Date(startStr + 'T00:00:00')
-  const end   = new Date(endStr   + 'T23:59:59')
-  const now   = new Date()
-  if (now < start || now > end) return null
-  const totalDays   = Math.round((end - start) / 86400000) + 1
-  const daysElapsed = Math.max(1, Math.round((now - start) / 86400000) + 1)
-  return Math.min((daysElapsed / totalDays) * 100, 100)
-}
 
 const COLOR_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
 function getStrictnessColors() {
@@ -72,9 +21,9 @@ function getStrictnessColors() {
 }
 function barColor(pct, strict = false) {
   const c = getStrictnessColors()
-  if (pct >= 100) return c.strict
-  if (pct >= (strict ? 70 : 80)) return c.medium
-  return c.easy
+  if (pct >= 80) return c.strict
+  if (pct >= (strict ? 40 : 50)) return c.medium
+  return 'var(--color-progress-bar)'
 }
 
 // Returns a plain-text "what to do" hint, or null if no action needed
@@ -186,7 +135,7 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
 
       let query = supabase
         .from('transactions')
-        .select('id, date, description, amount, category_id, subcategory_id, receiver_id')
+        .select('id, date, description, amount, category_id, subcategory_id, receiver_id, importance')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
         .eq('type', 'expense')
@@ -195,18 +144,29 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
         .lte('date', end)
         .order('date', { ascending: false })
 
-      if (cardId)                             query = query.eq('card_id',        cardId)
-      if (filter.dimension === 'category')    query = query.eq('category_id',    filter.id)
-      if (filter.dimension === 'subcategory') query = query.eq('subcategory_id', filter.id)
-      if (filter.dimension === 'merchant')    query = query.eq('receiver_id',    filter.id)
+      if (cardId) query = query.eq('card_id', cardId)
+
+      // Only apply single-column DB filter when it's safe (single-value, no multi-select budget)
+      const budget = filter.budget
+      const hasMultiSelect = budget && (
+        budget.category_ids?.length > 1 || budget.subcategory_ids?.length > 1 ||
+        budget.importance_ids?.length > 1 || budget.receiver_ids?.length > 1
+      )
+      if (!hasMultiSelect) {
+        if (filter.dimension === 'category')    query = query.eq('category_id',    filter.id)
+        if (filter.dimension === 'subcategory') query = query.eq('subcategory_id', filter.id)
+        if (filter.dimension === 'merchant')    query = query.eq('receiver_id',    filter.id)
+        if (filter.dimension === 'importance')  query = query.eq('importance',     filter.id)
+      }
 
       const { data } = await query
 
-      if (filter.dimension === 'importance') {
-        setTxs((data ?? []).filter(t => {
-          const imp = catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance
-          return imp === filter.id
-        }))
+      // Always post-filter using txMatchesBudget when a budget object is available
+      // This correctly handles multi-select importance_ids, category_ids, etc.
+      if (budget) {
+        setTxs((data ?? []).filter(t => txMatchesBudget(t, budget)))
+      } else if (filter.dimension === 'importance') {
+        setTxs((data ?? []).filter(t => t.importance === filter.id))
       } else {
         setTxs(data ?? [])
       }
@@ -300,7 +260,7 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
 }
 
 // ── Budget card (category / subcategory / importance) ──────────
-function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, strictMode, onEdit, onInfo }) {
+function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, strictMode, pinned, onPin, onEdit, onInfo }) {
   const { fmt } = usePreferences()
   const rollover       = rolloverAmount > 0 ? rolloverAmount : 0
   const effectiveLimit = limit + rollover
@@ -345,6 +305,13 @@ function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverA
           )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+          {onPin && (
+            <button type="button" onClick={e => { e.stopPropagation(); onPin() }}
+              className={`transition-opacity text-white/50 hover:!opacity-100 ${pinned ? 'opacity-60' : 'opacity-0 group-hover:opacity-40'}`}
+              title={pinned ? 'Unpin' : 'Pin as main budget'}>
+              {pinned ? <PinOff size={11} /> : <Pin size={11} />}
+            </button>
+          )}
           <button type="button" onClick={e => { e.stopPropagation(); onInfo() }}
             className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/50">
             <Info size={11} />
@@ -640,10 +607,7 @@ function TargetHistoryModal({ target, allExpenses, catMap, importanceLevels, cur
       if (target.category_id)    return t.category_id    === target.category_id
       if (target.subcategory_id) return t.subcategory_id === target.subcategory_id
       if (target.receiver_id)    return t.receiver_id    === target.receiver_id
-      if (target.importance) {
-        const imp = catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance
-        return imp === target.importance
-      }
+      if (target.importance) return t.importance === target.importance
       return false
     })
     const byPeriod = {}
@@ -787,10 +751,7 @@ function TargetRow({ target, allExpenses, catMap, importanceLevels, receivers, c
       if (target.category_id)    return t.category_id    === target.category_id
       if (target.subcategory_id) return t.subcategory_id === target.subcategory_id
       if (target.receiver_id)    return t.receiver_id    === target.receiver_id
-      if (target.importance) {
-        const imp = catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance
-        return imp === target.importance
-      }
+      if (target.importance) return t.importance === target.importance
       return false
     })
     const byPeriod = {}
@@ -1118,8 +1079,7 @@ function WhatIfSimulator({
     const dims = { category: {}, subcategory: {}, importance: {}, merchant: {} }
     for (const tx of allExpenses) {
       const { startStr: wk } = getPeriodBounds('weekly', new Date(tx.date + 'T12:00:00'), resetDay)
-      const imp = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance
-      for (const [dim, key] of [['category', tx.category_id], ['subcategory', tx.subcategory_id], ['importance', imp], ['merchant', tx.receiver_id]]) {
+      for (const [dim, key] of [['category', tx.category_id], ['subcategory', tx.subcategory_id], ['importance', tx.importance], ['merchant', tx.receiver_id]]) {
         if (!key) continue
         if (!dims[dim][key]) dims[dim][key] = { total: 0, weeks: new Set() }
         dims[dim][key].total += tx.amount
@@ -1166,10 +1126,7 @@ function WhatIfSimulator({
       if (dimension === 'category')    return t.category_id    === selectedId
       if (dimension === 'subcategory') return t.subcategory_id === selectedId
       if (dimension === 'merchant')    return t.receiver_id    === selectedId
-      if (dimension === 'importance') {
-        const imp = catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance
-        return imp === selectedId
-      }
+      if (dimension === 'importance') return t.importance === selectedId
       return false
     })
     if (period === 'weekly') {
@@ -1221,10 +1178,7 @@ function WhatIfSimulator({
       if (dimension === 'category')    return t.category_id    === selectedId
       if (dimension === 'subcategory') return t.subcategory_id === selectedId
       if (dimension === 'merchant')    return t.receiver_id    === selectedId
-      if (dimension === 'importance') {
-        const imp = catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance
-        return imp === selectedId
-      }
+      if (dimension === 'importance') return t.importance === selectedId
       return false
     })
     return txs.length > 0 ? txs.reduce((s, t) => s + t.amount, 0) / txs.length : null
@@ -1666,6 +1620,11 @@ export default function Budgets() {
     if (!error) setTargets(data ?? [])
   }
 
+  async function togglePin(budgetId, currentPinned) {
+    await supabase.from('budgets').update({ pinned: !currentPinned }).eq('id', budgetId)
+    loadBudgets()
+  }
+
   // Auto-open budget modal from URL params (e.g. from Financial Situation tab)
   useEffect(() => {
     if (searchParams.get('new') !== '1') return
@@ -1691,7 +1650,7 @@ export default function Budgets() {
 
       const [{ data: txs }, { data: cats }, { data: bgets }, { data: cds }] = await Promise.all([
         supabase.from('transactions')
-          .select('amount, category_id, subcategory_id, receiver_id, card_id, date')
+          .select('amount, category_id, subcategory_id, receiver_id, card_id, date, importance')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .eq('type', 'expense')
@@ -1721,7 +1680,7 @@ export default function Budgets() {
     async function loadAllTime() {
       const [{ data: allTxs }, { data: tgts, error: tgtsErr }, { data: recData }] = await Promise.all([
         supabase.from('transactions')
-          .select('amount, category_id, subcategory_id, receiver_id, date')
+          .select('amount, category_id, subcategory_id, receiver_id, date, importance')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .eq('type', 'expense')
@@ -1772,20 +1731,10 @@ export default function Budgets() {
     Object.fromEntries(cards.map(c => [c.id, c])), [cards])
 
   // Per-budget spending: respects period and optional card filter
-  const budgetSpends = useMemo(() => {
-    const result = {}
-    for (const b of budgets) {
-      const { startStr, endStr } = getPeriodBounds(b.period ?? 'monthly', currentDate, b.reset_day)
-      result[b.id] = yearExpenses
-        .filter(t =>
-          t.date >= startStr && t.date <= endStr &&
-          (!b.card_id || t.card_id === b.card_id) &&
-          txMatchesBudget(t, b, catMap)
-        )
-        .reduce((s, t) => s + t.amount, 0)
-    }
-    return result
-  }, [budgets, yearExpenses, catMap, currentDate])
+  const budgetSpends = useMemo(
+    () => calcAllBudgetSpends(budgets, yearExpenses, currentDate),
+    [budgets, yearExpenses, currentDate]
+  )
 
   const targetSpends = useMemo(() => {
     const result = {}
@@ -1796,7 +1745,7 @@ export default function Budgets() {
           t.date >= startStr && t.date <= endStr &&
           (tgt.category_id    ? t.category_id    === tgt.category_id
          : tgt.subcategory_id ? t.subcategory_id === tgt.subcategory_id
-         : tgt.importance     ? (catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance) === tgt.importance
+         : tgt.importance     ? t.importance === tgt.importance
          : tgt.receiver_id   ? t.receiver_id    === tgt.receiver_id
                               : false)
         )
@@ -1823,16 +1772,17 @@ export default function Budgets() {
   const avgByCategory    = useMemo(() => buildAvgMap(t => t.category_id),    [allExpenses])
   const avgBySubcategory = useMemo(() => buildAvgMap(t => t.subcategory_id), [allExpenses])
   const avgByImportance  = useMemo(() => {
-    return buildAvgMap(t => catMap[t.category_id]?.importance ?? catMap[t.subcategory_id]?.importance ?? null)
-  }, [allExpenses, catMap])
+    return buildAvgMap(t => t.importance ?? null)
+  }, [allExpenses])
   const avgByReceiver    = useMemo(() => buildAvgMap(t => t.receiver_id),    [allExpenses])
 
   // Summary stats
-  const allBudgets  = budgets.filter(b => !b.category_id && !b.subcategory_id && !b.importance && !b.receiver_id && !b.category_ids?.length && !b.subcategory_ids?.length && !b.importance_ids?.length && !b.receiver_ids?.length)
-  const catBudgets  = budgets.filter(b => b.category_id || b.category_ids?.length)
-  const subBudgets  = budgets.filter(b => b.subcategory_id || b.subcategory_ids?.length)
-  const impBudgets  = budgets.filter(b => b.importance || b.importance_ids?.length)
-  const recBudgets  = budgets.filter(b => b.receiver_id || b.receiver_ids?.length)
+  const allBudgets      = budgets.filter(b => !b.category_id && !b.subcategory_id && !b.importance && !b.receiver_id && !b.category_ids?.length && !b.subcategory_ids?.length && !b.importance_ids?.length && !b.receiver_ids?.length)
+  const catBudgets      = budgets.filter(b => b.category_id || b.category_ids?.length)
+  const subBudgets      = budgets.filter(b => b.subcategory_id || b.subcategory_ids?.length)
+  const impBudgets      = budgets.filter(b => b.importance || b.importance_ids?.length)
+  const recBudgets      = budgets.filter(b => b.receiver_id || b.receiver_ids?.length)
+  const pinnedDimBudgets = [...catBudgets, ...subBudgets, ...impBudgets, ...recBudgets].filter(b => b.pinned)
 
   const totalBudgeted = budgets.reduce((s, b) => s + b.monthly_limit, 0)
   const totalSpent    = Object.values(budgetSpends).reduce((s, v) => s + v, 0)
@@ -1924,7 +1874,7 @@ export default function Budgets() {
           if (tgt.category_id) return tx.category_id === tgt.category_id
           if (tgt.subcategory_id) return tx.subcategory_id === tgt.subcategory_id
           if (tgt.receiver_id) return tx.receiver_id === tgt.receiver_id
-          if (tgt.importance) { const i = catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance; return i === tgt.importance }
+          if (tgt.importance) return tx.importance === tgt.importance
           return false
         })
         const spend = txs.reduce((s, t) => s + t.amount, 0)
@@ -1932,8 +1882,8 @@ export default function Budgets() {
       }
       if (sortBy === 'risk')  return getPct(b, sb) - getPct(a, sa)
       if (sortBy === 'spend') {
-        const txA = allExpenses.filter(tx => tx.date >= sa && (a.category_id ? tx.category_id === a.category_id : a.subcategory_id ? tx.subcategory_id === a.subcategory_id : a.receiver_id ? tx.receiver_id === a.receiver_id : (catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance) === a.importance)).reduce((s, t) => s + t.amount, 0)
-        const txB = allExpenses.filter(tx => tx.date >= sb && (b.category_id ? tx.category_id === b.category_id : b.subcategory_id ? tx.subcategory_id === b.subcategory_id : b.receiver_id ? tx.receiver_id === b.receiver_id : (catMap[tx.category_id]?.importance ?? catMap[tx.subcategory_id]?.importance) === b.importance)).reduce((s, t) => s + t.amount, 0)
+        const txA = allExpenses.filter(tx => tx.date >= sa && (a.category_id ? tx.category_id === a.category_id : a.subcategory_id ? tx.subcategory_id === a.subcategory_id : a.receiver_id ? tx.receiver_id === a.receiver_id : tx.importance === a.importance)).reduce((s, t) => s + t.amount, 0)
+        const txB = allExpenses.filter(tx => tx.date >= sb && (b.category_id ? tx.category_id === b.category_id : b.subcategory_id ? tx.subcategory_id === b.subcategory_id : b.receiver_id ? tx.receiver_id === b.receiver_id : tx.importance === b.importance)).reduce((s, t) => s + t.amount, 0)
         return txB - txA
       }
       const nameA = a.category_id || a.subcategory_id ? catMap[a.category_id ?? a.subcategory_id]?.name ?? '' : importanceLevels.find(i => i.value === a.importance)?.label ?? ''
@@ -1945,6 +1895,8 @@ export default function Budgets() {
   function openNew(dim = 'category', id = null) {
     setModalDefDim(dim)
     setModalDefId(id)
+    setModalDefLimit(0)
+    setModalDefName('')
     setModal('new')
   }
 
@@ -2074,19 +2026,118 @@ export default function Budgets() {
             <div className="flex-1 min-w-0 glass-card rounded-2xl p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between shrink-0">
                 <span className="text-xs font-semibold text-white/80 uppercase tracking-widest">{t('budgets.periodBudgets')}</span>
-                {allBudgets.length === 0 && (
+                {allBudgets.length === 0 && pinnedDimBudgets.length === 0 && (
                   <button onClick={() => openNew('all')}
                     className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 transition-colors">
                     <Plus size={11} /> Set budget
                   </button>
                 )}
               </div>
-              {allBudgets.length === 0 ? (
+              {allBudgets.length === 0 && pinnedDimBudgets.length === 0 ? (
                 <p className="text-[11px] text-muted text-center py-2">
                   {t('budgets.noPeriod')}
                 </p>
               ) : (
                 <div className="grid gap-4 grid-cols-1">
+                  {/* Pinned dimension budgets (e.g. category, importance) shown as main budgets */}
+                  {pinnedDimBudgets.map(b => {
+                    const getLabel = () => {
+                      if (b.category_ids?.length)    { const cats = b.category_ids.map(id => catMap[id]).filter(Boolean); return { label: b.name || cats.map(c => c.name).join(' · '), color: cats[0]?.color, subtitle: b.name ? cats.map(c => c.name).join(' · ') : null } }
+                      if (b.subcategory_ids?.length)  { const cats = b.subcategory_ids.map(id => catMap[id]).filter(Boolean); return { label: b.name || cats.map(c => c.name).join(' · '), color: cats[0]?.color, subtitle: b.name ? cats.map(c => c.name).join(' · ') : null } }
+                      if (b.importance_ids?.length)   { const imps = b.importance_ids.map(v => importanceLevels.find(i => i.value === v)).filter(Boolean); return { label: b.name || imps.map(i => i.label).join(' · '), color: imps[0]?.color, subtitle: b.name ? imps.map(i => i.label).join(' · ') : null } }
+                      if (b.receiver_ids?.length)     { const recs = b.receiver_ids.map(id => receivers.find(r => r.id === id)).filter(Boolean); return { label: b.name || recs.map(r => r.name).join(' · '), color: undefined, subtitle: b.name ? recs.map(r => r.name).join(' · ') : null } }
+                      if (b.category_id)    { const c = catMap[b.category_id];    return { label: b.name || c?.name || '—', color: c?.color, subtitle: null } }
+                      if (b.subcategory_id) { const c = catMap[b.subcategory_id]; return { label: b.name || c?.name || '—', color: c?.color, subtitle: null } }
+                      if (b.importance)     { const i = importanceLevels.find(x => x.value === b.importance); return { label: b.name || i?.label || '—', color: i?.color, subtitle: null } }
+                      if (b.receiver_id)    { const r = receivers.find(x => x.id === b.receiver_id); return { label: b.name || r?.name || '—', color: undefined, subtitle: null } }
+                      return { label: '—', color: undefined, subtitle: null }
+                    }
+                    const { label, color, subtitle } = getLabel()
+                    const spent     = budgetSpends[b.id] ?? 0
+                    const pct       = b.monthly_limit > 0 ? Math.min((spent / b.monthly_limit) * 100, 100) : 0
+                    const over      = spent > b.monthly_limit
+                    const projected = calcProjected(b, spent)
+                    const PERIOD_LABELS = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }
+                    const pPct  = getPeriodPct(b.period ?? 'monthly', currentDate, b.reset_day)
+                    const slack = pPct != null ? pPct - (b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0) : null
+                    let heroText = null, heroColor = 'rgba(255,255,255,0.35)'
+                    if (over) {
+                      heroText = `${fmt(spent - b.monthly_limit)} over budget`; heroColor = 'var(--color-alert)'
+                    } else if (slack !== null) {
+                      const abs = Math.abs(slack)
+                      if (abs < 1)        { heroText = 'on pace';                          heroColor = 'rgba(255,255,255,0.4)' }
+                      else if (slack > 0) { heroText = `${abs.toFixed(1)}% under pace`;   heroColor = 'var(--color-progress-bar)' }
+                      else                { heroText = `${abs.toFixed(1)}% over pace`;     heroColor = abs > 10 ? 'var(--color-alert)' : 'var(--color-warning)' }
+                    }
+                    const infoFilter = (() => {
+                      if (b.category_ids?.length)    return { dimension: 'category',    id: b.category_ids[0],    label, color, budget: b }
+                      if (b.subcategory_ids?.length) return { dimension: 'subcategory', id: b.subcategory_ids[0], label, color, budget: b }
+                      if (b.importance_ids?.length)  return { dimension: 'importance',  id: b.importance_ids[0],  budget: b }
+                      if (b.receiver_ids?.length)    return { dimension: 'merchant',    id: b.receiver_ids[0],    label, budget: b }
+                      if (b.category_id)    return { dimension: 'category',    id: b.category_id,    label, color, budget: b }
+                      if (b.subcategory_id) return { dimension: 'subcategory', id: b.subcategory_id, label, color, budget: b }
+                      if (b.importance)     return { dimension: 'importance',  id: b.importance,     budget: b }
+                      if (b.receiver_id)    return { dimension: 'merchant',    id: b.receiver_id,    label, budget: b }
+                      return { dimension: 'all', id: null, label: 'All spending', budget: b }
+                    })()
+                    return (
+                      <div key={b.id} className="group flex flex-col gap-4 cursor-pointer" onClick={() => setModal(b)}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              {color && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />}
+                              <span className="text-sm font-semibold text-white">{label}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/35">{PERIOD_LABELS[b.period] ?? 'Monthly'}</span>
+                              {b.card_id && cardMap[b.card_id] && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/35">{cardMap[b.card_id].name}</span>
+                              )}
+                            </div>
+                            {subtitle && <span className="text-[11px] text-muted">{subtitle}</span>}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClick={e => { e.stopPropagation(); setInfoFilter(infoFilter) }}
+                              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/50">
+                              <Info size={13} />
+                            </button>
+                            <button type="button" onClick={e => { e.stopPropagation(); togglePin(b.id, true) }}
+                              className="opacity-60 hover:opacity-100 transition-opacity text-white/50" title="Unpin">
+                              <PinOff size={13} />
+                            </button>
+                            <Pencil size={13} className="opacity-0 group-hover:opacity-60 transition-opacity text-white/50" />
+                          </div>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2 -mb-1">
+                          <span className="text-base font-bold tabular-nums" style={{ color: heroColor }}>
+                            {heroText ?? `${fmt(b.monthly_limit - spent)} remaining`}
+                          </span>
+                          {pPct != null && (
+                            <span className="text-xs text-white/25 tabular-nums">{pPct.toFixed(0)}% into period</span>
+                          )}
+                        </div>
+                        <div className="relative h-3 w-full rounded-full bg-white/8">
+                          <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, background: barColor(pct) }} />
+                          {pPct != null && pPct > 0 && (
+                            <div className="absolute top-[-3px] bottom-[-3px] w-[2px] -translate-x-1/2 rounded-full"
+                              style={{ left: `${Math.min(pPct, 99)}%`, background: 'rgba(255,255,255,0.45)' }} />
+                          )}
+                        </div>
+                        {projected != null && (
+                          <span className="text-[11px] tabular-nums -mt-1"
+                            style={{ color: projected > b.monthly_limit ? 'var(--color-warning)' : 'rgba(255,255,255,0.2)' }}>
+                            projected {fmt(projected)} by period end
+                          </span>
+                        )}
+                        <div className="flex items-baseline gap-2 tabular-nums border-t border-white/[0.04] pt-3 -mt-1">
+                          <span className="text-2xl font-bold" style={{ color: over ? 'var(--color-alert)' : 'rgba(255,255,255,0.85)' }}>{fmt(spent)}</span>
+                          <span className="text-sm text-muted">/ {fmt(b.monthly_limit)}</span>
+                        </div>
+                        {pinnedDimBudgets.indexOf(b) < pinnedDimBudgets.length - 1 && (
+                          <div className="border-t border-white/[0.06] -mt-1" />
+                        )}
+                      </div>
+                    )
+                  })}
                   {allBudgets.map(b => {
                     const spent     = budgetSpends[b.id] ?? 0
                     const pct       = b.monthly_limit > 0 ? Math.min((spent / b.monthly_limit) * 100, 100) : 0
@@ -2219,6 +2270,8 @@ export default function Budgets() {
                 return k === null || !limitDims.has(k)
               })
 
+              const unpinnedLimits = sortedLimits.filter(b => !b.pinned)
+
               const totalItems   = sortedLimits.length + uncoveredGoals.length
               const overCount    = allDimBudgets.filter(b => (budgetSpends[b.id] ?? 0) > b.monthly_limit).length
               const isEmpty      = totalItems === 0
@@ -2258,13 +2311,13 @@ export default function Budgets() {
                     <p className="text-[11px] text-muted py-3 text-center">{t('budgets.none')}</p>
                   )}
 
-                  {/* Unified budget grid */}
-                  {!isEmpty && (
+                  {/* Budget grid — only unpinned (pinned ones appear in the Main Budget panel above) */}
+                  {(unpinnedLimits.length > 0 || uncoveredGoals.length > 0) && (
                     <div
                       ref={el => { limitsColRefs.current.all = el }}
                       className="grid grid-cols-2 gap-3"
                     >
-                      {sortedLimits.map(b => {
+                      {unpinnedLimits.map(b => {
                         const meta  = getBudgetMeta(b)
                         const spent = budgetSpends[b.id] ?? 0
                         const pPct  = getPeriodPct(b.period ?? 'monthly', currentDate, b.reset_day)
@@ -2275,7 +2328,7 @@ export default function Budgets() {
                               spent={spent} limit={b.monthly_limit} rolloverAmount={b.rollover_amount ?? 0}
                               projectedEnd={calcProjected(b, spent)} periodPct={pPct}
                               period={b.period} cardName={b.card_id ? cardMap[b.card_id]?.name : null}
-                              strictMode={strictMode}
+                              strictMode={strictMode} pinned={false} onPin={() => togglePin(b.id, false)}
                               onEdit={() => setModal(b)}
                               onInfo={() => meta.info && setInfoFilter(meta.info)} />
                           </div>

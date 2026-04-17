@@ -3,8 +3,10 @@ import { TrendingDown, TrendingUp, PiggyBank, Lightbulb } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useImportance } from '../../hooks/useImportance'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
+import { toLocalStr, calcBudgetSpend } from '../../utils/budgetPeriod'
 
 const fmtPct = n => `${Math.abs(n).toFixed(0)}%`
 
@@ -21,44 +23,10 @@ function midColor(v) {
   return stops[Math.floor(stops.length / 2)]
 }
 
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: start.toISOString().slice(0, 10), endStr: end.toISOString().slice(0, 10) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: new Date(y, q * 3, 1).toISOString().slice(0, 10),
-      endStr:   new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: new Date(sy, sm, rd).toISOString().slice(0, 10),
-    endStr:   end.toISOString().slice(0, 10),
-  }
-}
-
 export default function FinancialInsights({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { fmt, fmtK, t } = usePreferences()
+  const { importance: importanceLevels } = useImportance()
   const c = useCardCustomization('Financial Insights')
   const [data, setData] = useState(null)
 
@@ -66,10 +34,10 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     if (!user?.id) return
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    const thisStart = new Date(year, month,     1).toISOString().slice(0, 10)
-    const thisEnd   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
-    const lastStart = new Date(year, month - 1, 1).toISOString().slice(0, 10)
-    const lastEnd   = new Date(year, month,     0).toISOString().slice(0, 10)
+    const thisStart = toLocalStr(new Date(year, month,     1))
+    const thisEnd   = toLocalStr(new Date(year, month + 1, 0))
+    const lastStart = toLocalStr(new Date(year, month - 1, 1))
+    const lastEnd   = toLocalStr(new Date(year, month,     0))
 
     const [
       { data: thisTxs },
@@ -78,6 +46,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
       { data: budgets },
       { data: allExpenses },
       { data: categories },
+      { data: receivers },
     ] = await Promise.all([
       supabase.from('transactions').select('type, amount, is_split_parent, is_earned')
         .eq('user_id', user.id).eq('is_deleted', false)
@@ -89,11 +58,13 @@ export default function FinancialInsights({ currentDate = new Date() }) {
         .eq('user_id', user.id).eq('status', 'active'),
       supabase.from('budgets').select('*')
         .eq('user_id', user.id),
-      supabase.from('transactions').select('category_id, subcategory_id, card_id, amount, date')
+      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
         .eq('user_id', user.id).eq('is_deleted', false)
         .eq('type', 'expense').eq('is_split_parent', false)
         .gte('date', `${year}-01-01`).lte('date', `${year}-12-31`),
       supabase.from('categories').select('id, name, color')
+        .eq('user_id', user.id),
+      supabase.from('receivers').select('id, name')
         .eq('user_id', user.id),
     ])
 
@@ -113,30 +84,38 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     const vsLastMonth  = lastExpenses >= 50 ? ((thisExpenses - lastExpenses) / lastExpenses) * 100 : null
     const totalSubCost = (subs ?? []).reduce((s, sub) => s + Number(sub.amount), 0)
 
-    const catMap = Object.fromEntries((categories ?? []).map(c => [c.id, c]))
+    const catMap     = Object.fromEntries((categories ?? []).map(c => [c.id, c]))
+    const receiverMap = Object.fromEntries((receivers ?? []).map(r => [r.id, r]))
+
+    const getBudgetMeta = b => {
+      if (b.category_ids?.length) {
+        const cats = b.category_ids.map(id => catMap[id]).filter(Boolean)
+        return { name: b.name || cats.map(c => c.name).join(' · ') || 'Budget', color: midColor(cats[0]?.color) ?? 'var(--color-progress-bar)' }
+      }
+      if (b.subcategory_ids?.length) {
+        const cats = b.subcategory_ids.map(id => catMap[id]).filter(Boolean)
+        return { name: b.name || cats.map(c => c.name).join(' · ') || 'Budget', color: midColor(cats[0]?.color) ?? 'var(--color-progress-bar)' }
+      }
+      if (b.importance_ids?.length) {
+        const imps = b.importance_ids.map(v => importanceLevels.find(i => i.value === v)).filter(Boolean)
+        return { name: b.name || imps.map(i => i.label).join(' · ') || 'Budget', color: imps[0]?.color ?? 'var(--color-progress-bar)' }
+      }
+      if (b.receiver_ids?.length) {
+        const recs = b.receiver_ids.map(id => receiverMap[id]).filter(Boolean)
+        return { name: b.name || recs.map(r => r.name).join(' · ') || 'Budget', color: 'var(--color-progress-bar)' }
+      }
+      if (b.category_id)    return { name: b.name || catMap[b.category_id]?.name    || 'Budget', color: midColor(catMap[b.category_id]?.color)    ?? 'var(--color-progress-bar)' }
+      if (b.subcategory_id) return { name: b.name || catMap[b.subcategory_id]?.name || 'Budget', color: midColor(catMap[b.subcategory_id]?.color) ?? 'var(--color-progress-bar)' }
+      if (b.importance)     { const imp = importanceLevels.find(i => i.value === b.importance); return { name: b.name || imp?.label || 'Budget', color: imp?.color ?? 'var(--color-progress-bar)' } }
+      if (b.receiver_id)    return { name: b.name || receiverMap[b.receiver_id]?.name || 'Budget', color: 'var(--color-progress-bar)' }
+      return { name: b.name || 'Total', color: 'var(--color-progress-bar)' }
+    }
 
     const budgetRows = (budgets ?? [])
-      .filter(b => b.monthly_limit > 0 && b.period && (b.name || b.category_id || b.subcategory_id))
+      .filter(b => b.monthly_limit > 0)
       .map(b => {
-        const { startStr, endStr } = getPeriodBounds(b.period ?? 'monthly', currentDate, b.reset_day)
-        const spent = (allExpenses ?? [])
-          .filter(t =>
-            t.date >= startStr && t.date <= endStr &&
-            (!b.card_id || t.card_id === b.card_id) &&
-            (b.category_id    ? t.category_id    === b.category_id
-           : b.subcategory_id ? t.subcategory_id === b.subcategory_id
-           : true)
-          )
-          .reduce((s, t) => s + Number(t.amount), 0)
-        const name = b.name ||
-          ( b.category_id    ? (catMap[b.category_id]?.name    ?? 'Budget')
-          : b.subcategory_id ? (catMap[b.subcategory_id]?.name ?? 'Budget')
-          : 'Total')
-        const color = midColor(
-          b.category_id    ? catMap[b.category_id]?.color
-        : b.subcategory_id ? catMap[b.subcategory_id]?.color
-        : null
-        ) ?? 'var(--color-progress-bar)'
+        const spent = calcBudgetSpend(b, allExpenses ?? [], currentDate)
+        const { name, color } = getBudgetMeta(b)
         const periodLabel = { weekly: 'wk', monthly: 'mo', quarterly: 'qtr', yearly: 'yr' }[b.period ?? 'monthly'] ?? 'mo'
         const pct  = Math.min((spent / b.monthly_limit) * 100, 100)
         const over = spent > b.monthly_limit
@@ -147,7 +126,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     const overBudgetCount = budgetRows.filter(b => b.over).length
 
     setData({ savingsRate, vsLastMonth, totalSubCost, overBudgetCount, thisIncome, thisExpenses, budgetRows, earnedIncome })
-  }, [user?.id, currentDate])
+  }, [user?.id, currentDate, importanceLevels])
 
   useEffect(() => {
     load()

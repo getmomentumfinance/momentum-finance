@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Bell, AlertTriangle, Clock, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../hooks/useNotifications'
 import PaymentModal from './PaymentModal'
@@ -16,6 +17,7 @@ const SEVERITY_LABEL = { alert: 'Urgent', warning: 'Soon', info: 'Info' }
 export default function NotificationBell({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { items } = useNotifications(user?.id, currentDate)
+  const navigate  = useNavigate()
   const [open,     setOpen]     = useState(false)
   const [selected, setSelected] = useState(null)
   const [pos,      setPos]      = useState({ top: 0, right: 0 })
@@ -140,7 +142,11 @@ export default function NotificationBell({ currentDate = new Date() }) {
               return (
                 <div
                   key={id}
-                  onClick={() => { setSelected(item); setOpen(false) }}
+                  onClick={() => {
+                    setOpen(false)
+                    if (item.type === 'budget') { navigate('/budgets'); return }
+                    setSelected(item)
+                  }}
                   className="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
@@ -169,7 +175,7 @@ export default function NotificationBell({ currentDate = new Date() }) {
         document.body
       )}
 
-      {selected && selected.type !== 'rollover' && (
+      {selected && selected.canPay && (
         <PaymentModal item={selected} onClose={() => setSelected(null)} />
       )}
       {selected && selected.type === 'rollover' && (

@@ -2,48 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: start.toISOString().slice(0, 10), endStr: end.toISOString().slice(0, 10) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: new Date(y, q * 3, 1).toISOString().slice(0, 10),
-      endStr:   new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: new Date(sy, sm, rd).toISOString().slice(0, 10),
-    endStr:   end.toISOString().slice(0, 10),
-  }
-}
-
-function getPreviousPeriodBounds(period, refDate, resetDay) {
-  const { startStr } = getPeriodBounds(period, refDate, resetDay)
-  const prevDate = new Date(startStr + 'T00:00:00')
-  prevDate.setDate(prevDate.getDate() - 1)
-  return getPeriodBounds(period, prevDate, resetDay)
-}
+import { getPeriodBounds, getPreviousPeriodBounds } from '../utils/budgetPeriod'
 
 function getPeriodKey(frequency, date) {
   const y = date.getFullYear()
@@ -163,7 +122,7 @@ export function useNotifications(userId, currentDate) {
     // 5. Budgets ≥80% used
     const [{ data: budgets }, { data: yearExpenses }, { data: categories }] = await Promise.all([
       supabase.from('budgets').select('*').eq('user_id', userId),
-      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date')
+      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
         .eq('user_id', userId).eq('is_deleted', false).eq('type', 'expense')
         .eq('is_split_parent', false)
         .gte('date', `${currentDate.getFullYear()}-01-01`)

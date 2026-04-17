@@ -8,6 +8,7 @@ import { CategoryPill } from '../components/shared/CategoryPill'
 import { TYPES_MAP } from '../constants/transactionTypes'
 import { PiggyBank, Banknote, RefreshCw } from 'lucide-react'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { getPeriodBounds } from '../utils/budgetPeriod'
 
 function ReceiverAvatar({ receiver }) {
   const [src, setSrc] = useState(() => {
@@ -33,41 +34,6 @@ function ReceiverAvatar({ receiver }) {
     <img src={src} alt={receiver.name} onError={() => { setSrc(null); setFailed(true) }}
       className="w-7 h-7 rounded-full object-contain bg-white/90 shrink-0 p-0.5" />
   )
-}
-
-function getPeriodBounds(period, refDate, resetDay) {
-  const y = refDate.getFullYear()
-  const m = refDate.getMonth()
-  if (period === 'weekly') {
-    const startJsDow = ((resetDay ?? 0) + 1) % 7
-    const dow  = refDate.getDay()
-    const diff = (dow - startJsDow + 7) % 7
-    const start = new Date(refDate)
-    start.setDate(refDate.getDate() - diff)
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-    return { startStr: start.toISOString().slice(0, 10), endStr: end.toISOString().slice(0, 10) }
-  }
-  if (period === 'quarterly') {
-    const q = Math.floor(m / 3)
-    return {
-      startStr: new Date(y, q * 3, 1).toISOString().slice(0, 10),
-      endStr:   new Date(y, q * 3 + 3, 0).toISOString().slice(0, 10),
-    }
-  }
-  if (period === 'yearly') {
-    return { startStr: `${y}-01-01`, endStr: `${y}-12-31` }
-  }
-  const rd = resetDay ?? 1
-  let sy = y, sm = m
-  if (refDate.getDate() < rd) { sm--; if (sm < 0) { sm = 11; sy-- } }
-  const nextStart = new Date(sy, sm + 1, rd)
-  const end = new Date(nextStart.getTime() - 86400000)
-  return {
-    startStr: new Date(sy, sm, rd).toISOString().slice(0, 10),
-    endStr:   end.toISOString().slice(0, 10),
-  }
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
