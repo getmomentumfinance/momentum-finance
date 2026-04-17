@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Clock, Plus, Check, Undo2, PackageCheck } from 'lucide-react'
+import { Clock, Plus, Check, Undo2, PackageCheck, Eye, EyeOff } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -81,6 +81,7 @@ export default function PendingTransactions({ currentDate = new Date() }) {
   const [collapsed,     setCollapsed]     = useCollapsed('PendingTransactions')
   const [receiveItem,   setReceiveItem]   = useState(null)  // item pending confirmation
   const [receiveAmount, setReceiveAmount] = useState('')
+  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('pending-hide-paid') === 'true')
   const receiveInputRef = useRef(null)
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
@@ -207,21 +208,32 @@ export default function PendingTransactions({ currentDate = new Date() }) {
               </button>
               <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('pending.title')}</button>
             </div>
-            <button
-              onClick={() => { setEditItem(null); setShowModal(true) }}
-              className="text-muted hover:text-white transition-colors"
-            >
-              <Plus size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHidePaid(h => { localStorage.setItem('pending-hide-paid', String(!h)); return !h })}
+                className="transition-colors"
+                title={hidePaid ? 'Show paid' : 'Hide paid'}
+                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
+              >
+                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+              <button
+                onClick={() => { setEditItem(null); setShowModal(true) }}
+                className="text-muted hover:text-white transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
 
           {!collapsed && (<>
           {/* List */}
-          {items.length === 0 ? (
+          {items.filter(item => !hidePaid || item.status === 'pending').length === 0 ? (
             <p className="text-center text-muted text-sm py-6">{t('pending.noItems')}</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {items.map(item => {
+              {items.filter(item => !hidePaid || item.status === 'pending').map(item => {
                 const receiver = receiverById(item.receiver_id)
                 const cat      = categoryById(item.category_id)
                 const sub      = categoryById(item.subcategory_id)

@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { CreditCard, Plus, Check, Undo2 } from 'lucide-react'
+import { CreditCard, Plus, Check, Undo2, Eye, EyeOff } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -65,6 +65,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
   const [collapsed,   setCollapsed]   = useCollapsed('Subscriptions')
   const [expandedId,  setExpandedId]  = useState(null)
   const [paidAmount,  setPaidAmount]  = useState('')
+  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('subs-hide-paid') === 'true')
 
   useEffect(() => {
     if (!user?.id) return
@@ -173,7 +174,10 @@ export default function Subscriptions({ currentDate = new Date() }) {
   const period        = getPeriodKey(currentDate)
   const activeSubs    = subs.filter(s => s.status === 'active')
   const cancelledSubs = subs.filter(s => s.status === 'cancelled')
-  const displayed     = (activeTab === 'active' ? activeSubs : cancelledSubs).sort((a, b) => {
+  const displayed     = (activeTab === 'active' ? activeSubs : cancelledSubs).filter(sub => {
+    if (!hidePaid || activeTab !== 'active') return true
+    return !payments.some(p => p.subscription_id === sub.id && p.period === period)
+  }).sort((a, b) => {
     const aPaid = payments.some(p => p.subscription_id === a.id && p.period === period)
     const bPaid = payments.some(p => p.subscription_id === b.id && p.period === period)
     if (aPaid !== bPaid) return aPaid ? 1 : -1
@@ -201,10 +205,21 @@ export default function Subscriptions({ currentDate = new Date() }) {
               </button>
               <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('subs.title')}</button>
             </div>
-            <button onClick={() => { setEditingSub(null); setShowModal(true) }}
-              className="text-muted hover:text-white transition-colors">
-              <Plus size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHidePaid(h => { localStorage.setItem('subs-hide-paid', String(!h)); return !h })}
+                className="transition-colors"
+                title={hidePaid ? 'Show paid' : 'Hide paid'}
+                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
+              >
+                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+              <button onClick={() => { setEditingSub(null); setShowModal(true) }}
+                className="text-muted hover:text-white transition-colors">
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
 
           {!collapsed && (<>

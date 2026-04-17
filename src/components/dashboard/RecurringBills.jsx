@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react'
-import { FileText, Plus, Check } from 'lucide-react'
+import { FileText, Plus, Check, Eye, EyeOff } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -88,6 +88,7 @@ export default function RecurringBills({ currentDate }) {
   const [filter, setFilter] = useState('month')
   const [expandedId, setExpandedId] = useState(null)
   const [paidAmount, setPaidAmount] = useState('')
+  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('bills-hide-paid') === 'true')
 
   useEffect(() => {
     if (!user?.id) return
@@ -226,12 +227,23 @@ export default function RecurringBills({ currentDate }) {
             ))}
           </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="text-muted hover:text-white transition-colors"
-        >
-          <Plus size={16} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHidePaid(h => { localStorage.setItem('bills-hide-paid', String(!h)); return !h })}
+            className="transition-colors"
+            title={hidePaid ? 'Show paid' : 'Hide paid'}
+            style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
+          >
+            {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="text-muted hover:text-white transition-colors"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
 
       {!collapsed && (<>
@@ -251,6 +263,10 @@ export default function RecurringBills({ currentDate }) {
             const bPaid = payments.some(p => p.bill_id === b.id && p.period === getPeriodKey(b, currentDate))
             if (aPaid !== bPaid) return aPaid ? 1 : -1
             return getDueDate(a, currentDate) - getDueDate(b, currentDate)
+          }).filter(bill => {
+            if (!hidePaid) return true
+            const period = getPeriodKey(bill, currentDate)
+            return !payments.some(p => p.bill_id === bill.id && p.period === period)
           }).map(bill => {
             const period  = getPeriodKey(bill, currentDate)
             const isPaid  = payments.some(p => p.bill_id === bill.id && p.period === period)

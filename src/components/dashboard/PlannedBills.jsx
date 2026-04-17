@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CalendarDays, Plus, Check } from 'lucide-react'
+import { CalendarDays, Plus, Check, Eye, EyeOff } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -78,6 +78,7 @@ export default function PlannedBills({ currentDate = new Date() }) {
   const [loading,   setLoading]   = useState(false)
   const [collapsed, setCollapsed] = useCollapsed('PlannedBills')
   const [filter, setFilter] = useState('month')
+  const [hidePaid, setHidePaid] = useState(() => localStorage.getItem('planned-hide-paid') === 'true')
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 
@@ -180,20 +181,33 @@ export default function PlannedBills({ currentDate = new Date() }) {
                 ))}
               </div>
             </div>
-            <button
-              onClick={() => { setEditItem(null); setShowModal(true) }}
-              className="text-muted hover:text-white transition-colors"
-            >
-              <Plus size={16} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setHidePaid(h => { localStorage.setItem('planned-hide-paid', String(!h)); return !h })}
+                className="transition-colors"
+                title={hidePaid ? 'Show paid' : 'Hide paid'}
+                style={{ color: hidePaid ? 'var(--color-accent)' : 'var(--color-muted)' }}
+              >
+                {hidePaid ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+              <button
+                onClick={() => { setEditItem(null); setShowModal(true) }}
+                className="text-muted hover:text-white transition-colors"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
           </div>
 
           {!collapsed && (<>
           {/* List */}
           {items.filter(item => {
-            if (filter === 'all') return true
-            const d = new Date(item.pay_before + 'T00:00:00')
-            return d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth()
+            if (filter !== 'all') {
+              const d = new Date(item.pay_before + 'T00:00:00')
+              if (d.getFullYear() !== currentDate.getFullYear() || d.getMonth() !== currentDate.getMonth()) return false
+            }
+            return !hidePaid || item.status !== 'paid'
           }).length === 0 ? (
             <p className="text-center text-muted text-sm py-6">{filter === 'month' ? t('planned.noBillsMonth') : t('planned.noBills')}</p>
           ) : (
