@@ -29,20 +29,10 @@ export default function LandingPage() {
 
       {/* ── Nav ────────────────────────────────────────── */}
       <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: '22px clamp(24px, 6vw, 72px)',
         flexShrink: 0,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 8, background: BLACK,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          }}>
-            <img src="/momentum_transparant.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em', color: BLACK }}>Momentum</span>
-        </div>
-
         <GradientMenu />
       </nav>
 
@@ -54,16 +44,13 @@ export default function LandingPage() {
         padding: '0 clamp(24px, 6vw, 80px) 48px',
       }}>
 
-        {/* Badge */}
+        {/* Logo mark */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 28,
-          padding: '5px 14px', borderRadius: 99,
-          background: 'rgba(255,255,255,0.45)', border: `1px solid rgba(255,255,255,0.7)`,
+          width: 52, height: 52, borderRadius: 14, background: BLACK,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden', marginBottom: 28,
         }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: ROSE }} />
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: ROSE }}>
-            Personal Finance · Reinvented
-          </span>
+          <img src="/momentum_transparant.png" alt="Momentum" style={{ width: 36, height: 36, objectFit: 'contain' }} />
         </div>
 
         {/* Headline */}
