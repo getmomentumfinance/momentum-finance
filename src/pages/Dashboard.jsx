@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Download, SlidersHorizontal, GripVertical } from 'lucide-react'
+import { Plus, Download, SlidersHorizontal, GripHorizontal, RotateCcw } from 'lucide-react'
 import {
   DndContext, DragOverlay,
   closestCenter,
@@ -59,14 +59,14 @@ function SortableWidget({ id, children }) {
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
       className="relative group"
     >
-      {/* Drag handle — appears on hover */}
+      {/* Drag handle — center-top, clear of card action buttons */}
       <div
         {...attributes}
         {...listeners}
-        className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-50 hover:!opacity-100 cursor-grab active:cursor-grabbing touch-none transition-opacity p-1 rounded"
+        className="absolute top-3 left-1/2 -translate-x-1/2 z-20 opacity-0 group-hover:opacity-40 hover:!opacity-80 cursor-grab active:cursor-grabbing touch-none transition-opacity p-1 rounded"
         style={{ color: 'var(--color-muted)' }}
       >
-        <GripVertical size={14} />
+        <GripHorizontal size={15} />
       </div>
       {children}
     </div>
@@ -251,6 +251,18 @@ export default function Dashboard() {
                       </button>
                     </div>
                   ))}
+                  <div className="border-t border-white/8 pt-3 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWidgetOrder(DEFAULT_WIDGET_ORDER)
+                        localStorage.removeItem('dash-widget-order')
+                      }}
+                      className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors w-full"
+                    >
+                      <RotateCcw size={12} /> Reset card order
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
