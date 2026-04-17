@@ -1,123 +1,205 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, ChevronDown, BarChart3, Wallet,
-  PiggyBank, CalendarDays, Check, Shield, Zap,
+  ArrowRight, BarChart3, Wallet, PiggyBank,
+  CalendarDays, Receipt, CreditCard, Check,
+  TrendingUp, Shield, Zap,
 } from 'lucide-react'
-import GradientMenu from '../components/ui/gradient-menu'
 
-const GRAD  = '#ffb5ba'
-const BLACK = '#6b1f40'
-const ROSE  = '#986798'
-const MUTED = 'rgba(107,31,64,0.55)'
-const GLASS = 'rgba(255,255,255,0.3)'
-const GLASS_BORDER = 'rgba(255,255,255,0.55)'
+// ── Palette ────────────────────────────────────────────────────────
+const HERO_BG   = 'radial-gradient(ellipse at 65% 30%, #9e2b5a 0%, #4a0d28 50%, #2d0615 100%)'
+const DARK_BG   = '#2d0615'
+const PINK      = '#ffb5ba'
+const ROSE      = '#e8709a'
+const BERRY     = '#6b1f40'
+const WHITE     = '#ffffff'
+const MUTED_D   = 'rgba(255,181,186,0.5)'   // muted on dark bg
+const MUTED_L   = 'rgba(107,31,64,0.48)'    // muted on light bg
+const BORDER_L  = 'rgba(107,31,64,0.1)'
 
-// ── Fake donut chart ───────────────────────────────────────────────
-function FakeDonut({ pct = 68, color = '#c97aaa', size = 72 }) {
-  const sw = 6, r = (size - sw) / 2, circ = 2 * Math.PI * r
-  return (
-    <svg width={size} height={size}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={sw} />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw}
-        strokeLinecap="round" strokeDasharray={circ}
-        strokeDashoffset={circ * (1 - pct / 100)}
-        transform={`rotate(-90 ${size/2} ${size/2})`} />
-      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle"
-        fontSize="11" fontWeight="700" fill={color}>{pct}%</text>
-    </svg>
-  )
-}
-
-// ── Mock dashboard preview ─────────────────────────────────────────
-function AppPreview() {
-  const bars = [45, 62, 38, 80, 55, 72, 90]
-  const txns = [
-    { name: 'Groceries', cat: 'Food', amt: '-€42.50', color: '#c97aaa' },
-    { name: 'Salary',    cat: 'Income', amt: '+€2,800', color: '#7acc8a' },
-    { name: 'Netflix',   cat: 'Subscriptions', amt: '-€15.99', color: '#c97aaa' },
-    { name: 'Gym',       cat: 'Health', amt: '-€29.00', color: '#c97aaa' },
-  ]
+// ── Credit / Debit card ────────────────────────────────────────────
+function Card({ gradient, chipLight = false, number, name, expiry, style = {} }) {
   return (
     <div style={{
-      background: 'rgba(14,10,18,0.82)',
-      backdropFilter: 'blur(24px)',
-      borderRadius: 24,
-      padding: 24,
-      border: '1px solid rgba(255,255,255,0.1)',
-      boxShadow: '0 32px 80px rgba(0,0,0,0.3)',
-      maxWidth: 380, width: '100%',
+      width: 260, height: 163, borderRadius: 18,
+      background: gradient, padding: '18px 22px',
+      boxShadow: '0 28px 56px rgba(0,0,0,0.4)',
+      position: 'absolute', overflow: 'hidden',
+      ...style,
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+      {/* Subtle glare */}
+      <div style={{
+        position: 'absolute', top: -40, right: -40,
+        width: 140, height: 140, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.07)', pointerEvents: 'none',
+      }} />
+      {/* Row 1: chip + circles */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+        <div style={{
+          width: 34, height: 26, borderRadius: 5,
+          background: chipLight ? 'rgba(255,255,255,0.55)' : 'rgba(255,220,100,0.7)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+        }} />
+        <div style={{ display: 'flex' }}>
+          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />
+          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', marginLeft: -8 }} />
+        </div>
+      </div>
+      {/* Card number */}
+      <p style={{
+        fontSize: 12, fontWeight: 600, letterSpacing: '0.18em',
+        color: 'rgba(255,255,255,0.85)', margin: '0 0 14px',
+        fontFamily: '"Courier New", monospace',
+      }}>
+        {number}
+      </p>
+      {/* Name + expiry */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Net worth</p>
-          <p style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.03em' }}>€12,450</p>
-          <p style={{ fontSize: 11, color: '#7acc8a', margin: '4px 0 0' }}>↑ €340 this month</p>
+          <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card Holder</p>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '0.02em' }}>{name}</p>
         </div>
-        <FakeDonut pct={68} color="#c97aaa" size={68} />
-      </div>
-
-      {/* Mini bar chart */}
-      <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Monthly spending</p>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 44 }}>
-          {bars.map((h, i) => (
-            <div key={i} style={{
-              flex: 1, height: `${h}%`, borderRadius: 4,
-              background: i === bars.length - 1 ? '#c97aaa' : 'rgba(255,255,255,0.12)',
-              transition: 'height .3s',
-            }} />
-          ))}
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Expires</p>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0 }}>{expiry}</p>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-          {['M','T','W','T','F','S','S'].map((d, i) => (
-            <span key={i} style={{ fontSize: 9, color: 'rgba(255,255,255,0.25)', flex: 1, textAlign: 'center' }}>{d}</span>
-          ))}
-        </div>
-      </div>
-
-      {/* Budget bars */}
-      <div style={{ marginBottom: 20 }}>
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Budgets</p>
-        {[
-          { label: 'Food', pct: 74, color: '#c97aaa' },
-          { label: 'Transport', pct: 32, color: '#7ab8cc' },
-          { label: 'Fun', pct: 91, color: '#e09060' },
-        ].map(({ label, pct, color }) => (
-          <div key={label} style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{label}</span>
-              <span style={{ fontSize: 11, color, fontWeight: 700 }}>{pct}%</span>
-            </div>
-            <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.08)' }}>
-              <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: color }} />
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent transactions */}
-      <div>
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Recent</p>
-        {txns.map(({ name, cat, amt, color }) => (
-          <div key={name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#fff', margin: 0 }}>{name}</p>
-              <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', margin: 0 }}>{cat}</p>
-            </div>
-            <span style={{ fontSize: 13, fontWeight: 700, color }}>{amt}</span>
-          </div>
-        ))}
       </div>
     </div>
   )
 }
 
+// ── Cards showcase ─────────────────────────────────────────────────
+function CardsShowcase() {
+  return (
+    <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
+      {/* Left card — blush, tilted back-left */}
+      <Card
+        gradient="linear-gradient(140deg, #fce4e8 0%, #f5a8c0 60%, #e87898 100%)"
+        chipLight
+        number="•••• •••• •••• 3812"
+        name="A. Johnson"
+        expiry="09/27"
+        style={{
+          left: '2%', top: 55,
+          transform: 'rotate(-14deg) perspective(600px) rotateY(8deg)',
+          zIndex: 1, width: 232, height: 146,
+          filter: 'brightness(0.88)',
+        }}
+      />
+      {/* Center card — deep berry, front and center */}
+      <Card
+        gradient="linear-gradient(140deg, #c94878 0%, #8b2550 50%, #4a0d28 100%)"
+        number="•••• •••• •••• 5524"
+        name="T. Brzyk"
+        expiry="12/28"
+        style={{
+          left: '50%', top: 0,
+          transform: 'translateX(-50%) rotate(-2deg) perspective(600px) rotateY(-2deg)',
+          zIndex: 3,
+          boxShadow: '0 32px 72px rgba(74,13,40,0.7)',
+        }}
+      />
+      {/* Right card — mauve/plum, tilted back-right */}
+      <Card
+        gradient="linear-gradient(140deg, #e0b0d0 0%, #c07aaa 50%, #986798 100%)"
+        chipLight
+        number="•••• •••• •••• 9073"
+        name="M. Williams"
+        expiry="03/26"
+        style={{
+          right: '2%', top: 48,
+          transform: 'rotate(12deg) perspective(600px) rotateY(-8deg)',
+          zIndex: 2, width: 232, height: 146,
+          filter: 'brightness(0.85)',
+        }}
+      />
+    </div>
+  )
+}
+
+// ── Mini payment receipt mockup ────────────────────────────────────
+function PaymentMockup() {
+  return (
+    <div style={{ maxWidth: 340, width: '100%' }}>
+      {/* Card 1: transaction */}
+      <div style={{
+        background: WHITE, borderRadius: 20, padding: 24,
+        boxShadow: '0 8px 32px rgba(107,31,64,0.12)',
+        border: `1px solid ${BORDER_L}`, marginBottom: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: `linear-gradient(135deg, ${ROSE}, ${BERRY})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 14 }}>🛒</span>
+            </div>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: BERRY, margin: 0 }}>Groceries</p>
+              <p style={{ fontSize: 11, color: MUTED_L, margin: 0 }}>Today · 14:32</p>
+            </div>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#e05070' }}>-€42.50</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div>
+            <p style={{ fontSize: 10, color: MUTED_L, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Category</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: BERRY, margin: 0 }}>Food & Drink</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 10, color: MUTED_L, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Budget used</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: BERRY, margin: 0 }}>68%</p>
+          </div>
+          <div>
+            <p style={{ fontSize: 10, color: MUTED_L, margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Remaining</p>
+            <p style={{ fontSize: 12, fontWeight: 600, color: '#4caf80', margin: 0 }}>€57.50</p>
+          </div>
+        </div>
+        {/* Budget bar */}
+        <div style={{ height: 5, borderRadius: 99, background: BORDER_L }}>
+          <div style={{ height: '100%', width: '68%', borderRadius: 99, background: `linear-gradient(90deg, ${ROSE}, ${BERRY})` }} />
+        </div>
+      </div>
+
+      {/* Card 2: salary received */}
+      <div style={{
+        background: `linear-gradient(135deg, ${BERRY}, #8b2550)`,
+        borderRadius: 20, padding: 24,
+        boxShadow: '0 8px 32px rgba(107,31,64,0.3)',
+      }}>
+        <p style={{ fontSize: 11, color: MUTED_D, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>You received</p>
+        <p style={{ fontSize: 28, fontWeight: 900, color: WHITE, margin: '0 0 4px', letterSpacing: '-0.02em' }}>+€2,800.00</p>
+        <p style={{ fontSize: 12, color: MUTED_D, margin: '0 0 16px' }}>Monthly salary · Employer NV</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7adc9a' }} />
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>Completed · Dec 25, 2024</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── FAQ ───────────────────────────────────────────────────────────
+function FAQItem({ q, a }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ borderBottom: `1px solid ${BORDER_L}` }}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '18px 0', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 700, color: BERRY }}>{q}</span>
+        <span style={{ color: ROSE, fontSize: 20, lineHeight: 1, marginLeft: 16 }}>{open ? '−' : '+'}</span>
+      </button>
+      {open && <p style={{ fontSize: 14, lineHeight: 1.75, color: MUTED_L, margin: '0 0 18px' }}>{a}</p>}
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = '#ffb5ba'
-    document.documentElement.style.background = '#ffb5ba'
+    document.body.style.background = DARK_BG
+    document.documentElement.style.background = DARK_BG
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
@@ -125,147 +207,135 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div style={{ background: GRAD, minHeight: '100vh', overflowX: 'hidden' }}>
+    <div style={{ overflowX: 'hidden' }}>
 
-      {/* ── Nav ──────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════
+          NAV — light
+      ══════════════════════════════════════════════════ */}
       <nav style={{
+        background: WHITE, borderBottom: `1px solid ${BORDER_L}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '20px clamp(24px, 6vw, 72px)',
-        position: 'sticky', top: 0, zIndex: 20,
+        padding: '0 clamp(24px, 6vw, 72px)', height: 60,
+        position: 'sticky', top: 0, zIndex: 50,
       }}>
-        {/* Logo + name */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%', background: BLACK,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          }}>
-            <img src="/momentum_transparant.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <div style={{ width: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg, ${BERRY}, ${ROSE})`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <img src="/momentum_transparant.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 14, letterSpacing: '-0.02em', color: BLACK }}>Momentum</span>
+          <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em', color: BERRY }}>Momentum</span>
         </div>
 
-        <GradientMenu />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {[['Overview', '#hero'], ['Features', '#features'], ['FAQ', '#faq']].map(([label, href]) => (
+            <a key={label} href={href} style={{
+              fontSize: 13, fontWeight: 500, color: MUTED_L,
+              textDecoration: 'none', padding: '6px 14px', borderRadius: 99,
+              transition: 'color .18s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.color = BERRY}
+              onMouseLeave={e => e.currentTarget.style.color = MUTED_L}>
+              {label}
+            </a>
+          ))}
+        </div>
+
+        <Link to="/register" style={{
+          fontSize: 13, fontWeight: 700, color: BERRY,
+          textDecoration: 'none', padding: '8px 20px', borderRadius: 99,
+          border: `1.5px solid ${BERRY}`, transition: 'background .18s, color .18s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = BERRY; e.currentTarget.style.color = WHITE }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = BERRY }}>
+          Get Started
+        </Link>
       </nav>
 
       {/* ══════════════════════════════════════════════════
-          HERO
+          HERO — dark
       ══════════════════════════════════════════════════ */}
-      <section style={{
-        minHeight: 'calc(100vh - 76px)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        textAlign: 'center',
-        padding: '40px clamp(24px, 6vw, 80px) 60px',
-        position: 'relative',
-      }}>
-        <h1 style={{
-          fontWeight: 900, lineHeight: 1.0, letterSpacing: '-0.035em',
-          fontSize: 'clamp(3rem, 8vw, 6.5rem)',
-          margin: '0 0 22px', color: BLACK,
-        }}>
-          Your money,{' '}
-          <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', fontWeight: 700, color: ROSE }}>
-            finally
-          </em>
-          <br />on your side.
-        </h1>
+      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(64px,10vw,100px) clamp(24px,6vw,72px) 0', textAlign: 'center' }}>
 
-        <p style={{
-          fontSize: 'clamp(14px, 1.5vw, 17px)', lineHeight: 1.75,
-          color: MUTED, maxWidth: 460, margin: '0 0 40px',
+        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
+          All-in-one personal finance
+        </p>
+        <h1 style={{
+          fontWeight: 900, lineHeight: 1.04, letterSpacing: '-0.03em',
+          fontSize: 'clamp(2.8rem, 7vw, 5.5rem)',
+          color: WHITE, margin: '0 0 20px',
         }}>
-          Stop wondering where it all went. Track every transaction, beat every budget, and grow toward the goals that actually matter — free, forever.
+          Smart and simple<br />
+          <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK }}>personal finance</em>
+        </h1>
+        <p style={{ fontSize: 'clamp(14px,1.5vw,17px)', lineHeight: 1.75, color: MUTED_D, maxWidth: 440, margin: '0 auto 40px' }}>
+          Track every transaction, beat every budget, and grow toward the goals that actually matter — free, forever.
         </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 56 }}>
-          <Link to="/register" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
-            background: BLACK, color: '#fff', textDecoration: 'none',
-            transition: 'opacity .18s, transform .15s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.opacity='.85'; e.currentTarget.style.transform='scale(1.02)' }}
-            onMouseLeave={e => { e.currentTarget.style.opacity='1';   e.currentTarget.style.transform='scale(1)' }}>
-            Start for free <ArrowRight size={14} />
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: BLACK, opacity: 0.35 }} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: MUTED }}>No credit card · Free forever</span>
+        {/* Email CTA */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(48px,8vw,80px)' }}>
+          <div style={{
+            display: 'flex', borderRadius: 99, overflow: 'hidden',
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <input
+              type="email" placeholder="Enter your email"
+              style={{
+                background: 'none', border: 'none', outline: 'none',
+                padding: '12px 22px', fontSize: 13, color: WHITE,
+                width: 'clamp(180px, 30vw, 260px)',
+              }}
+            />
+            <Link to="/register" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '12px 22px', fontSize: 13, fontWeight: 700,
+              background: `linear-gradient(135deg, ${ROSE}, ${BERRY})`,
+              color: WHITE, textDecoration: 'none', borderRadius: 99,
+              margin: 3, transition: 'opacity .18s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '.88'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+              Sign up <ArrowRight size={13} />
+            </Link>
           </div>
         </div>
 
-        {/* Scroll hint */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, opacity: 0.4 }}>
-          <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: BLACK }}>Scroll</span>
-          <ChevronDown size={16} color={BLACK} />
-        </div>
+        {/* Cards */}
+        <CardsShowcase />
       </section>
 
       {/* ══════════════════════════════════════════════════
-          STATS ROW
+          WHY MOMENTUM — dark
       ══════════════════════════════════════════════════ */}
-      <section style={{ padding: '0 clamp(24px, 6vw, 80px) 80px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-        }}>
-          {[
-            { num: '100%', label: 'Free forever', sub: 'No trials. No tiers.' },
-            { num: '∞',    label: 'Transactions', sub: 'Log as many as you need.' },
-            { num: '0',    label: 'Data sold',    sub: 'Your finances stay yours.' },
-          ].map(({ num, label, sub }) => (
-            <div key={label} style={{
-              padding: 'clamp(20px, 3vw, 36px)',
-              background: GLASS,
-              border: `1px solid ${GLASS_BORDER}`,
-              borderRadius: 20,
-              backdropFilter: 'blur(12px)',
-              textAlign: 'center',
-            }}>
-              <p style={{ fontSize: 'clamp(2.2rem,5vw,3.5rem)', fontWeight: 900, letterSpacing: '-0.04em', color: BLACK, margin: '0 0 6px', lineHeight: 1 }}>{num}</p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: BLACK, margin: '0 0 4px' }}>{label}</p>
-              <p style={{ fontSize: 12, color: MUTED, margin: 0 }}>{sub}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>
+            Why Momentum?
+          </p>
+          <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,3rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 16px' }}>
+            The only finance app<br />you'll ever need
+          </h2>
+          <p style={{ fontSize: 15, color: MUTED_D, maxWidth: 460, margin: '0 auto 72px' }}>
+            Beautifully simple. Surprisingly powerful. Built so you can understand your money at a glance.
+          </p>
 
-      {/* ══════════════════════════════════════════════════
-          APP PREVIEW + FEATURES
-      ══════════════════════════════════════════════════ */}
-      <section style={{ padding: '0 clamp(24px, 6vw, 80px) 80px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, alignItems: 'center', justifyContent: 'center' }}>
-
-          {/* Mock app */}
-          <AppPreview />
-
-          {/* Feature list */}
-          <div style={{ flex: '1 1 300px', maxWidth: 420 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: BLACK, opacity: 0.5, marginBottom: 16 }}>
-              What you get
-            </p>
-            <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: BLACK, lineHeight: 1.05, margin: '0 0 32px' }}>
-              Everything in one<br />
-              <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: 'rgba(255,255,255,0.85)' }}>clear picture.</em>
-            </h2>
-
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 36 }}>
             {[
-              { Icon: BarChart3,    title: 'Deep analytics',   desc: 'Click any chart to drill into the transactions behind it — by category, merchant, or importance.' },
-              { Icon: Wallet,       title: 'Smart budgets',    desc: 'Set limits, track rollover, and get alerted before you overspend.' },
-              { Icon: PiggyBank,    title: 'Savings goals',    desc: 'Plan monthly contributions and watch your goals grow in real time.' },
-              { Icon: CalendarDays, title: 'Bills & planned',  desc: 'Never miss a recurring payment. Plan future expenses before they land.' },
-            ].map(({ Icon, title, desc }) => (
-              <div key={title} style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+              { Icon: BarChart3,    label: 'Deep analytics',      desc: 'Click into any chart to see the transactions behind it.' },
+              { Icon: Wallet,       label: 'Smart budgets',        desc: 'Set limits per category and track rollover automatically.' },
+              { Icon: PiggyBank,    label: 'Savings goals',        desc: 'Plan contributions and watch your goals grow.' },
+              { Icon: CalendarDays, label: 'Bills & recurring',    desc: 'Never miss a payment — plan ahead with ease.' },
+            ].map(({ Icon, label, desc }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'rgba(255,181,186,0.1)', border: '1px solid rgba(255,181,186,0.2)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: GLASS, border: `1px solid ${GLASS_BORDER}`,
-                  backdropFilter: 'blur(8px)',
                 }}>
-                  <Icon size={18} color={BLACK} />
+                  <Icon size={22} color={PINK} />
                 </div>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: BLACK, margin: '0 0 4px' }}>{title}</p>
-                  <p style={{ fontSize: 13, lineHeight: 1.6, color: MUTED, margin: 0 }}>{desc}</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: WHITE, margin: '0 0 6px' }}>{label}</p>
+                  <p style={{ fontSize: 12, lineHeight: 1.6, color: MUTED_D, margin: 0 }}>{desc}</p>
                 </div>
               </div>
             ))}
@@ -274,113 +344,164 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════
-          INCLUDED CHECKLIST
+          FEATURES — light
       ══════════════════════════════════════════════════ */}
-      <section style={{ padding: '0 clamp(24px, 6vw, 80px) 80px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{
-          background: GLASS, border: `1px solid ${GLASS_BORDER}`,
-          borderRadius: 24, backdropFilter: 'blur(12px)',
-          padding: 'clamp(32px, 5vw, 56px)',
-        }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 24, marginBottom: 36 }}>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: BLACK, opacity: 0.5, margin: '0 0 10px' }}>No tiers. No limits.</p>
-              <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.6rem,3.5vw,2.4rem)', color: BLACK, lineHeight: 1.05, margin: 0 }}>
-                Everything. Always free.
-              </h2>
-            </div>
-            <Link to="/register" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '12px 24px', borderRadius: 99, fontSize: 13, fontWeight: 700,
-              background: BLACK, color: '#fff', textDecoration: 'none', flexShrink: 0,
-              transition: 'opacity .18s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '.8'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-              Get started free <ArrowRight size={13} />
-            </Link>
-          </div>
+      <section id="features" style={{ background: WHITE, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 64, alignItems: 'center', justifyContent: 'center' }}>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {/* Left */}
+          <div style={{ flex: '1 1 320px', maxWidth: 420 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>Built for clarity</p>
+            <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: BERRY, lineHeight: 1.07, margin: '0 0 16px' }}>
+              All your finances<br />in one clear picture
+            </h2>
+            <p style={{ fontSize: 14, lineHeight: 1.75, color: MUTED_L, margin: '0 0 36px' }}>
+              Every transaction, every budget, every goal — all visible in one place, always up to date.
+            </p>
+
             {[
-              'Unlimited transactions', 'Multiple accounts & cards',
-              'Savings goals',          'Deep analytics',
-              'Recurring bills',        'Calendar view',
-              'Smart budgets',          'Custom design themes',
-              'Split transactions',     'Importance tagging',
-              'CSV export',             'Multi-currency',
-            ].map(item => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              { Icon: TrendingUp, title: 'Income & expense tracking', desc: 'Log everything. See exactly where every euro goes, broken down by category and merchant.' },
+              { Icon: CreditCard,  title: 'Multiple accounts & cards', desc: 'Connect debit, credit, cash and savings. Switch between accounts in a tap.' },
+              { Icon: Receipt,     title: 'Transaction detail',        desc: 'Split transactions, add notes, tag importance, and search your full history.' },
+            ].map(({ Icon, title, desc }) => (
+              <div key={title} style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
                 <div style={{
-                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                  width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                  background: 'rgba(232,112,154,0.1)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: BLACK,
                 }}>
-                  <Check size={10} color="#fff" />
+                  <Icon size={18} color={ROSE} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 500, color: BLACK }}>{item}</span>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: BERRY, margin: '0 0 4px' }}>{title}</p>
+                  <p style={{ fontSize: 13, lineHeight: 1.6, color: MUTED_L, margin: 0 }}>{desc}</p>
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* Right — payment mockup */}
+          <PaymentMockup />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          FREE — dark
+      ══════════════════════════════════════════════════ */}
+      <section style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ flex: '1 1 300px' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>No tiers. No limits.</p>
+              <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 16px' }}>
+                Everything.<br />
+                <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK }}>Always free.</em>
+              </h2>
+              <p style={{ fontSize: 14, color: MUTED_D, lineHeight: 1.75, margin: '0 0 32px' }}>
+                No credit card. No trial. No paywalled features. Momentum is 100% free for everyone, forever.
+              </p>
+              <Link to="/register" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
+                background: `linear-gradient(135deg, ${PINK}, ${ROSE})`, color: BERRY,
+                textDecoration: 'none', transition: 'opacity .18s, transform .15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.opacity='.88'; e.currentTarget.style.transform='scale(1.02)' }}
+                onMouseLeave={e => { e.currentTarget.style.opacity='1';   e.currentTarget.style.transform='scale(1)' }}>
+                Get started free <ArrowRight size={14} />
+              </Link>
+            </div>
+            <div style={{ flex: '1 1 280px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  'Unlimited transactions', 'Multiple accounts', 'Savings goals', 'Deep analytics',
+                  'Recurring bills', 'Calendar view', 'Smart budgets', 'Custom themes',
+                  'Split transactions', 'Importance tags', 'CSV export', 'Multi-currency',
+                ].map(item => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                      background: 'rgba(255,181,186,0.12)', border: '1px solid rgba(255,181,186,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Check size={10} color={PINK} />
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════════
-          FINAL CTA
+          FAQ — light
       ══════════════════════════════════════════════════ */}
-      <section style={{ padding: '0 clamp(24px, 6vw, 80px) 80px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{
-          background: BLACK, borderRadius: 24,
-          padding: 'clamp(40px, 6vw, 72px)',
-          textAlign: 'center',
-        }}>
-          <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(2rem,5vw,3.5rem)', color: '#fff', lineHeight: 1.05, margin: '0 0 16px' }}>
-            Start building your{' '}
-            <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: '#c97aaa' }}>
-              financial clarity.
-            </em>
+      <section id="faq" style={{ background: WHITE, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>FAQ</p>
+          <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: BERRY, lineHeight: 1.07, margin: '0 0 48px' }}>
+            Common questions.
           </h2>
-          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.4)', margin: '0 0 36px' }}>Free, forever. No credit card required.</p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <Link to="/register" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '14px 32px', borderRadius: 99, fontSize: 15, fontWeight: 700,
-              background: 'linear-gradient(135deg, #986798, #e7d2ac)', color: BLACK,
-              textDecoration: 'none', transition: 'opacity .18s, transform .15s',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.opacity='.88'; e.currentTarget.style.transform='scale(1.02)' }}
-              onMouseLeave={e => { e.currentTarget.style.opacity='1';   e.currentTarget.style.transform='scale(1)' }}>
-              Get started free <ArrowRight size={15} />
-            </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              {[
-                { Icon: Shield, text: 'Private' },
-                { Icon: Zap,    text: 'Free forever' },
-              ].map(({ Icon, text }) => (
-                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Icon size={12} color="rgba(255,255,255,0.35)" />
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>{text}</span>
-                </div>
-              ))}
-            </div>
+          <div style={{ borderTop: `1px solid ${BORDER_L}` }}>
+            {[
+              { q: 'Is Momentum really free?',       a: 'Yes — completely free, forever. No credit card, no trial, no paywalled features. Everything is always included.' },
+              { q: 'Is my financial data secure?',   a: 'Your data is encrypted and stored securely with Supabase. We never share or sell your information.' },
+              { q: 'Can I use it on my phone?',      a: 'Momentum works in any modern browser on desktop or mobile. A native app is on the roadmap.' },
+              { q: 'What currencies are supported?', a: 'Any currency — EUR, USD, GBP, and more. Just pick yours in settings and you\'re good to go.' },
+            ].map(faq => <FAQItem key={faq.q} {...faq} />)}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          FINAL CTA — dark
+      ══════════════════════════════════════════════════ */}
+      <section style={{ background: HERO_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)', textAlign: 'center' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 20 }}>
+          Start today
+        </p>
+        <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(2rem,5vw,3.8rem)', color: WHITE, lineHeight: 1.05, margin: '0 0 20px' }}>
+          Start building your<br />
+          <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK }}>financial clarity.</em>
+        </h2>
+        <p style={{ fontSize: 15, color: MUTED_D, margin: '0 0 40px' }}>Free, forever. No credit card required.</p>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <Link to="/register" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '14px 32px', borderRadius: 99, fontSize: 15, fontWeight: 700,
+            background: `linear-gradient(135deg, ${PINK}, ${ROSE})`, color: BERRY,
+            textDecoration: 'none', transition: 'opacity .18s, transform .15s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.opacity='.88'; e.currentTarget.style.transform='scale(1.02)' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity='1';   e.currentTarget.style.transform='scale(1)' }}>
+            Get started free <ArrowRight size={15} />
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {[{ Icon: Shield, t: 'Private' }, { Icon: Zap, t: 'Always free' }].map(({ Icon, t }) => (
+              <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Icon size={12} color={MUTED_D} />
+                <span style={{ fontSize: 12, color: MUTED_D, fontWeight: 500 }}>{t}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ── Footer ───────────────────────────────────────── */}
       <footer style={{
+        background: DARK_BG, borderTop: '1px solid rgba(255,181,186,0.1)',
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-        padding: '24px clamp(24px, 6vw, 80px) 32px',
-        maxWidth: 1100, margin: '0 auto',
-        borderTop: '1px solid rgba(15,13,12,0.1)',
+        padding: '24px clamp(24px, 6vw, 72px)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 24, height: 24, borderRadius: '50%', background: BLACK, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <div style={{ width: 24, height: 24, borderRadius: '50%', background: `linear-gradient(135deg, ${BERRY}, ${ROSE})`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <img src="/momentum_transparant.png" alt="" style={{ width: 16, height: 16, objectFit: 'contain' }} />
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>Momentum Finance</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: MUTED_D }}>Momentum Finance</span>
         </div>
-        <p style={{ fontSize: 12, color: 'rgba(15,13,12,0.3)', margin: 0 }}>© {new Date().getFullYear()} Momentum Finance · Free forever</p>
+        <p style={{ fontSize: 12, color: 'rgba(255,181,186,0.28)', margin: 0 }}>© {new Date().getFullYear()} Momentum Finance · Free forever</p>
       </footer>
 
     </div>
