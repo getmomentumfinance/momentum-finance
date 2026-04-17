@@ -594,15 +594,20 @@ export default function AddBudgetModal({
                   {avgPeriod && <span className="text-sm font-normal text-white/20 ml-1">{periodShort}</span>}
                 </span>
               </div>
-              {limitVal > 0 && (
-                <div className="flex flex-col gap-0.5 items-end">
-                  <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Your budget</span>
-                  <span className="text-2xl font-bold tabular-nums text-white/90">
-                    {fmt(limitVal)}
-                    <span className="text-sm font-normal text-white/30 ml-1">{periodShort}</span>
-                  </span>
+              <div className="flex flex-col gap-0.5 items-end">
+                <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Your budget</span>
+                <div className="flex items-baseline gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    value={limit === 0 ? '' : limit}
+                    onChange={e => setLimit(e.target.value === '' ? 0 : Number(e.target.value))}
+                    placeholder="0"
+                    className="text-2xl font-bold tabular-nums text-white/90 bg-transparent outline-none w-28 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span className="text-sm font-normal text-white/30">{periodShort}</span>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Slider */}

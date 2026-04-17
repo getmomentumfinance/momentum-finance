@@ -5,6 +5,38 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { CategoryPill } from '../shared/CategoryPill'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useImportance } from '../../hooks/useImportance'
+
+function ImportancePicker({ value, onChange, options }) {
+  return (
+    <div className="flex gap-1">
+      {options.map(imp => {
+        const active = value === imp.value
+        return (
+          <button
+            key={imp.value}
+            type="button"
+            onClick={() => onChange(active ? '' : imp.value)}
+            className="flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-lg border text-[10px] font-medium transition-all"
+            style={{
+              borderColor: active ? imp.color : 'rgba(255,255,255,0.06)',
+              background:  active ? `color-mix(in srgb, ${imp.color} 15%, transparent)` : 'transparent',
+              color:       active ? imp.color : 'rgba(255,255,255,0.3)',
+            }}
+          >
+            <span className="flex gap-0.5">
+              {Array.from({ length: imp.dots }).map((_, i) => (
+                <span key={i} className="w-1 h-1 rounded-full"
+                  style={{ background: active ? imp.color : 'rgba(255,255,255,0.15)' }} />
+              ))}
+            </span>
+            {imp.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 
@@ -63,6 +95,7 @@ function CategoryDropdown({ value, onChange, categories, placeholder }) {
 export default function SplitTransactionModal({ transaction, existingChildren = [], allCategories, onClose, onBack }) {
   const { user } = useAuth()
   const { fmt } = usePreferences()
+  const { importance: importanceOptions } = useImportance()
   const topCategories = allCategories.filter(c => !c.parent_id)
 
   const [splits, setSplits] = useState(() => {
@@ -73,11 +106,12 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
         description: c.description ?? '',
         category_id: c.category_id ?? '',
         subcategory_id: c.subcategory_id ?? '',
+        importance: c.importance ?? '',
       }))
     }
     return [
-      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '' },
-      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '' },
+      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' },
+      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' },
     ]
   })
 
@@ -87,7 +121,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
   const allocated = splits.reduce((s, sp) => s + (parseFloat(sp.amount) || 0), 0)
   const remaining = total - allocated
   const isValid = splits.length >= 2 &&
-    splits.every(sp => sp.amount && parseFloat(sp.amount) > 0) &&
+    splits.every(sp => sp.amount && parseFloat(sp.amount) > 0 && sp.importance) &&
     Math.abs(remaining) < 0.005
 
   function updateSplit(key, field, value) {
@@ -99,7 +133,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
   }
 
   function addSplit() {
-    setSplits(ss => [...ss, { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '' }])
+    setSplits(ss => [...ss, { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' }])
   }
 
   function removeSplit(key) {
@@ -132,6 +166,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
       card_id: transaction.card_id || null,
       category_id: sp.category_id || null,
       subcategory_id: sp.subcategory_id || null,
+      importance: sp.importance || null,
       split_parent_id: transaction.id,
       is_deleted: false,
     }))
@@ -223,6 +258,12 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
                     placeholder="Subcategory…"
                   />
                 )}
+
+                <ImportancePicker
+                  value={sp.importance}
+                  onChange={v => updateSplit(sp.key, 'importance', v)}
+                  options={importanceOptions}
+                />
 
                 <input
                   type="text"

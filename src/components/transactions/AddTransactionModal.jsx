@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Banknote, ChevronDown, Building2, UserRound, Calendar, Scissors, Plus } from 'lucide-react'
 import SplitTransactionModal from './SplitTransactionModal'
 import { TRANSACTION_TYPES as TYPES } from '../../constants/transactionTypes'
+import { useImportance } from '../../hooks/useImportance'
 import { fetchHistoricalPrice, fetchLivePrice } from '../../lib/yahooFinance'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -259,11 +260,43 @@ function Toggle({ label, on, onToggle }) {
   )
 }
 
+function ImportancePicker({ value, onChange, options }) {
+  return (
+    <div className="flex gap-1.5">
+      {options.map(imp => {
+        const active = value === imp.value
+        return (
+          <button
+            key={imp.value}
+            type="button"
+            onClick={() => onChange(active ? '' : imp.value)}
+            className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border text-[11px] font-medium transition-all"
+            style={{
+              borderColor: active ? imp.color : 'rgba(255,255,255,0.08)',
+              background:  active ? `color-mix(in srgb, ${imp.color} 15%, transparent)` : 'rgba(255,255,255,0.02)',
+              color:       active ? imp.color : 'rgba(255,255,255,0.35)',
+            }}
+          >
+            <span className="flex gap-0.5">
+              {Array.from({ length: imp.dots }).map((_, i) => (
+                <span key={i} className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: active ? imp.color : 'rgba(255,255,255,0.2)' }} />
+              ))}
+            </span>
+            {imp.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function AddTransactionModal({ onClose, defaults = {}, transaction = null }) {
   const isEditing = !!transaction
   const { user } = useAuth()
   const { fmt } = usePreferences()
   const { cards } = useCards()
+  const { importance: importanceOptions } = useImportance()
 
   const [type,        setType]        = useState(transaction?.type           ?? defaults.type        ?? 'expense')
   const [description, setDescription] = useState(transaction?.description    ?? defaults.description ?? '')
@@ -287,6 +320,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [status,      setStatus]      = useState(transaction?.status         ?? 'completed')
   const [isEarned,    setIsEarned]    = useState(transaction?.is_earned      ?? false)
   const [receiverId,  setReceiverId]  = useState(transaction?.receiver_id    ?? null)
+  const [importance,  setImportance]  = useState(transaction?.importance     ?? '')
   const [saving,      setSaving]      = useState(false)
   const [pendingSplit, setPendingSplit] = useState(null) // transaction to split after save
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
@@ -365,8 +399,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     if (data) setTickers(prev => [...prev, data].sort((a, b) => a.symbol.localeCompare(b.symbol)))
   }
 
-  // Reset subcategory when category changes
-  useEffect(() => { setSubId('') }, [categoryId])
 
   // Auto-select main card
   useEffect(() => {
@@ -533,12 +565,14 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         receiver_id:    receiverId || null,
         is_cash:        isCash,
         ...(type === 'income' && { is_earned: isEarned }),
+        ...(type === 'expense' && { importance: importance || null }),
         date,
         comment:        comment.trim() || null,
         status,
       }
       if (effectiveIsEditing) {
-        await supabase.from('transactions').update(payload).eq('id', editId)
+        const { error: updateErr } = await supabase.from('transactions').update(payload).eq('id', editId)
+        if (updateErr) { console.error('transaction update failed:', updateErr.message); setSaving(false); return }
         if (transaction?.is_split_parent) {
           await supabase.from('transactions')
             .update({ card_id: isCash ? null : (cardId || null), date })
@@ -871,12 +905,23 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-muted uppercase tracking-widest">Category</label>
-                <CategorySelect value={categoryId} onChange={setCategoryId} options={topCategories} />
+                <CategorySelect value={categoryId} onChange={v => { setCategoryId(v); setSubId('') }} options={topCategories} />
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-muted uppercase tracking-widest">Subcategory</label>
                 <CategorySelect value={subId} onChange={setSubId} options={subcategories} disabled={!categoryId || subcategories.length === 0} />
               </div>
+            </div>
+          )}
+
+          {/* Importance — expense only, required */}
+          {type === 'expense' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                Importance
+                {!importance && <span className="text-[10px] text-white/30 normal-case font-normal">required</span>}
+              </label>
+              <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
             </div>
           )}
 
@@ -993,7 +1038,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
               <button
                 type="button"
                 onClick={() => handleSave(true)}
-                disabled={saving || !amount}
+                disabled={saving || !amount || !importance}
                 className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/10 text-sm text-white/50 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40"
                 title="Save and immediately split into parts"
               >
@@ -1009,7 +1054,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   ? !(parseFloat(quantity) > 0) || !(parseFloat(pricePerUnit) > 0)
                   : !amount) ||
                 ((type === 'transfer' || type === 'savings') && (!cardId || !toCardId || cardId === toCardId)) ||
-                (type === 'cash_out' && !cardId)
+                (type === 'cash_out' && !cardId) ||
+                (type === 'expense' && !importance)
               }
               className="flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all disabled:opacity-40"
               style={{

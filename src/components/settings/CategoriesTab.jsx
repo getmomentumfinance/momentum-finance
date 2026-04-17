@@ -5,43 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { SOLIDS, GRADIENTS } from '../../constants/gradients'
 import { extractNColors } from '../../utils/gradientColors'
-import { useImportance } from '../../hooks/useImportance'
 import { CATEGORY_ICONS, CategoryPill } from '../shared/CategoryPill'
-
-function ImportancePicker({ value, onChange, importance }) {
-  return (
-    <div className="flex gap-1.5">
-      {importance.map(({ value: v, label, color }) => (
-        <button
-          key={v}
-          type="button"
-          onClick={() => onChange(v === value ? null : v)}
-          className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-all border
-            ${value === v ? 'text-white border-transparent' : 'text-muted border-white/10 hover:border-white/30'}`}
-          style={value === v ? { background: color } : {}}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ImportanceBadge({ value, importance }) {
-  const imp = importance.find(i => i.value === value)
-  if (!imp) return <span className="text-[10px] text-white/20 px-1.5">—</span>
-  return (
-    <span className="flex items-center gap-[3px]" title={imp.label}>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <span
-          key={i}
-          className="w-1.5 h-1.5 rounded-full"
-          style={{ background: i < imp.dots ? imp.color : imp.color + '30' }}
-        />
-      ))}
-    </span>
-  )
-}
 
 // ── Color picker ───────────────────────────────────────────────
 function ColorPicker({ value, onChange }) {
@@ -215,7 +179,7 @@ function ReceiverAvatar({ name, domain, logoUrl }) {
 // ══════════════════════════════════════════════════════════════
 //  CATEGORIES SECTION
 // ══════════════════════════════════════════════════════════════
-function CategoriesSection({ userId, importance }) {
+function CategoriesSection({ userId }) {
   const [cats, setCats] = useState([])
   const [expanded, setExpanded] = useState({})
   const [editId, setEditId] = useState(null)
@@ -223,12 +187,10 @@ function CategoriesSection({ userId, importance }) {
   const [editColor, setEditColor] = useState('')
   const [editGradient, setEditGradient] = useState(null)
   const [editIcon, setEditIcon] = useState(null)
-  const [editImportance, setEditImportance] = useState(null)
   const [addForm, setAddForm] = useState(null)
   const [addName, setAddName] = useState('')
   const [addColor, setAddColor] = useState(SOLIDS[0])
   const [addIcon, setAddIcon] = useState(null)
-  const [addImportance, setAddImportance] = useState(null)
   const [addDupe, setAddDupe] = useState(false)
 
   useEffect(() => { load() }, [userId])
@@ -254,19 +216,19 @@ function CategoriesSection({ userId, importance }) {
 
   function startEdit(cat) {
     setEditId(cat.id); setEditName(cat.name); setEditColor(cat.color)
-    setEditGradient(cat.gradient ?? null); setEditIcon(cat.icon ?? null); setEditImportance(cat.importance ?? null)
+    setEditGradient(cat.gradient ?? null); setEditIcon(cat.icon ?? null)
   }
 
   async function commitEdit(id) {
     if (!editName.trim()) { cancelEdit(); return }
     await supabase.from('categories').update({
-      name: editName.trim(), color: editColor, gradient: editGradient ?? null, icon: editIcon, importance: editImportance,
+      name: editName.trim(), color: editColor, gradient: editGradient ?? null, icon: editIcon,
     }).eq('id', id)
     setEditId(null); load()
   }
 
   function cancelEdit() {
-    setEditId(null); setEditName(''); setEditColor(''); setEditGradient(null); setEditIcon(null); setEditImportance(null)
+    setEditId(null); setEditName(''); setEditColor(''); setEditGradient(null); setEditIcon(null)
   }
 
   async function changeColor(id, color) {
@@ -290,12 +252,6 @@ function CategoriesSection({ userId, importance }) {
     if (gradientCss) { await recolorSubs(id, gradientCss, fresh); setCats(await fetchFresh()) }
   }
 
-  async function changeImportance(id, importance) {
-    setEditImportance(importance)
-    await supabase.from('categories').update({ importance }).eq('id', id)
-    load()
-  }
-
   async function addCategory() {
     if (!addName.trim()) return
     const parentId = addForm?.parentId ?? null
@@ -303,10 +259,10 @@ function CategoriesSection({ userId, importance }) {
     if (cats.some(c => c.parent_id === parentId && c.name.toLowerCase() === nameNorm)) { setAddDupe(true); return }
     const isGradient = addColor?.includes('gradient')
     const { error } = await supabase.from('categories').insert({
-      user_id: userId, name: addName.trim(), color: addColor, gradient: isGradient ? addColor : null, icon: addIcon, importance: addImportance, parent_id: parentId,
+      user_id: userId, name: addName.trim(), color: addColor, gradient: isGradient ? addColor : null, icon: addIcon, parent_id: parentId,
     })
     if (error) { console.error(error.message); return }
-    setAddForm(null); setAddName(''); setAddColor(GRADIENTS[0].value); setAddIcon(null); setAddImportance(null); setAddDupe(false)
+    setAddForm(null); setAddName(''); setAddColor(GRADIENTS[0].value); setAddIcon(null); setAddDupe(false)
     if (parentId) {
       const fresh = await fetchFresh()
       const parent = fresh.find(c => c.id === parentId)
@@ -341,10 +297,8 @@ function CategoriesSection({ userId, importance }) {
               editName={editName} onEditName={setEditName}
               editColor={editColor} editGradient={editGradient} onGradientChange={g => changeGradient(cat.id, g)}
               editIcon={editIcon} onEditIcon={setEditIcon}
-              editImportance={editImportance} importance={importance}
               onStartEdit={startEdit} onSave={() => commitEdit(cat.id)} onCancel={cancelEdit}
               onColorChange={c => changeColor(cat.id, c)}
-              onImportanceChange={v => changeImportance(cat.id, v)}
               onDelete={() => deleteCategory(cat.id)}
               isMain
               extra={
@@ -368,18 +322,15 @@ function CategoriesSection({ userId, importance }) {
                   <CategoryRow key={sub.id} cat={sub} isEditing={editId === sub.id}
                     editName={editName} onEditName={setEditName} editColor={editColor}
                     editIcon={editIcon} onEditIcon={setEditIcon}
-                    editImportance={editImportance} importance={importance}
                     onStartEdit={startEdit} onSave={() => commitEdit(sub.id)} onCancel={cancelEdit}
                     onColorChange={c => changeColor(sub.id, c)}
-                    onImportanceChange={v => changeImportance(sub.id, v)}
                     onDelete={() => deleteCategory(sub.id)} small
                   />
                 ))}
                 {addForm?.parentId === cat.id && (
                   <AddCategoryForm
                     name={addName} onName={setAddName} color={addColor} onColor={setAddColor}
-                    icon={addIcon} onIcon={setAddIcon} importance={addImportance} onImportance={setAddImportance}
-                    importanceOptions={importance} onSave={addCategory} onCancel={() => setAddForm(null)}
+                    icon={addIcon} onIcon={setAddIcon} onSave={addCategory} onCancel={() => setAddForm(null)}
                     placeholder="Subcategory name" dupe={addDupe} onClearDupe={() => setAddDupe(false)}
                     isMain={false}
                   />
@@ -392,8 +343,7 @@ function CategoriesSection({ userId, importance }) {
       {addForm?.parentId === null && (
         <AddCategoryForm
           name={addName} onName={setAddName} color={addColor} onColor={setAddColor}
-          icon={addIcon} onIcon={setAddIcon} importance={addImportance} onImportance={setAddImportance}
-          importanceOptions={importance} onSave={addCategory} onCancel={() => setAddForm(null)}
+          icon={addIcon} onIcon={setAddIcon} onSave={addCategory} onCancel={() => setAddForm(null)}
           placeholder="Category name" dupe={addDupe} onClearDupe={() => setAddDupe(false)}
           isMain
         />
@@ -406,7 +356,7 @@ function CategoriesSection({ userId, importance }) {
   )
 }
 
-function CategoryRow({ cat, isEditing, editName, onEditName, editColor, editGradient, onGradientChange, editIcon, onEditIcon, editImportance, importance, onStartEdit, onSave, onCancel, onColorChange, onImportanceChange, onDelete, extra, isMain }) {
+function CategoryRow({ cat, isEditing, editName, onEditName, editColor, editGradient, onGradientChange, editIcon, onEditIcon, onStartEdit, onSave, onCancel, onColorChange, onDelete, extra, isMain }) {
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 group">
@@ -422,7 +372,6 @@ function CategoryRow({ cat, isEditing, editName, onEditName, editColor, editGrad
             {extra}
             <CategoryPill name={cat.name} color={cat.color} icon={cat.icon} />
             <div className="flex-1" />
-            <ImportanceBadge value={cat.importance} importance={importance} />
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button onClick={() => onStartEdit(cat)} className="text-muted hover:text-white p-0.5"><Pencil size={12} /></button>
               <button onClick={onDelete} className="text-muted hover:text-red-400 p-0.5"><Trash2 size={12} /></button>
@@ -439,7 +388,6 @@ function CategoryRow({ cat, isEditing, editName, onEditName, editColor, editGrad
             </>
           )}
           <IconPicker value={editIcon} onChange={onEditIcon} />
-          <ImportancePicker value={editImportance} onChange={onImportanceChange} importance={importance} />
           <div className="flex items-center gap-2 pt-1 border-t border-white/8">
             <button type="button" onClick={onSave} className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-xs text-white transition-colors">Save</button>
             <button type="button" onClick={onCancel} className="px-3 py-1 rounded-lg text-xs text-muted hover:text-white transition-colors">Cancel</button>
@@ -450,7 +398,7 @@ function CategoryRow({ cat, isEditing, editName, onEditName, editColor, editGrad
   )
 }
 
-function AddCategoryForm({ name, onName, color, onColor, icon, onIcon, importance, onImportance, importanceOptions, onSave, onCancel, placeholder, dupe, onClearDupe, isMain }) {
+function AddCategoryForm({ name, onName, color, onColor, icon, onIcon, onSave, onCancel, placeholder, dupe, onClearDupe, isMain }) {
   return (
     <div className="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
       <div className="flex items-center gap-2">
@@ -465,7 +413,6 @@ function AddCategoryForm({ name, onName, color, onColor, icon, onIcon, importanc
       {dupe && <p className="text-xs text-amber-400">Already in your list.</p>}
       {isMain && <GradientPicker value={color} onChange={onColor} />}
       <IconPicker value={icon} onChange={onIcon} />
-      <ImportancePicker value={importance} onChange={onImportance} importance={importanceOptions} />
     </div>
   )
 }
@@ -921,7 +868,6 @@ function ReceiversSection({ userId }) {
 // ══════════════════════════════════════════════════════════════
 export default function CategoriesTab() {
   const { user } = useAuth()
-  const { importance } = useImportance()
 
   if (!user) return null
 
@@ -934,7 +880,7 @@ export default function CategoriesTab() {
             <p className="text-xs text-muted mt-0.5">Organise your transactions with main categories and subcategories.</p>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 scrollbar-thin">
-            <CategoriesSection userId={user.id} importance={importance} />
+            <CategoriesSection userId={user.id} />
           </div>
         </div>
 
