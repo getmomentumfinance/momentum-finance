@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext, sortableKeyboardCoordinates,
-  rectSortingStrategy, useSortable, arrayMove,
+  verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../context/AuthContext'
@@ -42,14 +42,9 @@ import { useIsMobile } from '../hooks/useIsMobile'
 const BALANCE_TYPES = ['debit', 'credit']
 const CREDIT_TYPES  = new Set(['income'])
 
-// ── Drag-and-drop widget order ─────────────────────────────────────
-const DEFAULT_WIDGET_ORDER = [
-  'recurring', 'pending',
-  'planned',   'wishlist',
-  'subscriptions', 'projection',
-  'savings-goals', 'recent',
-  'budgets',
-]
+// ── Drag-and-drop widget columns ───────────────────────────────────
+const DEFAULT_LEFT_COL  = ['recurring', 'planned', 'subscriptions', 'savings-goals', 'budgets']
+const DEFAULT_RIGHT_COL = ['pending', 'wishlist', 'projection', 'recent']
 
 function SortableWidget({ id, children }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -88,18 +83,26 @@ export default function Dashboard() {
   const [activityKind,      setActivityKind]      = useState(null)
   const isMobile = useIsMobile()
 
-  // ── Widget drag-and-drop order ─────────────────────────────────
-  const [widgetOrder, setWidgetOrder] = useState(() => {
+  // ── Widget drag-and-drop columns ───────────────────────────────
+  const [leftCol, setLeftCol] = useState(() => {
     try {
-      const saved = localStorage.getItem('dash-widget-order')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        // merge: keep saved order, append any new keys that aren't in saved
-        const merged = [...parsed, ...DEFAULT_WIDGET_ORDER.filter(k => !parsed.includes(k))]
-        return merged
+      const s = localStorage.getItem('dash-left-col')
+      if (s) {
+        const p = JSON.parse(s)
+        return [...p, ...DEFAULT_LEFT_COL.filter(k => !p.includes(k))]
       }
     } catch { /* ignore */ }
-    return DEFAULT_WIDGET_ORDER
+    return DEFAULT_LEFT_COL
+  })
+  const [rightCol, setRightCol] = useState(() => {
+    try {
+      const s = localStorage.getItem('dash-right-col')
+      if (s) {
+        const p = JSON.parse(s)
+        return [...p, ...DEFAULT_RIGHT_COL.filter(k => !p.includes(k))]
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_RIGHT_COL
   })
   const [activeWidgetId, setActiveWidgetId] = useState(null)
 
@@ -112,13 +115,44 @@ export default function Dashboard() {
   function handleDragEnd({ active, over }) {
     setActiveWidgetId(null)
     if (!over || active.id === over.id) return
-    setWidgetOrder(prev => {
-      const next = arrayMove(prev, prev.indexOf(active.id), prev.indexOf(over.id))
-      localStorage.setItem('dash-widget-order', JSON.stringify(next))
-      return next
-    })
+
+    const srcLeft = leftCol.includes(active.id)
+    const dstLeft = leftCol.includes(over.id)
+
+    if (srcLeft && dstLeft) {
+      // reorder within left column
+      const next = arrayMove(leftCol, leftCol.indexOf(active.id), leftCol.indexOf(over.id))
+      setLeftCol(next)
+      localStorage.setItem('dash-left-col', JSON.stringify(next))
+    } else if (!srcLeft && !dstLeft) {
+      // reorder within right column
+      const next = arrayMove(rightCol, rightCol.indexOf(active.id), rightCol.indexOf(over.id))
+      setRightCol(next)
+      localStorage.setItem('dash-right-col', JSON.stringify(next))
+    } else if (srcLeft && !dstLeft) {
+      // left → right: remove from left, insert before the over item in right
+      const newLeft  = leftCol.filter(id => id !== active.id)
+      const overIdx  = rightCol.indexOf(over.id)
+      const newRight = [...rightCol.slice(0, overIdx), active.id, ...rightCol.slice(overIdx)]
+      setLeftCol(newLeft);  localStorage.setItem('dash-left-col',  JSON.stringify(newLeft))
+      setRightCol(newRight); localStorage.setItem('dash-right-col', JSON.stringify(newRight))
+    } else {
+      // right → left: remove from right, insert before the over item in left
+      const newRight = rightCol.filter(id => id !== active.id)
+      const overIdx  = leftCol.indexOf(over.id)
+      const newLeft  = [...leftCol.slice(0, overIdx), active.id, ...leftCol.slice(overIdx)]
+      setRightCol(newRight); localStorage.setItem('dash-right-col', JSON.stringify(newRight))
+      setLeftCol(newLeft);   localStorage.setItem('dash-left-col',  JSON.stringify(newLeft))
+    }
   }
   function handleDragCancel() { setActiveWidgetId(null) }
+
+  function resetWidgetOrder() {
+    setLeftCol(DEFAULT_LEFT_COL)
+    setRightCol(DEFAULT_RIGHT_COL)
+    localStorage.removeItem('dash-left-col')
+    localStorage.removeItem('dash-right-col')
+  }
 
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
@@ -254,10 +288,7 @@ export default function Dashboard() {
                   <div className="border-t border-white/8 pt-3 mt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setWidgetOrder(DEFAULT_WIDGET_ORDER)
-                        localStorage.removeItem('dash-widget-order')
-                      }}
+                      onClick={resetWidgetOrder}
                       className="flex items-center gap-2 text-xs text-white/40 hover:text-white/70 transition-colors w-full"
                     >
                       <RotateCcw size={12} /> Reset card order
@@ -360,20 +391,23 @@ export default function Dashboard() {
         </FadeIn>
         )}
 
-        {/* Bottom: drag-and-drop widget grid */}
+        {/* Bottom: two independent sortable columns — no gaps on drag */}
         {(() => {
           const WIDGET_MAP = {
-            'recurring':     { visKey: 'dash-showRecurring',      node: <RecurringBills currentDate={currentDate} /> },
-            'planned':       { visKey: 'dash-showPlanned',        node: <PlannedBills currentDate={currentDate} /> },
-            'subscriptions': { visKey: 'dash-showSubscriptions',  node: <Subscriptions currentDate={currentDate} /> },
-            'savings-goals': { visKey: 'dash-showSavingsGoals',   node: <SavingsGoals /> },
-            'budgets':       { visKey: 'dash-showBudgets',        node: <BudgetsWidget currentDate={currentDate} /> },
-            'pending':       { visKey: 'dash-showPending',        node: <PendingTransactions currentDate={currentDate} /> },
-            'wishlist':      { visKey: 'dash-showWishlist',       node: <Wishlist currentDate={currentDate} /> },
-            'projection':    { visKey: 'dash-showProjection',     node: <BalanceProjection currentDate={currentDate} /> },
-            'recent':        { visKey: 'dash-showRecent',         node: <RecentTransactions currentDate={currentDate} /> },
+            'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} /> },
+            'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} /> },
+            'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} /> },
+            'savings-goals': { visKey: 'dash-showSavingsGoals',  node: <SavingsGoals /> },
+            'budgets':       { visKey: 'dash-showBudgets',       node: <BudgetsWidget currentDate={currentDate} /> },
+            'pending':       { visKey: 'dash-showPending',       node: <PendingTransactions currentDate={currentDate} /> },
+            'wishlist':      { visKey: 'dash-showWishlist',      node: <Wishlist currentDate={currentDate} /> },
+            'projection':    { visKey: 'dash-showProjection',    node: <BalanceProjection currentDate={currentDate} /> },
+            'recent':        { visKey: 'dash-showRecent',        node: <RecentTransactions currentDate={currentDate} /> },
           }
-          const visibleIds = widgetOrder.filter(id => WIDGET_MAP[id] && v(WIDGET_MAP[id].visKey))
+          const visLeft  = leftCol.filter(id  => WIDGET_MAP[id]  && v(WIDGET_MAP[id].visKey))
+          const visRight = rightCol.filter(id => WIDGET_MAP[id] && v(WIDGET_MAP[id].visKey))
+          // On mobile flatten both columns into one sortable list
+          const visMobile = [...leftCol, ...rightCol].filter(id => WIDGET_MAP[id] && v(WIDGET_MAP[id].visKey))
 
           return (
             <DndContext
@@ -383,20 +417,43 @@ export default function Dashboard() {
               onDragEnd={handleDragEnd}
               onDragCancel={handleDragCancel}
             >
-              <SortableContext items={visibleIds} strategy={rectSortingStrategy}>
-                <div className={`grid gap-4 mt-4 items-start ${isMobile ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                  {visibleIds.map((id, i) => (
-                    <SortableWidget key={id} id={id}>
-                      <FadeIn delay={i * 40}>
-                        {WIDGET_MAP[id].node}
-                      </FadeIn>
-                    </SortableWidget>
-                  ))}
+              {isMobile ? (
+                <SortableContext items={visMobile} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-4 mt-4">
+                    {visMobile.map((id, i) => (
+                      <SortableWidget key={id} id={id}>
+                        <FadeIn delay={i * 40}>{WIDGET_MAP[id].node}</FadeIn>
+                      </SortableWidget>
+                    ))}
+                  </div>
+                </SortableContext>
+              ) : (
+                <div className="flex gap-4 mt-4 items-start">
+                  {/* Left column */}
+                  <div className="flex-1 flex flex-col gap-4 min-w-0">
+                    <SortableContext items={visLeft} strategy={verticalListSortingStrategy}>
+                      {visLeft.map((id, i) => (
+                        <SortableWidget key={id} id={id}>
+                          <FadeIn delay={i * 40}>{WIDGET_MAP[id].node}</FadeIn>
+                        </SortableWidget>
+                      ))}
+                    </SortableContext>
+                  </div>
+                  {/* Right column */}
+                  <div className="flex-1 flex flex-col gap-4 min-w-0">
+                    <SortableContext items={visRight} strategy={verticalListSortingStrategy}>
+                      {visRight.map((id, i) => (
+                        <SortableWidget key={id} id={id}>
+                          <FadeIn delay={i * 40}>{WIDGET_MAP[id].node}</FadeIn>
+                        </SortableWidget>
+                      ))}
+                    </SortableContext>
+                  </div>
                 </div>
-              </SortableContext>
+              )}
               <DragOverlay>
                 {activeWidgetId && (
-                  <div className="rounded-2xl border w-full h-24 backdrop-blur-sm"
+                  <div className="rounded-2xl w-full h-20 backdrop-blur-sm"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', opacity: 0.7 }} />
                 )}
               </DragOverlay>
