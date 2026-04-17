@@ -122,10 +122,9 @@ export default function LandingPage() {
         {/* ── BLOB — lower-left, behind the card ── */}
         <div style={{
           position: 'absolute',
-          bottom: '-18%', left: '-12%',
-          width: 720, height: 720,
+          bottom: '-30%', left: '-20%',
+          width: 1200, height: 1200,
           zIndex: 2,
-          animation: 'blobFloat 22s ease-in-out infinite',
           pointerEvents: 'none',
         }}>
           <img src={blob4} alt="" style={{
