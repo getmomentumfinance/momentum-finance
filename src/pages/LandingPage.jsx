@@ -6,6 +6,7 @@ import {
   TrendingUp, Shield, Zap,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
+import homeImg from '../assets/home.png'
 
 // ── Palette ────────────────────────────────────────────────────────
 const HERO_BG   = 'radial-gradient(ellipse at 65% 30%, #9e2b5a 0%, #4a0d28 50%, #2d0615 100%)'
@@ -179,6 +180,85 @@ function PaymentMockup() {
   )
 }
 
+// ── Laptop mockup ─────────────────────────────────────────────────
+function LaptopMockup() {
+  return (
+    <div style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
+      {/* Screen lid */}
+      <div style={{
+        background: 'linear-gradient(170deg, #3a3540 0%, #1e1a22 100%)',
+        borderRadius: '18px 18px 0 0',
+        padding: '12px 12px 0',
+        boxShadow:
+          'inset 0 1px 0 rgba(255,255,255,0.08), 0 -2px 8px rgba(0,0,0,0.3)',
+        position: 'relative',
+      }}>
+        {/* Camera dot */}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: '#2a2630',
+            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
+          }} />
+        </div>
+        {/* Screen */}
+        <div style={{ borderRadius: '8px 8px 0 0', overflow: 'hidden', lineHeight: 0 }}>
+          <img src={homeImg} alt="Momentum dashboard" style={{ width: '100%', display: 'block' }} />
+        </div>
+      </div>
+
+      {/* Hinge strip */}
+      <div style={{
+        height: 4,
+        background: 'linear-gradient(to bottom, #111015, #2a2530)',
+        margin: '0 1%',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+      }} />
+
+      {/* Base */}
+      <div style={{
+        background: 'linear-gradient(170deg, #38333f 0%, #26222d 100%)',
+        borderRadius: '0 0 14px 14px',
+        padding: '14px 24px 18px',
+        clipPath: 'polygon(0 0, 100% 0, 97% 100%, 3% 100%)',
+        boxShadow: '0 24px 48px rgba(0,0,0,0.45)',
+      }}>
+        {/* Keyboard rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 14, opacity: 0.45 }}>
+          {[13, 12, 12, 11].map((count, row) => (
+            <div key={row} style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+              {Array.from({ length: count }).map((_, i) => (
+                <div key={i} style={{
+                  flex: row === 0 && i === 0 ? 2.2 : row === 0 && i === count - 1 ? 2.5 : 1,
+                  height: 9, borderRadius: 3,
+                  background: 'linear-gradient(170deg, #4a4555, #363040)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 1px 2px rgba(0,0,0,0.4)',
+                }} />
+              ))}
+            </div>
+          ))}
+        </div>
+        {/* Trackpad */}
+        <div style={{
+          width: '28%', height: 44, margin: '0 auto',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 7,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+        }} />
+      </div>
+
+      {/* Bottom foot/edge */}
+      <div style={{
+        height: 4, margin: '0 8%',
+        background: 'linear-gradient(to right, #111015, #2e2a36, #111015)',
+        borderRadius: '0 0 6px 6px',
+        boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
+      }} />
+    </div>
+  )
+}
+
 // ── FAQ ───────────────────────────────────────────────────────────
 function FAQItem({ q, a }) {
   const [open, setOpen] = useState(false)
@@ -318,6 +398,25 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          LAPTOP SHOWCASE
+      ══════════════════════════════════════════════════ */}
+      <section style={{ background: WHITE, padding: 'clamp(72px,10vw,100px) clamp(24px,6vw,72px)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 14 }}>
+            See it in action
+          </p>
+          <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: BERRY, lineHeight: 1.07, margin: '0 0 12px' }}>
+            Your full financial picture,<br />
+            <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: ROSE }}>at a glance.</em>
+          </h2>
+          <p style={{ fontSize: 15, color: MUTED_L, maxWidth: 480, margin: '0 auto 56px' }}>
+            One dashboard. Every account, budget, goal, and transaction — beautifully organised.
+          </p>
+          <LaptopMockup />
         </div>
       </section>
 
