@@ -89,9 +89,16 @@ export default function LandingPage() {
         padding: '20px clamp(24px, 6vw, 80px)',
         maxWidth: 1280, margin: '0 auto',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/momentum_transparant.png" alt="Momentum" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover' }} />
-          <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: '-0.01em', color: BLACK }}>Momentum Finance</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: BLACK,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden',
+          }}>
+            <img src="/momentum_transparant.png" alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} />
+          </div>
+          <span style={{ fontWeight: 800, fontSize: 15, letterSpacing: '-0.02em', color: BLACK }}>Momentum</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -163,7 +170,7 @@ export default function LandingPage() {
             margin: '0 0 28px', color: BLACK,
           }}>
             Your money,{' '}
-            <span style={{ color: BLUSH }}>finally</span>
+            <span style={{ color: BLUSH_MID, fontStyle: 'italic' }}>finally</span>
             <br />on your side.
           </h1>
 
