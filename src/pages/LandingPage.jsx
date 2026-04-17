@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Shield, Zap, Users } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 
-const GRAD   = 'linear-gradient(145deg, #fae8f0 0%, #e8cdd8 40%, #d4b4c4 100%)'
+const GRAD   = 'linear-gradient(135deg, #986798, #e7d2ac)'
 const BLACK  = '#0f0d0c'
 const ROSE   = '#c4557a'
 const MUTED  = 'rgba(15,13,12,0.42)'
@@ -11,8 +11,8 @@ const BORDER = 'rgba(15,13,12,0.1)'
 
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = '#e8cdd8'
-    document.documentElement.style.background = '#e8cdd8'
+    document.body.style.background = '#986798'
+    document.documentElement.style.background = '#986798'
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
