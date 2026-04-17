@@ -6,6 +6,7 @@ import {
   Receipt, Zap, CreditCard, Scissors,
   SlidersHorizontal, ChevronRight,
 } from 'lucide-react'
+import GradientMenu from '../components/ui/gradient-menu'
 
 const BTN    = 'linear-gradient(135deg, #c084fc, #3b82f6)'
 const PURPLE = '#c084fc'
@@ -180,27 +181,8 @@ export default function LandingPage() {
           <span className="font-semibold text-sm tracking-tight text-white/90">Momentum Finance</span>
         </div>
 
-        {/* Center nav */}
-        <div className="hidden md:flex items-center gap-8">
-          {['Features', 'How It Works', 'FAQ'].map(label => (
-            <a key={label} href={`#${label.toLowerCase().replace(' ', '-')}`}
-              className="text-sm text-white/45 hover:text-white/80 transition-colors">
-              {label}
-            </a>
-          ))}
-        </div>
-
-        {/* Auth buttons */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Link to="/login" className="text-sm text-white/45 hover:text-white/80 transition-colors px-4 py-2">
-            Log in
-          </Link>
-          <Link to="/register"
-            className="text-sm font-semibold px-5 py-2 rounded-full transition-all hover:opacity-90"
-            style={{ background: BTN }}>
-            Sign up free
-          </Link>
-        </div>
+        {/* Gradient pill menu */}
+        <GradientMenu />
       </nav>
 
       {/* ── Hero ────────────────────────────────────────────────── */}
