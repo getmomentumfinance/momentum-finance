@@ -1,34 +1,34 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowRight, Check, TrendingUp, TrendingDown,
+  ArrowRight, ArrowUpRight, TrendingUp,
   Wallet, PiggyBank, BarChart3, CalendarDays,
-  Receipt, Zap, CreditCard, Scissors,
-  SlidersHorizontal, ChevronRight,
+  Receipt, CreditCard, Check,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 
-const BTN    = 'linear-gradient(135deg, #c084fc, #3b82f6)'
-const PURPLE = '#c084fc'
+const BG     = '#100d08'
+const ACCENT = '#c49a6c'
+const ACCENT2 = '#7a5030'
 
-// ── Central app mockup ─────────────────────────────────────────────
-
+// ── App mockup ─────────────────────────────────────────────────────
 function AppMockup() {
   return (
     <div className="w-full rounded-2xl overflow-hidden"
-      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)' }}>
-
+      style={{
+        background: 'rgba(255,248,235,0.04)',
+        border: '1px solid rgba(255,248,235,0.1)',
+        backdropFilter: 'blur(20px)',
+      }}>
       {/* Titlebar */}
       <div className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        style={{ borderColor: 'rgba(255,248,235,0.06)' }}>
         <div className="flex items-center gap-2">
           <img src="/momentum_transparant.png" alt="" className="w-5 h-5 rounded object-cover opacity-70" />
           <span className="text-xs font-semibold text-white/60">Momentum Finance</span>
         </div>
         <span className="text-[10px] text-white/30 tabular-nums">April 2026</span>
       </div>
-
-      {/* Net worth + sparkline */}
+      {/* Net worth */}
       <div className="px-4 pt-4 pb-3">
         <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Net Worth</p>
         <div className="flex items-baseline gap-2 mb-2">
@@ -40,18 +40,16 @@ function AppMockup() {
         <div className="flex gap-0.5 items-end h-7">
           {[35,50,42,65,55,78,68,83,72,88,80,94].map((h, i) => (
             <div key={i} className="flex-1 rounded-sm"
-              style={{ height: `${h}%`, background: i === 11 ? PURPLE : 'rgba(192,132,252,0.2)' }} />
+              style={{ height: `${h}%`, background: i === 11 ? ACCENT : 'rgba(196,154,108,0.2)' }} />
           ))}
         </div>
       </div>
-
-      <div className="mx-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }} />
-
+      <div className="mx-4 border-t" style={{ borderColor: 'rgba(255,248,235,0.06)' }} />
       {/* Budget rows */}
       <div className="px-4 py-3 flex flex-col gap-2.5">
         <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">Budgets this month</p>
         {[
-          { label: '🛒 Groceries', pct: 84, color: PURPLE,    spent: '€380', limit: '€450' },
+          { label: '🛒 Groceries', pct: 84, color: ACCENT,    spent: '€380', limit: '€450' },
           { label: '🚗 Transport', pct: 22, color: '#22c55e', spent: '€44',  limit: '€200' },
           { label: '🍽️ Dining',    pct: 61, color: '#60a5fa', spent: '€73',  limit: '€120' },
         ].map(b => (
@@ -60,21 +58,20 @@ function AppMockup() {
               <span className="text-[10px] text-white/55">{b.label}</span>
               <span className="text-[10px] tabular-nums text-white/30">{b.spent} / {b.limit}</span>
             </div>
-            <div className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
+            <div className="h-1 rounded-full" style={{ background: 'rgba(255,248,235,0.07)' }}>
               <div className="h-full rounded-full" style={{ width: `${b.pct}%`, background: b.color }} />
             </div>
           </div>
         ))}
       </div>
-
-      {/* Social proof strip */}
+      {/* Social proof */}
       <div className="px-4 pb-4">
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          style={{ background: 'rgba(255,248,235,0.04)', border: '1px solid rgba(255,248,235,0.06)' }}>
           <div className="flex -space-x-1.5 shrink-0">
-            {[PURPLE,'#60a5fa','#22c55e','#f59e0b'].map((c, i) => (
+            {[ACCENT,'#60a5fa','#22c55e','#f59e0b'].map((c, i) => (
               <div key={i} className="w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold shrink-0"
-                style={{ background: `${c}33`, color: c, border: '1.5px solid #09070f' }}>
+                style={{ background: `${c}33`, color: c, border: `1.5px solid ${BG}` }}>
                 {['A','B','C','D'][i]}
               </div>
             ))}
@@ -86,333 +83,275 @@ function AppMockup() {
   )
 }
 
-// ── Small float cards ──────────────────────────────────────────────
-
-function GlassCard({ children, className = '', style = {} }) {
-  return (
-    <div className={`rounded-2xl p-4 ${className}`} style={{
-      background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.1)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      ...style,
-    }}>
-      {children}
-    </div>
-  )
-}
-
 // ── Feature data ───────────────────────────────────────────────────
-
 const FEATURES = [
-  {
-    Icon: Wallet,
-    title: 'Smart Budgets',
-    desc: 'Set limits per category, track overspend in real time, and roll over unused amounts.',
-    highlight: true,
-  },
-  {
-    Icon: BarChart3,
-    title: 'Deep Analytics',
-    desc: 'Click any chart bar or slice to drill into the transactions behind it.',
-  },
-  {
-    Icon: PiggyBank,
-    title: 'Savings Goals',
-    desc: 'Plan monthly contributions and track your progress toward every goal.',
-  },
-  {
-    Icon: CalendarDays,
-    title: 'Calendar View',
-    desc: 'See every transaction laid out day by day across the full month.',
-  },
-  {
-    Icon: Receipt,
-    title: 'Bills & Recurring',
-    desc: 'Never miss a payment. Track every subscription and planned expense.',
-  },
-  {
-    Icon: CreditCard,
-    title: 'Multiple Accounts',
-    desc: 'Manage debit cards, credit accounts, and cash — all in one place.',
-  },
-  {
-    Icon: Scissors,
-    title: 'Split Transactions',
-    desc: 'Split any expense across multiple categories or importance levels.',
-  },
-  {
-    Icon: SlidersHorizontal,
-    title: 'Custom Design',
-    desc: 'Pick themes, colors, and layouts. Make it yours with full customization.',
-  },
-]
-
-const STEPS = [
-  { n: '01', title: 'Create your account',   desc: 'Sign up free in seconds. No credit card, no trial — everything is always included.' },
-  { n: '02', title: 'Log your transactions', desc: 'Add income, expenses, and transfers. Split bills, set categories and importance levels.' },
-  { n: '03', title: 'Build real clarity',    desc: 'Hit budgets, reach savings goals, and finally understand your financial picture.' },
+  { Icon: Wallet,       title: 'Smart Budgets',     desc: 'Set limits per category, track overspend in real time.' },
+  { Icon: BarChart3,    title: 'Deep Analytics',    desc: 'Click any chart to drill into the transactions behind it.' },
+  { Icon: PiggyBank,    title: 'Savings Goals',     desc: 'Plan contributions and track progress toward every goal.' },
+  { Icon: CalendarDays, title: 'Calendar View',     desc: 'See every transaction laid out day by day.' },
+  { Icon: Receipt,      title: 'Bills & Recurring', desc: 'Never miss a payment. Track every subscription.' },
+  { Icon: CreditCard,   title: 'Multiple Accounts', desc: 'Manage debit, credit, and cash — all in one.' },
 ]
 
 const INCLUDED = [
   'Unlimited transactions', 'Multiple accounts & cards',
   'Savings goals with planning', 'Interactive analytics',
   'Recurring & planned bills', 'Calendar & insights view',
-  'Smart budgeting tools', 'Beautiful customizable design',
+  'Smart budgeting tools', 'Customizable design',
 ]
 
 // ── Page ───────────────────────────────────────────────────────────
-
 export default function LandingPage() {
   return (
-    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: '#09070f' }}>
+    <div className="min-h-screen text-white overflow-x-hidden" style={{ background: BG }}>
 
-      {/* Ambient glow */}
+      {/* Ambient warm glow */}
       <div className="fixed inset-0 pointer-events-none" style={{
-        background: 'radial-gradient(ellipse 70% 50% at 50% -5%, rgba(167,118,147,0.25) 0%, rgba(59,49,86,0.12) 50%, transparent 75%)',
+        background: 'radial-gradient(ellipse 90% 55% at 50% 0%, rgba(196,154,108,0.13) 0%, transparent 65%)',
         zIndex: 0,
       }} />
 
-      {/* ── Navbar ──────────────────────────────────────────────── */}
-      <nav className="relative z-10 flex items-center justify-between px-8 md:px-16 py-5 max-w-7xl mx-auto">
-        {/* Logo */}
+      {/* ── Navbar ────────────────────────────────────────────────── */}
+      <nav className="relative z-20 flex items-center justify-between px-8 md:px-16 py-5 max-w-7xl mx-auto">
         <div className="flex items-center gap-2.5 shrink-0">
           <img src="/momentum_transparant.png" alt="Momentum Finance" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-semibold text-sm tracking-tight text-white/90">Momentum Finance</span>
         </div>
-
-        {/* Gradient pill menu */}
         <GradientMenu />
       </nav>
 
-      {/* ── Hero ────────────────────────────────────────────────── */}
-      <section className="relative z-10 flex flex-col items-center text-center px-6 pt-16 pb-8">
+      {/* ── Hero (full viewport) ───────────────────────────────────── */}
+      <section className="relative z-10 flex flex-col px-8 md:px-16 max-w-7xl mx-auto"
+        style={{ minHeight: 'calc(100vh - 76px)' }}>
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 text-[11px] px-3.5 py-1.5 rounded-full mb-8 text-white/55"
-          style={{ background: 'rgba(192,132,252,0.1)', border: '1px solid rgba(192,132,252,0.2)' }}>
-          <Zap size={10} style={{ color: PURPLE }} fill={PURPLE} />
-          Track smarter with Momentum Finance
+        {/* Top row: tagline left + CTA right */}
+        <div className="flex items-start justify-between pt-4 pb-10">
+          <div className="max-w-[260px]">
+            <p className="text-sm font-semibold text-white/85 mb-1.5">Track Finances With Momentum</p>
+            <p className="text-[10px] text-white/35 leading-relaxed uppercase tracking-wider">
+              Personal finance tools that push the boundaries of the ordinary.
+            </p>
+          </div>
+          <Link to="/register"
+            className="flex items-center gap-2 px-6 py-2.5 rounded-full text-sm font-semibold transition-all hover:bg-white/20"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.18)',
+            }}>
+            GET STARTED <ArrowUpRight size={15} />
+          </Link>
         </div>
 
-        {/* Headline */}
-        <h1 className="text-5xl md:text-7xl font-bold leading-[1.08] tracking-tight mb-5 max-w-2xl">
-          Track Spending &{' '}
-          <br />
-          <span style={{
-            background: 'linear-gradient(135deg, #e0bbe4 10%, #c084fc 50%, #93b5c6 90%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          }}>
-            Build Wealth
-          </span>
-        </h1>
+        {/* Center: app mockup + numbered steps */}
+        <div className="flex-1 relative flex items-center justify-center">
 
-        <p className="text-base md:text-lg text-white/40 mb-9 max-w-md leading-relaxed">
-          See exactly where your money goes, set budgets that stick, and reach your savings goals — all in one place.
-        </p>
-
-        {/* CTA */}
-        <Link to="/register"
-          className="flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02] mb-2"
-          style={{ background: BTN }}>
-          Get Started Free <ArrowRight size={15} />
-        </Link>
-        <p className="text-xs text-white/25 mb-16">No credit card required · Free forever</p>
-
-        {/* ── Mockup zone ──────────────────────────────────────── */}
-        <div className="relative w-full max-w-5xl mx-auto flex items-center justify-center" style={{ minHeight: 420 }}>
-
-          {/* Left float — Net worth */}
-          <div className="hidden lg:block absolute left-0 top-8 w-52 z-10">
-            <GlassCard>
-              <p className="text-[10px] uppercase tracking-widest text-white/35 mb-2">Net worth</p>
-              <p className="text-2xl font-bold tabular-nums mb-1">€4,280</p>
-              <div className="flex items-center gap-1 text-green-400 mb-3">
-                <TrendingUp size={12} />
-                <span className="text-xs font-medium">+12% this month</span>
-              </div>
-              <div className="flex gap-0.5 items-end h-7">
-                {[40,55,45,70,60,85,75].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm"
-                    style={{ height: `${h}%`, background: i === 6 ? PURPLE : 'rgba(192,132,252,0.2)' }} />
-                ))}
-              </div>
-            </GlassCard>
-          </div>
-
-          {/* Left bottom float — Savings */}
-          <div className="hidden lg:block absolute left-4 bottom-0 w-44 z-10">
-            <GlassCard>
-              <p className="text-[10px] uppercase tracking-widest text-white/35 mb-2">Savings goals</p>
-              <p className="text-xl font-bold mb-1">3 active</p>
-              <div className="flex items-center gap-1">
-                <TrendingUp size={11} style={{ color: PURPLE }} />
-                <span className="text-[11px] text-white/40">€890 saved</span>
-              </div>
-              <div className="mt-3 flex flex-col gap-1.5">
-                {[42, 67, 31].map((p, i) => (
-                  <div key={i} className="h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                    <div className="h-full rounded-full" style={{ width: `${p}%`, background: PURPLE, opacity: 1 - i * 0.2 }} />
-                  </div>
-                ))}
-              </div>
-            </GlassCard>
-          </div>
-
-          {/* Central mockup */}
-          <div className="w-full max-w-sm z-20">
+          {/* Central app mockup */}
+          <div className="w-full max-w-[340px] z-10">
             <AppMockup />
           </div>
 
-          {/* Right float — Budget */}
-          <div className="hidden lg:block absolute right-0 top-8 w-44 z-10">
-            <GlassCard>
-              <p className="text-[10px] uppercase tracking-widest text-white/35 mb-2">This month</p>
-              <p className="text-3xl font-bold tabular-nums">78%</p>
-              <p className="text-[11px] text-white/40 mb-3">Budgets on track</p>
-              <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="h-full rounded-full" style={{ width: '78%', background: BTN }} />
-              </div>
-            </GlassCard>
-          </div>
-
-          {/* Right bottom float — Alert */}
-          <div className="hidden lg:block absolute right-4 bottom-0 w-48 z-10">
-            <GlassCard>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(245,158,11,0.15)' }}>
-                  <span className="text-xs">⚠️</span>
-                </div>
-                <p className="text-xs font-medium text-white/70">Budget alert</p>
-              </div>
-              <p className="text-xs text-white/45 leading-relaxed">Entertainment is at 95% — €5 remaining</p>
-              <button className="mt-3 text-[10px] flex items-center gap-1 font-medium" style={{ color: PURPLE }}>
-                View budget <ChevronRight size={10} />
-              </button>
-            </GlassCard>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features grid ───────────────────────────────────────── */}
-      <section id="features" className="relative z-10 max-w-6xl mx-auto px-8 md:px-16 pt-24 pb-24">
-
-        <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 text-[10px] px-3 py-1 rounded-full mb-5 text-white/40 uppercase tracking-widest"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            Features
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Everything you need,<br />all in one place
-          </h2>
-          <p className="text-white/35 text-sm max-w-md mx-auto leading-relaxed">
-            Designed for people who want full clarity over their financial life, without the spreadsheet headache.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {FEATURES.map(({ Icon, title, desc, highlight }) => (
-            <div key={title}
-              className="flex flex-col gap-4 p-5 rounded-2xl group transition-all hover:border-white/[0.12] cursor-default"
-              style={{
-                background: highlight ? 'rgba(192,132,252,0.12)' : 'rgba(255,255,255,0.025)',
-                border: highlight
-                  ? '1px solid rgba(192,132,252,0.25)'
-                  : '1px solid rgba(255,255,255,0.06)',
-              }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+          {/* Numbered steps — right edge */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex-col gap-3 hidden md:flex">
+            {['01', '02', '03'].map((n, i) => (
+              <div key={n}
+                className="flex items-center justify-center rounded-full text-xs font-semibold cursor-pointer transition-all"
                 style={{
-                  background: highlight ? 'rgba(192,132,252,0.25)' : 'rgba(255,255,255,0.07)',
+                  width: 52, height: 30,
+                  background: i === 0
+                    ? 'rgba(196,154,108,0.22)'
+                    : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${i === 0
+                    ? 'rgba(196,154,108,0.45)'
+                    : 'rgba(255,255,255,0.09)'}`,
+                  color: i === 0 ? ACCENT : 'rgba(255,255,255,0.28)',
                 }}>
-                <Icon size={17} style={{ color: highlight ? PURPLE : 'rgba(255,255,255,0.5)' }} />
+                {n}
               </div>
-              <div className="flex flex-col gap-1.5 flex-1">
-                <p className="text-sm font-semibold" style={{ color: highlight ? '#fff' : 'rgba(255,255,255,0.8)' }}>
-                  {title}
-                </p>
-                <p className="text-xs leading-relaxed" style={{ color: highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.35)' }}>
-                  {desc}
-                </p>
+            ))}
+          </div>
+        </div>
+
+        {/* Massive headline */}
+        <div className="pb-5">
+          <h1
+            className="font-black leading-none tracking-tighter uppercase text-white"
+            style={{ fontSize: 'clamp(2.8rem, 9.5vw, 8.5rem)' }}>
+            BUILD YOUR<br />WEALTH
+          </h1>
+        </div>
+
+        {/* Feature strip */}
+        <div className="pb-10 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            {
+              Icon: BarChart3,
+              title: 'Track & Budget',
+              desc: 'Set smart budgets and track every expense in real time — across any account.',
+              href: '/register',
+            },
+            {
+              Icon: PiggyBank,
+              title: 'Reach Your Goals',
+              desc: 'Set savings goals, plan monthly contributions, and watch your net worth grow.',
+              href: '/register',
+            },
+          ].map(({ Icon, title, desc, href }) => (
+            <Link key={title} to={href}
+              className="flex items-center gap-4 p-5 rounded-2xl group transition-all hover:border-white/[0.14]"
+              style={{ background: 'rgba(255,248,235,0.04)', border: '1px solid rgba(255,248,235,0.08)' }}>
+              <div className="w-14 h-14 rounded-xl shrink-0 flex items-center justify-center"
+                style={{ background: 'rgba(196,154,108,0.1)', border: '1px solid rgba(196,154,108,0.2)' }}>
+                <Icon size={22} style={{ color: ACCENT }} />
               </div>
-              <button className="flex items-center gap-1 text-[11px] font-medium mt-auto transition-colors"
-                style={{ color: highlight ? PURPLE : 'rgba(255,255,255,0.25)' }}>
-                Learn more <ChevronRight size={10} />
-              </button>
-            </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold mb-1">{title}</p>
+                <p className="text-xs text-white/35 leading-relaxed">{desc}</p>
+              </div>
+              <ArrowUpRight size={18} className="text-white/20 shrink-0 ml-2 group-hover:text-white/40 transition-colors" />
+            </Link>
           ))}
         </div>
       </section>
 
-      {/* ── How it works ────────────────────────────────────────── */}
-      <section id="how-it-works" className="relative z-10 max-w-5xl mx-auto px-8 md:px-16 pb-24">
-        <div className="text-center mb-14">
-          <div className="inline-flex items-center gap-2 text-[10px] px-3 py-1 rounded-full mb-5 text-white/40 uppercase tracking-widest"
+      {/* ── Features section ──────────────────────────────────────── */}
+      <section id="features" className="relative z-10 max-w-7xl mx-auto px-8 md:px-16 py-20">
+        <div className="flex flex-col md:flex-row gap-16 items-start">
+
+          {/* Left: statement text */}
+          <div className="md:w-72 shrink-0">
+            <h2 className="text-3xl md:text-4xl font-bold leading-snug mb-5">
+              From Zero To<br />Financial Clarity<br />In Just One Step
+              <ArrowUpRight size={24} className="inline ml-2" style={{ color: ACCENT }} />
+            </h2>
+            <p className="text-[10px] text-white/30 uppercase tracking-widest leading-relaxed mb-7">
+              We believe every financial goal is unique and deserves an individual approach.
+            </p>
+            <Link to="/register"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold transition-all hover:opacity-75"
+              style={{ border: `1px solid rgba(196,154,108,0.45)`, color: ACCENT }}>
+              TRY IT FREE
+            </Link>
+          </div>
+
+          {/* Right: horizontal scrollable feature cards */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-4 mb-5">
+              <p className="text-xs text-white/40 uppercase tracking-widest whitespace-nowrap">What's Included</p>
+              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {FEATURES.map(({ Icon, title, desc }) => (
+                <div key={title} className="shrink-0 w-44 p-4 rounded-2xl transition-all hover:border-white/[0.12]"
+                  style={{ background: 'rgba(255,248,235,0.04)', border: '1px solid rgba(255,248,235,0.07)' }}>
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
+                    style={{ background: 'rgba(196,154,108,0.12)' }}>
+                    <Icon size={15} style={{ color: ACCENT }} />
+                  </div>
+                  <p className="text-xs font-semibold mb-1.5 text-white/90">{title}</p>
+                  <p className="text-[10px] text-white/30 leading-relaxed">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works ──────────────────────────────────────────── */}
+      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-8 md:px-16 pb-20">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="inline-flex items-center text-[10px] px-3 py-1 rounded-full text-white/40 uppercase tracking-widest"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
             How It Works
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Up and running in minutes</h2>
+          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
         </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {STEPS.map(({ n, title, desc }) => (
-            <div key={n} className="flex flex-col gap-4 p-6 rounded-2xl relative overflow-hidden group transition-all hover:border-white/[0.12]"
-              style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <div className="grid md:grid-cols-3 gap-4">
+          {[
+            { n: '01', title: 'Create your account',   desc: 'Sign up free in seconds. No credit card, no trial — everything is always included.' },
+            { n: '02', title: 'Log your transactions', desc: 'Add income, expenses, and transfers. Split bills, set categories and importance levels.' },
+            { n: '03', title: 'Build real clarity',    desc: 'Hit budgets, reach savings goals, and finally understand your financial picture.' },
+          ].map(({ n, title, desc }) => (
+            <div key={n} className="flex flex-col gap-4 p-6 rounded-2xl group transition-all relative overflow-hidden"
+              style={{ background: 'rgba(255,248,235,0.03)', border: '1px solid rgba(255,248,235,0.07)' }}>
               <div className="absolute top-0 left-0 w-full h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                style={{ background: BTN }} />
-              <span className="text-5xl font-black" style={{ color: 'rgba(192,132,252,0.12)' }}>{n}</span>
+                style={{ background: `linear-gradient(90deg, ${ACCENT}, ${ACCENT2})` }} />
+              <span className="text-5xl font-black" style={{ color: 'rgba(196,154,108,0.1)' }}>{n}</span>
               <div>
-                <p className="text-sm font-semibold mb-2">{title}</p>
-                <p className="text-xs text-white/35 leading-relaxed">{desc}</p>
+                <p className="text-sm font-semibold mb-2 text-white/85">{title}</p>
+                <p className="text-xs text-white/32 leading-relaxed">{desc}</p>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── CTA ─────────────────────────────────────────────────── */}
+      {/* ── FAQ ───────────────────────────────────────────────────── */}
+      <section id="faq" className="relative z-10 max-w-3xl mx-auto px-8 md:px-16 pb-20">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="inline-flex items-center text-[10px] px-3 py-1 rounded-full text-white/40 uppercase tracking-widest"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            FAQ
+          </div>
+          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        </div>
+        {[
+          { q: 'Is Momentum Finance really free?',  a: 'Yes — completely free. No credit card, no trial, no paywalled features. Everything is always included.' },
+          { q: 'Is my financial data secure?',       a: 'Your data is encrypted and stored securely via Supabase. We never share or sell your financial data.' },
+          { q: 'Can I use it on mobile?',            a: 'Momentum works great in any modern browser on desktop or mobile. A dedicated app is on the roadmap.' },
+          { q: 'What currencies are supported?',     a: 'Any currency you want — just type the symbol. The app doesn\'t enforce a specific currency.' },
+        ].map(({ q, a }) => (
+          <details key={q} className="mb-3 group rounded-xl overflow-hidden"
+            style={{ background: 'rgba(255,248,235,0.04)', border: '1px solid rgba(255,248,235,0.08)' }}>
+            <summary className="px-5 py-4 cursor-pointer text-sm font-medium text-white/75 flex items-center justify-between list-none hover:text-white transition-colors">
+              {q}
+              <ArrowRight size={14} className="text-white/25 group-open:rotate-90 transition-transform shrink-0 ml-4" />
+            </summary>
+            <p className="px-5 pb-4 text-xs text-white/38 leading-relaxed">{a}</p>
+          </details>
+        ))}
+      </section>
+
+      {/* ── CTA ───────────────────────────────────────────────────── */}
       <section className="relative z-10 max-w-3xl mx-auto px-8 md:px-16 pb-28 text-center">
         <div className="rounded-3xl p-10 md:p-14 relative overflow-hidden"
-          style={{ background: 'rgba(192,132,252,0.05)', border: '1px solid rgba(192,132,252,0.15)' }}>
+          style={{ background: 'rgba(196,154,108,0.06)', border: '1px solid rgba(196,154,108,0.18)' }}>
           <div className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 110%, rgba(192,132,252,0.12), transparent)' }} />
-
-          <p className="text-xs uppercase tracking-widest text-white/30 mb-4">Always free</p>
+            style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 110%, rgba(196,154,108,0.1), transparent)' }} />
+          <p className="text-xs uppercase tracking-widest text-white/28 mb-4">Always free</p>
           <h2 className="text-3xl md:text-4xl font-bold mb-3">Everything included</h2>
           <p className="text-white/35 text-sm mb-10">No hidden fees. No paywalled features. No limits.</p>
-
           <div className="grid grid-cols-2 gap-2.5 mb-10 text-left max-w-lg mx-auto">
             {INCLUDED.map(item => (
               <div key={item} className="flex items-center gap-2.5">
                 <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(192,132,252,0.15)', border: '1px solid rgba(192,132,252,0.3)' }}>
-                  <Check size={9} style={{ color: '#e0bbe4' }} />
+                  style={{ background: 'rgba(196,154,108,0.15)', border: '1px solid rgba(196,154,108,0.3)' }}>
+                  <Check size={9} style={{ color: ACCENT }} />
                 </div>
-                <span className="text-xs text-white/50">{item}</span>
+                <span className="text-xs text-white/48">{item}</span>
               </div>
             ))}
           </div>
-
           <Link to="/register"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full text-sm font-semibold transition-all hover:opacity-90 hover:scale-[1.02]"
-            style={{ background: BTN }}>
+            style={{ background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT2})`, color: BG }}>
             Create Free Account <ArrowRight size={15} />
           </Link>
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
+      {/* ── Footer ────────────────────────────────────────────────── */}
       <footer className="relative z-10 max-w-7xl mx-auto px-8 md:px-16 pb-10 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src="/momentum_transparant.png" alt="" className="w-5 h-5 rounded object-cover opacity-40" />
-          <span className="text-xs text-white/25">© 2026 Momentum Finance</span>
+          <img src="/momentum_transparant.png" alt="" className="w-5 h-5 rounded object-cover opacity-35" />
+          <span className="text-xs text-white/22">© 2026 Momentum Finance</span>
         </div>
         <div className="flex items-center gap-6">
           {['Features', 'How It Works', 'FAQ'].map(l => (
-            <a key={l} href="#" className="text-xs text-white/25 hover:text-white/55 transition-colors">{l}</a>
+            <a key={l} href={`#${l.toLowerCase().replace(' ', '-')}`}
+              className="text-xs text-white/22 hover:text-white/50 transition-colors">{l}</a>
           ))}
-          <Link to="/login" className="text-xs text-white/25 hover:text-white/55 transition-colors">Log in</Link>
-          <Link to="/register" className="text-xs text-white/25 hover:text-white/55 transition-colors">Sign up</Link>
+          <Link to="/login"   className="text-xs text-white/22 hover:text-white/50 transition-colors">Log in</Link>
+          <Link to="/register" className="text-xs text-white/22 hover:text-white/50 transition-colors">Sign up</Link>
         </div>
       </footer>
 
