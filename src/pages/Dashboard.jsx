@@ -84,26 +84,29 @@ export default function Dashboard() {
   const isMobile = useIsMobile()
 
   // ── Widget drag-and-drop columns ───────────────────────────────
-  const [leftCol, setLeftCol] = useState(() => {
+  // Initialize both columns together to prevent a key appearing in both
+  const [{ leftCol, rightCol }, setColumns] = useState(() => {
     try {
-      const s = localStorage.getItem('dash-left-col')
-      if (s) {
-        const p = JSON.parse(s)
-        return [...p, ...DEFAULT_LEFT_COL.filter(k => !p.includes(k))]
+      const ls = localStorage.getItem('dash-left-col')
+      const rs = localStorage.getItem('dash-right-col')
+      if (ls || rs) {
+        let left  = ls ? JSON.parse(ls) : DEFAULT_LEFT_COL
+        let right = rs ? JSON.parse(rs) : DEFAULT_RIGHT_COL
+        // If a key somehow ended up in both, right column wins
+        const rightSet = new Set(right)
+        left = left.filter(k => !rightSet.has(k))
+        // Append any new default keys not present in either column
+        const allIds = new Set([...left, ...right])
+        left  = [...left,  ...DEFAULT_LEFT_COL.filter(k  => !allIds.has(k))]
+        right = [...right, ...DEFAULT_RIGHT_COL.filter(k => !allIds.has(k))]
+        return { leftCol: left, rightCol: right }
       }
     } catch { /* ignore */ }
-    return DEFAULT_LEFT_COL
+    return { leftCol: DEFAULT_LEFT_COL, rightCol: DEFAULT_RIGHT_COL }
   })
-  const [rightCol, setRightCol] = useState(() => {
-    try {
-      const s = localStorage.getItem('dash-right-col')
-      if (s) {
-        const p = JSON.parse(s)
-        return [...p, ...DEFAULT_RIGHT_COL.filter(k => !p.includes(k))]
-      }
-    } catch { /* ignore */ }
-    return DEFAULT_RIGHT_COL
-  })
+
+  function setLeftCol(next)  { setColumns(prev => ({ ...prev, leftCol:  typeof next === 'function' ? next(prev.leftCol)  : next })) }
+  function setRightCol(next) { setColumns(prev => ({ ...prev, rightCol: typeof next === 'function' ? next(prev.rightCol) : next })) }
   const [activeWidgetId, setActiveWidgetId] = useState(null)
 
   const sensors = useSensors(
