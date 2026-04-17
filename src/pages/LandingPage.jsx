@@ -49,8 +49,8 @@ function HeroBlob({ src }) {
       position: 'absolute',
       top: '50%', left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: 'min(110vw, 110vh)',
-      height: 'min(110vw, 110vh)',
+      width: 'max(160vw, 160vh)',
+      height: 'max(160vw, 160vh)',
       animation: 'blobFloat1 20s ease-in-out infinite',
       pointerEvents: 'none',
       zIndex: 1,
@@ -59,7 +59,7 @@ function HeroBlob({ src }) {
         width: '100%', height: '100%',
         objectFit: 'contain',
         mixBlendMode: 'screen',
-        filter: 'contrast(1.25) saturate(1.5) brightness(0.88)',
+        filter: 'contrast(1.2) saturate(1.5) brightness(0.9)',
       }} />
     </div>
   )
@@ -150,7 +150,7 @@ export default function LandingPage() {
 
         {/* Edge darkening so the blob bleeds cleanly into the dark page */}
         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 2,
-          background: `radial-gradient(ellipse 75% 75% at 50% 50%, transparent 45%, ${BG} 85%)`,
+          background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 62%, ${BG} 95%)`,
         }} />
 
         {/* ── FROSTED GLASS CARD — centred over the blob ── */}
