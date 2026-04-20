@@ -101,9 +101,13 @@ function Card({ gradient, number, name, expiry, width = 260, height = 163 }) {
 // ── Cards showcase ─────────────────────────────────────────────────
 function CardsShowcase() {
   return (
-    <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
+    <div style={{
+      position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto',
+      maskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)',
+      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)',
+    }}>
       {/* Left card */}
-      <div style={{ position: 'absolute', left: '2%', top: 55, transform: 'rotate(-14deg)', zIndex: 1, filter: 'brightness(0.82)' }}>
+      <div style={{ position: 'absolute', left: '2%', top: 55, transform: 'rotate(-14deg)', zIndex: 1, opacity: 0.38 }}>
         <Card
           gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
           number="•••• •••• •••• 3812"
@@ -122,7 +126,7 @@ function CardsShowcase() {
         />
       </div>
       {/* Right card */}
-      <div style={{ position: 'absolute', right: '2%', top: 48, transform: 'rotate(12deg)', zIndex: 2, filter: 'brightness(0.82)' }}>
+      <div style={{ position: 'absolute', right: '2%', top: 48, transform: 'rotate(12deg)', zIndex: 2, opacity: 0.38 }}>
         <Card
           gradient="linear-gradient(140deg, #0ea5e9 0%, #1d4ed8 100%)"
           number="•••• •••• •••• 9073"
