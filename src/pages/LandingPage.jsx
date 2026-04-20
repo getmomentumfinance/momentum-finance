@@ -6,16 +6,16 @@ import {
   TrendingUp, Shield, Zap,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
-// ── Palette — mauve-navy (login colors) ────────────────────────────
-const HERO_BG   = 'linear-gradient(135deg, #a77693 0%, #2d3b6e 60%, #174871 100%)'
-const DARK_BG   = '#0f1729'
-const PINK      = '#c9a0b8'   // light mauve accent
-const ROSE      = '#8fa8d4'   // periwinkle/blue accent
-const BERRY     = '#2d3b6e'   // navy surface
+// ── Palette ─────────────────────────────────────────────────────────
+const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #5a3f7a 0%, #3b3156 55%, #221830 100%)'
+const DARK_BG   = '#3b3156'
+const PINK      = '#d4bbf8'   // light lavender accent
+const ROSE      = '#a78bfa'   // violet accent
+const BERRY     = '#2a1f42'   // darker surface
 const WHITE     = '#ffffff'
-const MUTED_D   = 'rgba(201,160,184,0.6)'   // muted on dark bg
-const MUTED_L   = 'rgba(201,160,184,0.45)'  // muted on dark bg (sections)
-const BORDER_L  = 'rgba(143,168,212,0.14)'
+const MUTED_D   = 'rgba(212,187,248,0.55)'
+const MUTED_L   = 'rgba(212,187,248,0.45)'
+const BORDER_L  = 'rgba(167,139,250,0.15)'
 
 // ── Credit / Debit card ────────────────────────────────────────────
 function Card({ gradient, chipLight = false, number, name, expiry, style = {} }) {
@@ -199,8 +199,8 @@ function FAQItem({ q, a }) {
 // ── Page ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = DARK_BG
-    document.documentElement.style.background = DARK_BG
+    document.body.style.background = '#3b3156'
+    document.documentElement.style.background = '#3b3156'
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
