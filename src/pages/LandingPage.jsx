@@ -7,11 +7,11 @@ import {
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 // ── Palette ─────────────────────────────────────────────────────────
-const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #5a3f7a 0%, #3b3156 55%, #221830 100%)'
-const DARK_BG   = '#3b3156'
+const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #2a2b45 0%, #181929 60%, #0f1020 100%)'
+const DARK_BG   = '#181929'
 const PINK      = '#d4bbf8'   // light lavender accent
 const ROSE      = '#a78bfa'   // violet accent
-const BERRY     = '#2a1f42'   // darker surface
+const BERRY     = '#0f1020'   // darker surface
 const WHITE     = '#ffffff'
 const MUTED_D   = 'rgba(212,187,248,0.55)'
 const MUTED_L   = 'rgba(212,187,248,0.45)'
@@ -199,8 +199,8 @@ function FAQItem({ q, a }) {
 // ── Page ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = '#3b3156'
-    document.documentElement.style.background = '#3b3156'
+    document.body.style.background = '#181929'
+    document.documentElement.style.background = '#181929'
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
