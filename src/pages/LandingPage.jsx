@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight, BarChart3, Wallet, PiggyBank,
@@ -17,52 +17,81 @@ const MUTED_D   = 'rgba(212,187,248,0.55)'
 const MUTED_L   = 'rgba(212,187,248,0.45)'
 const BORDER_L  = 'rgba(167,139,250,0.15)'
 
-// ── Credit / Debit card ────────────────────────────────────────────
-function Card({ gradient, chipLight = false, number, name, expiry, style = {} }) {
+// ── Credit / Debit card — with 3D tilt + glare ────────────────────
+function Card({ gradient, number, name, expiry }) {
+  const [tilt,  setTilt]  = useState({ x: 0, y: 0 })
+  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 })
+  const cardRef = useRef(null)
+
+  const handleMouseMove = useCallback((e) => {
+    const rect = cardRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const dx = (e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2)
+    const dy = (e.clientY - rect.top  - rect.height / 2) / (rect.height / 2)
+    setTilt({ x: dy * -8, y: dx * 8 })
+    setGlare({
+      x: ((e.clientX - rect.left) / rect.width)  * 100,
+      y: ((e.clientY - rect.top)  / rect.height) * 100,
+      opacity: 0.2,
+    })
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt({ x: 0, y: 0 })
+    setGlare({ x: 50, y: 50, opacity: 0 })
+  }, [])
+
   return (
-    <div style={{
-      width: 260, height: 163, borderRadius: 18,
-      background: gradient, padding: '18px 22px',
-      boxShadow: '0 28px 56px rgba(0,0,0,0.4)',
-      position: 'absolute', overflow: 'hidden',
-      ...style,
-    }}>
-      {/* Subtle glare */}
-      <div style={{
-        position: 'absolute', top: -40, right: -40,
-        width: 140, height: 140, borderRadius: '50%',
-        background: 'rgba(255,255,255,0.07)', pointerEvents: 'none',
-      }} />
-      {/* Row 1: chip + circles */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+    <div style={{ perspective: 800 }}>
+      <div
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          width: 260, height: 163, borderRadius: 18, padding: '18px 22px',
+          background: gradient, overflow: 'hidden', position: 'relative',
+          boxShadow: tilt.x !== 0 || tilt.y !== 0
+            ? '0 40px 70px rgba(0,0,0,0.55)'
+            : '0 28px 56px rgba(0,0,0,0.4)',
+          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transition: tilt.x === 0 && tilt.y === 0
+            ? 'transform 0.5s cubic-bezier(0.23,1,0.32,1), box-shadow 0.5s'
+            : 'transform 0.08s linear, box-shadow 0.08s',
+          willChange: 'transform',
+        }}
+      >
+        {/* Static glare blob */}
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', pointerEvents: 'none' }} />
+        {/* Mouse-follow glare */}
         <div style={{
-          width: 34, height: 26, borderRadius: 5,
-          background: chipLight ? 'rgba(255,255,255,0.55)' : 'rgba(255,220,100,0.7)',
-          border: '1px solid rgba(255,255,255,0.3)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+          position: 'absolute', inset: 0, borderRadius: 18, pointerEvents: 'none',
+          background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,${glare.opacity}), transparent 65%)`,
         }} />
-        <div style={{ display: 'flex' }}>
-          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />
-          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', marginLeft: -8 }} />
+
+        {/* Row 1: chip + circles */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div style={{ width: 34, height: 26, borderRadius: 5, background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.3)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} />
+          <div style={{ display: 'flex' }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.35)' }} />
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', marginLeft: -8 }} />
+          </div>
         </div>
-      </div>
-      {/* Card number */}
-      <p style={{
-        fontSize: 12, fontWeight: 600, letterSpacing: '0.18em',
-        color: 'rgba(255,255,255,0.85)', margin: '0 0 14px',
-        fontFamily: '"Courier New", monospace',
-      }}>
-        {number}
-      </p>
-      {/* Name + expiry */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card Holder</p>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '0.02em' }}>{name}</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Expires</p>
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0 }}>{expiry}</p>
+
+        {/* Card number */}
+        <p style={{ position: 'relative', zIndex: 1, fontSize: 12, fontWeight: 600, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.85)', margin: '0 0 14px', fontFamily: '"Courier New", monospace' }}>
+          {number}
+        </p>
+
+        {/* Name + expiry */}
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card Holder</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '0.02em' }}>{name}</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Expires</p>
+            <p style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: 0 }}>{expiry}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -72,47 +101,24 @@ function Card({ gradient, chipLight = false, number, name, expiry, style = {} })
 // ── Cards showcase ─────────────────────────────────────────────────
 function CardsShowcase() {
   return (
-    <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
-      {/* Left card — soft mauve */}
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, flexWrap: 'wrap', padding: '0 24px 48px' }}>
       <Card
         gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
-        chipLight
         number="•••• •••• •••• 3812"
         name="A. Johnson"
         expiry="09/27"
-        style={{
-          left: '2%', top: 55,
-          transform: 'rotate(-14deg) perspective(600px) rotateY(8deg)',
-          zIndex: 1, width: 232, height: 146,
-          filter: 'brightness(0.88)',
-        }}
       />
-      {/* Center card — deep navy, front and center */}
       <Card
-        gradient="linear-gradient(140deg, #3d5a9e 0%, #2d3b6e 50%, #174871 100%)"
+        gradient="linear-gradient(140deg, #7c3aed 0%, #4338ca 100%)"
         number="•••• •••• •••• 5524"
         name="S. Lambert"
         expiry="12/28"
-        style={{
-          left: '50%', top: 0,
-          transform: 'translateX(-50%) rotate(-2deg) perspective(600px) rotateY(-2deg)',
-          zIndex: 3,
-          boxShadow: '0 32px 72px rgba(45,59,110,0.6)',
-        }}
       />
-      {/* Right card — periwinkle blue */}
       <Card
-        gradient="linear-gradient(140deg, #aabfe8 0%, #8fa8d4 50%, #6687b8 100%)"
-        chipLight
+        gradient="linear-gradient(140deg, #0ea5e9 0%, #1d4ed8 100%)"
         number="•••• •••• •••• 9073"
         name="M. Williams"
         expiry="03/26"
-        style={{
-          right: '2%', top: 48,
-          transform: 'rotate(12deg) perspective(600px) rotateY(-8deg)',
-          zIndex: 2, width: 232, height: 146,
-          filter: 'brightness(0.85)',
-        }}
       />
     </div>
   )
