@@ -23,7 +23,6 @@ import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Portfolio from './pages/Portfolio'
 import CalendarPage from './pages/CalendarPage'
-import Summary from './pages/Summary'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -47,21 +46,20 @@ function AppRoutes() {
 
   return (
     <div key={location.pathname} className="page-fade-in">
-    <Routes>
-      <Route path="/"             element={user ? <Navigate to={landingPage} /> : <LandingPage />} />
-      <Route path="/login"        element={user ? <Navigate to={landingPage} /> : <Login />} />
-      <Route path="/register"     element={user ? <Navigate to="/dashboard" /> : <Register />} />
-      <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/analytics"    element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/savings"      element={<ProtectedRoute><Savings /></ProtectedRoute>} />
-      <Route path="/budgets"      element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
-      <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-      <Route path="/settings"     element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      <Route path="/portfolio"    element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-      <Route path="/calendar"     element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-      <Route path="/summary"      element={<ProtectedRoute><Summary /></ProtectedRoute>} />
-      <Route path="*"             element={<Navigate to={user ? landingPage : "/"} />} />
-    </Routes>
+      <Routes>
+        <Route path="/"             element={user ? <Navigate to={landingPage} /> : <LandingPage />} />
+        <Route path="/login"        element={user ? <Navigate to={landingPage} /> : <Login />} />
+        <Route path="/register"     element={user ? <Navigate to="/dashboard" /> : <Register />} />
+        <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/analytics"    element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+        <Route path="/savings"      element={<ProtectedRoute><Savings /></ProtectedRoute>} />
+        <Route path="/budgets"      element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+        <Route path="/settings"     element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/portfolio"    element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+        <Route path="/calendar"     element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+        <Route path="*"             element={<Navigate to={user ? landingPage : "/"} />} />
+      </Routes>
     </div>
   )
 }

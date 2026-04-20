@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { txMatchesBudget } from '../utils/budgetMatch'
 import { toLocalStr, getPeriodBounds, getPeriodPct, calcAllBudgetSpends } from '../utils/budgetPeriod'
 import { createPortal } from 'react-dom'
-import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Zap, Pin, PinOff } from 'lucide-react'
+import { Plus, Pencil, ChevronDown, Sparkles, Trash2, Target, Info, X, History, Pin, PinOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -15,36 +15,10 @@ import AddBudgetModal from '../components/budgets/AddBudgetModal'
 import { usePreferences } from '../context/UserPreferencesContext'
 
 
-const COLOR_DEFAULTS = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
-function getStrictnessColors() {
-  try { return { ...COLOR_DEFAULTS, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return COLOR_DEFAULTS }
-}
-function barColor(pct, strict = false) {
-  const c = getStrictnessColors()
-  if (pct >= 80) return c.strict
-  if (pct >= (strict ? 40 : 50)) return c.medium
+function barColor(pct) {
+  if (pct >= 80) return 'var(--color-alert)'
+  if (pct >= 50) return 'var(--color-warning)'
   return 'var(--color-progress-bar)'
-}
-
-// Returns a plain-text "what to do" hint, or null if no action needed
-function getActionHint(spent, limit, periodEnd, strictMode, fmt) {
-  if (!periodEnd || !limit) return null
-  const now = new Date()
-  const end = new Date(periodEnd + 'T23:59:59')
-  const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000))
-  if (daysLeft === 0) return null
-  if (spent > limit) {
-    return daysLeft === 1
-      ? 'Last day — avoid any more spending'
-      : `Over limit — freeze spending for ${daysLeft} more days`
-  }
-  const remaining = limit - spent
-  const pct = (spent / limit) * 100
-  if (pct >= (strictMode ? 60 : 75)) {
-    const maxPerDay = remaining / daysLeft
-    return `To stay on track: max ${fmt(maxPerDay)}/day`
-  }
-  return null
 }
 
 // ── Importance dots ────────────────────────────────────────────
@@ -259,8 +233,168 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
   )
 }
 
+// ── Budget History Section (inline on page) ───────────────────
+function BudgetHistorySection({ budget, allExpenses, catMap, importanceLevels, currentDate, onClose }) {
+  const { fmt } = usePreferences()
+  const colors      = useThemeColors()
+  const ref         = useRef(null)
+  const limit       = budget.monthly_limit
+  const period      = budget.period ?? 'monthly'
+  const periodLabel = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr' }[period] ?? '/mo'
+
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [budget.id])
+
+  const periodSpends = useMemo(() => {
+    const byPeriod = {}
+    for (const tx of allExpenses) {
+      if (budget.card_id && tx.card_id !== budget.card_id) continue
+      if (!txMatchesBudget(tx, budget)) continue
+      let key
+      if (period === 'weekly') {
+        key = getPeriodBounds('weekly', new Date(tx.date + 'T12:00:00'), budget.reset_day).startStr
+      } else if (period === 'quarterly') {
+        const d = new Date(tx.date + 'T12:00:00')
+        key = `${d.getFullYear()}-Q${Math.ceil((d.getMonth() + 1) / 3)}`
+      } else if (period === 'yearly') {
+        key = tx.date.slice(0, 4)
+      } else {
+        key = tx.date.slice(0, 7)
+      }
+      byPeriod[key] = (byPeriod[key] ?? 0) + tx.amount
+    }
+    return byPeriod
+  }, [budget, allExpenses, period])
+
+  const yearGroups = useMemo(() => {
+    const created = new Date(budget.created_at ?? Date.now())
+    const byYear  = {}
+
+    if (period === 'monthly') {
+      const sy = created.getFullYear(), sm = created.getMonth()
+      const ey = currentDate.getFullYear(), em = currentDate.getMonth()
+      const count = (ey - sy) * 12 + (em - sm) + 1
+      for (let i = 0; i < count; i++) {
+        const d    = new Date(sy, sm + i, 1)
+        const key  = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        const year = d.getFullYear()
+        if (!byYear[year]) byYear[year] = []
+        byYear[year].push({ key, label: d.toLocaleDateString('en-US', { month: 'short' }), spend: periodSpends[key] ?? null, isCurrent: i === count - 1 })
+      }
+    } else if (period === 'weekly') {
+      const { startStr: firstWk } = getPeriodBounds('weekly', created, budget.reset_day)
+      const { startStr: currWk }  = getPeriodBounds('weekly', currentDate, budget.reset_day)
+      let d = new Date(firstWk + 'T12:00:00')
+      const endD = new Date(currWk + 'T12:00:00')
+      while (d <= endD) {
+        const key  = toLocalStr(d)
+        const year = d.getFullYear()
+        if (!byYear[year]) byYear[year] = []
+        byYear[year].push({ key, label: `${d.getMonth() + 1}/${d.getDate()}`, spend: periodSpends[key] ?? null, isCurrent: key === currWk })
+        d = new Date(d.getTime() + 7 * 86400000)
+      }
+    } else if (period === 'quarterly') {
+      let y = created.getFullYear(), q = Math.ceil((created.getMonth() + 1) / 3)
+      const ey = currentDate.getFullYear(), eq = Math.ceil((currentDate.getMonth() + 1) / 3)
+      while (y < ey || (y === ey && q <= eq)) {
+        const key = `${y}-Q${q}`
+        if (!byYear[y]) byYear[y] = []
+        byYear[y].push({ key, label: `Q${q}`, spend: periodSpends[key] ?? null, isCurrent: y === ey && q === eq })
+        q++; if (q > 4) { q = 1; y++ }
+      }
+    } else {
+      for (let y = created.getFullYear(); y <= currentDate.getFullYear(); y++) {
+        const key = `${y}`
+        if (!byYear[y]) byYear[y] = []
+        byYear[y].push({ key, label: `${y}`, spend: periodSpends[key] ?? null, isCurrent: y === currentDate.getFullYear() })
+      }
+    }
+
+    return Object.entries(byYear).sort(([a], [b]) => a - b).map(([year, months]) => {
+      const first = months[0], last = months.at(-1)
+      const rangeLabel = period === 'weekly' ? ` · ${first.label} – ${last.label}` : ''
+      return { year: Number(year), months, rangeLabel }
+    })
+  }, [budget, periodSpends, currentDate, period])
+
+  const allWithData = yearGroups.flatMap(g => g.months).filter(m => m.spend !== null)
+  const totalOver   = allWithData.filter(m => m.spend > limit).length
+  const totalUnder  = allWithData.filter(m => m.spend <= limit).length
+  const bestPeriod  = allWithData.length > 0
+    ? allWithData.reduce((a, b) => (b.spend ?? Infinity) < (a.spend ?? Infinity) ? b : a, allWithData[0])
+    : null
+
+  // Budget label
+  let nameEl
+  if (budget.category_ids?.length) {
+    const cats = budget.category_ids.map(id => catMap[id]).filter(Boolean)
+    nameEl = <CategoryPill name={budget.name || cats.map(c => c.name).join(' · ')} color={cats[0]?.color} icon={cats[0]?.icon} />
+  } else if (budget.category_id) {
+    const cat = catMap[budget.category_id]
+    nameEl = <CategoryPill name={budget.name || cat?.name || '—'} color={cat?.color} icon={cat?.icon} />
+  } else if (budget.subcategory_id) {
+    const cat = catMap[budget.subcategory_id]
+    nameEl = <CategoryPill name={budget.name || cat?.name || '—'} color={cat?.color} icon={cat?.icon} />
+  } else if (budget.importance) {
+    const imp = importanceLevels.find(i => i.value === budget.importance)
+    nameEl = imp ? <ImpDots imp={imp} /> : null
+  } else {
+    nameEl = <span className="text-sm font-semibold text-white">{budget.name || 'Budget'}</span>
+  }
+
+  return (
+    <div ref={ref} className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between"
+        style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div className="flex items-center gap-2.5">
+          <History size={13} className="text-white/40" />
+          <div className="flex items-center gap-2">
+            {nameEl}
+            <span className="text-[11px] text-white/30">{fmt(limit)}{periodLabel} limit</span>
+            {budget.period && budget.period !== 'monthly' && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/[0.06] text-white/30">
+                {{ weekly: 'Weekly', quarterly: 'Quarterly', yearly: 'Yearly' }[budget.period]}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 text-[11px] tabular-nums text-white/40">
+            <span><span style={{ color: colors.income }}>{totalUnder}</span> under</span>
+            <span><span style={{ color: colors.expense }}>{totalOver}</span> over</span>
+            {bestPeriod && (
+              <span className="text-white/25">best <span style={{ color: colors.income }}>{fmt(bestPeriod.spend ?? 0)}</span></span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors">
+            <X size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Year charts */}
+      <div className="flex flex-col gap-6 px-4 py-4">
+        {yearGroups.length === 0 ? (
+          <p className="text-xs text-white/25 text-center py-6">No history yet</p>
+        ) : yearGroups.map(({ year, months, rangeLabel }) => (
+          <YearChart
+            key={year}
+            yearLabel={`${year}${rangeLabel}`}
+            months={months}
+            tgt={limit}
+            colors={colors}
+            uid={`bh-${budget.id}-${year}`}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Budget card (category / subcategory / importance) ──────────
-function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, strictMode, pinned, onPin, onEdit, onInfo }) {
+function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverAmount, projectedEnd, periodPct, period, cardName, pinned, onPin, onEdit, onInfo, onHistory }) {
   const { fmt } = usePreferences()
   const rollover       = rolloverAmount > 0 ? rolloverAmount : 0
   const effectiveLimit = limit + rollover
@@ -312,6 +446,12 @@ function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverA
               {pinned ? <PinOff size={11} /> : <Pin size={11} />}
             </button>
           )}
+          {onHistory && (
+            <button type="button" onClick={e => { e.stopPropagation(); onHistory() }}
+              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/50">
+              <History size={11} />
+            </button>
+          )}
           <button type="button" onClick={e => { e.stopPropagation(); onInfo() }}
             className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/50">
             <Info size={11} />
@@ -335,7 +475,7 @@ function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverA
             style={{ width: `${(rollover / effectiveLimit) * 100}%`, background: 'color-mix(in srgb, var(--color-progress-bar) 22%, transparent)' }} />
         )}
         <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
-          style={{ width: `${budgetPct}%`, background: barColor(budgetPct, strictMode) }} />
+          style={{ width: `${budgetPct}%`, background: barColor(budgetPct) }} />
         {periodPct != null && periodPct > 0 && (
           <div className="absolute top-[-2px] bottom-[-2px] w-[2px] -translate-x-1/2 rounded-full"
             style={{ left: `${Math.min(periodPct, 99)}%`, background: 'rgba(255,255,255,0.45)' }} />
@@ -357,7 +497,7 @@ function BudgetCard({ label, subtitle, color, icon, imp, spent, limit, rolloverA
       {/* Projected end — secondary */}
       {projectedEnd != null && !over && (
         <span className="text-[10px] tabular-nums -mt-1"
-          style={{ color: projectedEnd > effectiveLimit * (strictMode ? 0.88 : 1) ? 'var(--color-warning)' : 'rgba(255,255,255,0.18)' }}>
+          style={{ color: projectedEnd > effectiveLimit ? 'var(--color-warning)' : 'rgba(255,255,255,0.18)' }}>
           projected {fmt(projectedEnd)} by period end
         </span>
       )}
@@ -1590,10 +1730,8 @@ export default function Budgets() {
   const [infoFilter,    setInfoFilter]    = useState(null)
   const [editTarget,    setEditTarget]    = useState(null)
   const [historyTarget, setHistoryTarget] = useState(null)
+  const [historyBudget, setHistoryBudget] = useState(null)
   const [showSimulator, setShowSimulator] = useState(false)
-  const [strictMode, setStrictMode] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('limits-strictMode')) ?? false } catch { return false }
-  })
   const [limitsSortBy, setLimitsSortBy] = useState('pct')   // 'pct'|'spend'|'alpha'
   const [goalsSortBy,  setGoalsSortBy]  = useState('risk')  // 'risk'|'spend'|'alpha'
   const [showLimitsSort, setShowLimitsSort] = useState(false)
@@ -1680,7 +1818,7 @@ export default function Budgets() {
     async function loadAllTime() {
       const [{ data: allTxs }, { data: tgts, error: tgtsErr }, { data: recData }] = await Promise.all([
         supabase.from('transactions')
-          .select('amount, category_id, subcategory_id, receiver_id, date, importance')
+          .select('amount, category_id, subcategory_id, receiver_id, card_id, date, importance')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .eq('type', 'expense')
@@ -1958,17 +2096,6 @@ export default function Budgets() {
             <p className="text-muted text-sm mt-1">{dateStr}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => { const next = !strictMode; setStrictMode(next); localStorage.setItem('limits-strictMode', JSON.stringify(next)) }}
-              title={strictMode ? 'Strict Mode ON — warnings at 70%, projections tighter' : 'Strict Mode OFF — click to enable earlier warnings'}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
-              style={strictMode
-                ? { background: 'color-mix(in srgb, var(--color-warning) 16%, transparent)', color: 'var(--color-warning)', border: '1px solid color-mix(in srgb, var(--color-warning) 32%, transparent)' }
-                : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.28)', border: '1px solid rgba(255,255,255,0.08)' }
-              }>
-              <Zap size={12} fill={strictMode ? 'currentColor' : 'none'} />
-              Strict
-            </button>
             <button onClick={() => openNew()}
               className="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium">
               <Plus size={14} /> {t('budgets.addBudget')}
@@ -2284,11 +2411,6 @@ export default function Budgets() {
                     onMouseLeave={() => setShowLimitsSort(false)}>
                     <div className="flex items-center gap-2">
                       <h2 className="text-sm font-semibold">{t('nav.budgets')}</h2>
-                      {strictMode && (
-                        <span className="flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--color-warning)' }}>
-                          <Zap size={10} fill="currentColor" /> Strict
-                        </span>
-                      )}
                       {totalItems > 0 && (
                         <span className="text-[11px] text-white/25">
                           {totalItems} budget{totalItems !== 1 ? 's' : ''}
@@ -2328,9 +2450,10 @@ export default function Budgets() {
                               spent={spent} limit={b.monthly_limit} rolloverAmount={b.rollover_amount ?? 0}
                               projectedEnd={calcProjected(b, spent)} periodPct={pPct}
                               period={b.period} cardName={b.card_id ? cardMap[b.card_id]?.name : null}
-                              strictMode={strictMode} pinned={false} onPin={() => togglePin(b.id, false)}
+                              pinned={false} onPin={() => togglePin(b.id, false)}
                               onEdit={() => setModal(b)}
-                              onInfo={() => meta.info && setInfoFilter(meta.info)} />
+                              onInfo={() => meta.info && setInfoFilter(meta.info)}
+                              onHistory={() => setHistoryBudget(prev => prev?.id === b.id ? null : b)} />
                           </div>
                         )
                       })}
@@ -2350,7 +2473,6 @@ export default function Budgets() {
                               spent={spent} limit={tgt.target_monthly_spend} rolloverAmount={0}
                               projectedEnd={calcProjected({ period: tgt.period, reset_day: tgt.reset_day }, spent)} periodPct={pPct}
                               period={tgt.period} cardName={null}
-                              strictMode={strictMode}
                               onEdit={() => setEditTarget(tgt)}
                               onInfo={() => setInfoFilter(
                                 dim === 'importance' ? { dimension: 'importance', id, imp }
@@ -2361,6 +2483,17 @@ export default function Budgets() {
                         )
                       })}
                     </div>
+                  )}
+
+                  {historyBudget && (
+                    <BudgetHistorySection
+                      budget={historyBudget}
+                      allExpenses={allExpenses}
+                      catMap={catMap}
+                      importanceLevels={importanceLevels}
+                      currentDate={currentDate}
+                      onClose={() => setHistoryBudget(null)}
+                    />
                   )}
                 </div>
               )
@@ -2408,7 +2541,6 @@ export default function Budgets() {
           avgBySubcategory={avgBySubcategory}
           avgByImportance={avgByImportance}
           avgByReceiver={avgByReceiver}
-          strictMode={strictMode}
           onClose={() => setModal(null)}
           onSaved={loadBudgets}
         />
@@ -2444,6 +2576,7 @@ export default function Budgets() {
           onClose={() => setHistoryTarget(null)}
         />
       )}
+
     </div>
   )
 }

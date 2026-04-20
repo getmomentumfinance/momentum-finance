@@ -53,7 +53,7 @@ export default function NotificationBell({ currentDate = new Date() }) {
     setOpen(o => !o)
   }
 
-  function stableKey(item) { return `${item.type}-${item.recordId}` }
+  function stableKey(item) { return item.id }
 
   function dismiss(e, item) {
     e.stopPropagation()

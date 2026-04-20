@@ -61,7 +61,7 @@ export default function CardCustomizationPopup({
         </div>
 
         {/* Colour swatches */}
-        <div>
+        <div key={tab} className="tab-fade-in">
           <Label>Color</Label>
           <div className="grid grid-cols-6 gap-1.5 mt-2">
             {colors.map((c, i) => {

@@ -34,6 +34,7 @@ import RecentTransactions from '../components/dashboard/RecentTransactions'
 import BudgetsWidget from '../components/dashboard/BudgetsWidget'
 import ActionCenter from '../components/dashboard/ActionCenter'
 import FinancialInsights from '../components/dashboard/FinancialInsights'
+import MyCardsWidget from '../components/dashboard/MyCardsWidget'
 import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -44,7 +45,7 @@ const BALANCE_TYPES = ['debit', 'credit']
 const CREDIT_TYPES  = new Set(['income'])
 
 // ── Drag-and-drop widget columns ───────────────────────────────────
-const DEFAULT_LEFT_COL  = ['recurring', 'planned', 'subscriptions', 'savings-goals', 'budgets']
+const DEFAULT_LEFT_COL  = ['my-cards', 'recurring', 'planned', 'subscriptions', 'savings-goals', 'budgets']
 const DEFAULT_RIGHT_COL = ['pending', 'wishlist', 'projection', 'recent']
 
 function SortableWidget({ id, children }) {
@@ -178,6 +179,7 @@ export default function Dashboard() {
 
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
+    { key: 'dash-showMyCards',           label: 'My Cards'           },
     { key: 'dash-showFinancialInsights', label: 'Financial Insights' },
     { key: 'dash-showActionCenter',      label: 'Action Center'      },
     { key: 'dash-showRecurring',         label: 'Recurring Bills'    },
@@ -453,6 +455,7 @@ export default function Dashboard() {
         {/* Bottom: two independent sortable columns — no gaps on drag */}
         {(() => {
           const WIDGET_MAP = {
+            'my-cards':      { visKey: 'dash-showMyCards',       node: <MyCardsWidget currentDate={currentDate} /> },
             'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} hidePaid={hidePaidMap['bills-hide-paid']} /> },
             'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} hidePaid={hidePaidMap['planned-hide-paid']} /> },
             'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} hidePaid={hidePaidMap['subs-hide-paid']} /> },

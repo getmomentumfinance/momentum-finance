@@ -1,28 +1,24 @@
 import { useRef, useState, useEffect } from 'react'
 
 export default function FadeIn({ children, delay = 0, className = '' }) {
-  const ref            = useRef(null)
   const [visible, setVisible] = useState(false)
+  const rafRef = useRef(null)
 
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect() } },
-      { threshold: 0.08 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
+    // Double rAF ensures the initial opacity:0 state is painted before we trigger the transition
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(() => setVisible(true))
+    })
+    return () => cancelAnimationFrame(rafRef.current)
   }, [])
 
   return (
     <div
-      ref={ref}
       className={className}
       style={{
         opacity:    visible ? 1 : 0,
-        transform:  visible ? 'none' : 'translateY(14px)',
-        transition: `opacity 0.45s ease ${delay}ms, transform 0.45s ease ${delay}ms`,
+        transform:  visible ? 'translateY(0)' : 'translateY(16px)',
+        transition: `opacity 0.45s cubic-bezier(0.22,1,0.36,1) ${delay}ms, transform 0.45s cubic-bezier(0.22,1,0.36,1) ${delay}ms`,
       }}
     >
       {children}

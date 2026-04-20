@@ -44,7 +44,7 @@ export default function ActionCenter({ currentDate = new Date() }) {
     loadDismissed()
   }, [user?.id])
 
-  function stableKey(item) { return `${item.type}-${item.recordId}` }
+  function stableKey(item) { return item.id }
 
   async function resolvePriceChange(item, update) {
     if (resolving.has(item.id)) return

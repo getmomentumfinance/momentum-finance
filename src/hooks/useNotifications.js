@@ -148,7 +148,7 @@ export function useNotifications(userId, currentDate) {
       if (pct >= 80) {
         const cat = catMap[b.category_id ?? b.subcategory_id]
         actions.push({
-          id: `budget-${b.id}`, type: 'budget', recordId: b.id,
+          id: `budget-${b.id}-${startStr}`, type: 'budget', recordId: b.id,
           severity: pct >= 100 ? 'alert' : 'warning',
           label: b.name || cat?.name || 'Budget',
           detail: pct >= 100

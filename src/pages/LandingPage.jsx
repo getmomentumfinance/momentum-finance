@@ -8,16 +8,16 @@ import {
 import GradientMenu from '../components/ui/gradient-menu'
 import homeImg from '../assets/home.png'
 
-// ── Palette ────────────────────────────────────────────────────────
-const HERO_BG   = 'radial-gradient(ellipse at 65% 30%, #9e2b5a 0%, #4a0d28 50%, #2d0615 100%)'
-const DARK_BG   = '#2d0615'
-const PINK      = '#ffb5ba'
-const ROSE      = '#e8709a'
-const BERRY     = '#6b1f40'
+// ── Palette — cosmos design system ─────────────────────────────────
+const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #5b4a8a 0%, #2d2060 45%, #1e2a4a 100%)'
+const DARK_BG   = '#1E1E2D'
+const PINK      = '#a78bfa'   // accent violet
+const ROSE      = '#818cf8'   // accent indigo
+const BERRY     = '#3b3156'   // surface
 const WHITE     = '#ffffff'
-const MUTED_D   = 'rgba(255,181,186,0.5)'   // muted on dark bg
-const MUTED_L   = 'rgba(107,31,64,0.48)'    // muted on light bg
-const BORDER_L  = 'rgba(107,31,64,0.1)'
+const MUTED_D   = 'rgba(167,139,250,0.5)'   // muted on dark bg
+const MUTED_L   = 'rgba(59,49,86,0.55)'     // muted on light bg
+const BORDER_L  = 'rgba(99,102,241,0.12)'
 
 // ── Credit / Debit card ────────────────────────────────────────────
 function Card({ gradient, chipLight = false, number, name, expiry, style = {} }) {
@@ -75,9 +75,9 @@ function Card({ gradient, chipLight = false, number, name, expiry, style = {} })
 function CardsShowcase() {
   return (
     <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
-      {/* Left card — blush, tilted back-left */}
+      {/* Left card — soft periwinkle */}
       <Card
-        gradient="linear-gradient(140deg, #fce4e8 0%, #f5a8c0 60%, #e87898 100%)"
+        gradient="linear-gradient(140deg, #c4b5fd 0%, #818cf8 60%, #6366f1 100%)"
         chipLight
         number="•••• •••• •••• 3812"
         name="A. Johnson"
@@ -89,9 +89,9 @@ function CardsShowcase() {
           filter: 'brightness(0.88)',
         }}
       />
-      {/* Center card — deep berry, front and center */}
+      {/* Center card — deep cosmos, front and center */}
       <Card
-        gradient="linear-gradient(140deg, #c94878 0%, #8b2550 50%, #4a0d28 100%)"
+        gradient="linear-gradient(140deg, #7c3aed 0%, #4f46e5 50%, #2d2060 100%)"
         number="•••• •••• •••• 5524"
         name="S. Lambert"
         expiry="12/28"
@@ -99,12 +99,12 @@ function CardsShowcase() {
           left: '50%', top: 0,
           transform: 'translateX(-50%) rotate(-2deg) perspective(600px) rotateY(-2deg)',
           zIndex: 3,
-          boxShadow: '0 32px 72px rgba(74,13,40,0.7)',
+          boxShadow: '0 32px 72px rgba(79,70,229,0.55)',
         }}
       />
-      {/* Right card — mauve/plum, tilted back-right */}
+      {/* Right card — navy-indigo */}
       <Card
-        gradient="linear-gradient(140deg, #e0b0d0 0%, #c07aaa 50%, #986798 100%)"
+        gradient="linear-gradient(140deg, #93c5fd 0%, #60a5fa 50%, #3b82f6 100%)"
         chipLight
         number="•••• •••• •••• 9073"
         name="M. Williams"

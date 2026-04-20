@@ -225,6 +225,7 @@ export default function Transactions() {
 
   // ── Display rows: group children under their parent ───────────
   const displayRows = useMemo(() => {
+    const parentIdsInFilter = new Set(filteredRows.filter(r => r.is_split_parent).map(r => r.id))
     const childMap = {}
     filteredRows.filter(r => r.split_parent_id).forEach(c => {
       if (!childMap[c.split_parent_id]) childMap[c.split_parent_id] = []
@@ -232,13 +233,27 @@ export default function Transactions() {
     })
     const result = []
     for (const row of filteredRows) {
-      if (row.split_parent_id) continue
+      if (row.split_parent_id) {
+        // Orphan child: parent not visible in current filter — show standalone
+        if (!parentIdsInFilter.has(row.split_parent_id)) result.push(row)
+        continue
+      }
       result.push(row)
       if (row.is_split_parent) {
         ;(childMap[row.id] ?? []).forEach(c => result.push(c))
       }
     }
     return result
+  }, [filteredRows])
+
+  // Track orphan children (shown without their parent in filtered results)
+  const orphanChildIds = useMemo(() => {
+    const parentIdsInFilter = new Set(filteredRows.filter(r => r.is_split_parent).map(r => r.id))
+    return new Set(
+      filteredRows
+        .filter(r => r.split_parent_id && !parentIdsInFilter.has(r.split_parent_id))
+        .map(r => r.id)
+    )
   }, [filteredRows])
 
   function clearFilters() {
@@ -413,9 +428,16 @@ export default function Transactions() {
               const imp = impValue ? impMap[impValue] : null
               const isChild  = !!row.split_parent_id
               const isParent = !!row.is_split_parent
+              const isOrphan = orphanChildIds.has(row.id)
               return (
                 <div key={row.id} className={`flex items-center gap-3 px-4 py-3 ${isChild ? 'bg-white/[0.01] pl-8' : ''}`}>
-                  {isChild && <span className="text-white/20 text-xs shrink-0">↳</span>}
+                  {isChild && !isOrphan && <span className="text-white/20 text-xs shrink-0">↳</span>}
+                  {isOrphan && (
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}>
+                      split
+                    </span>
+                  )}
                   {row.type === 'transfer' || row.type === 'savings' || row.type === 'cash_out' || row.type === 'invest'
                     ? <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center shrink-0" style={{ color: typeInfo.color }}>
                         {typeInfo.Icon ? <typeInfo.Icon size={14} /> : <PiggyBank size={14} />}
@@ -506,8 +528,9 @@ export default function Transactions() {
                   const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
                   const impValue = row.importance ?? null
                   const imp = impValue ? impMap[impValue] : null
-                  const isChild  = !!row.split_parent_id
-                  const isParent = !!row.is_split_parent
+                  const isChild   = !!row.split_parent_id
+                  const isParent  = !!row.is_split_parent
+                  const isOrphan  = orphanChildIds.has(row.id)
 
                   return (
                     <tr
@@ -517,8 +540,14 @@ export default function Transactions() {
                       {/* Receiver */}
                       <td className="px-3 py-3 overflow-hidden" style={{ width: widths.description, maxWidth: widths.description }}>
                         <div className="flex items-center gap-2.5 min-w-0">
-                          {isChild && (
+                          {isChild && !isOrphan && (
                             <span className="text-white/20 text-xs shrink-0 ml-1">↳</span>
+                          )}
+                          {isOrphan && (
+                            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}>
+                              split
+                            </span>
                           )}
                           {row.type === 'transfer' && typeInfo.Icon ? (
                             <div className="w-7 h-7 rounded-full bg-white/8 flex items-center justify-center shrink-0"

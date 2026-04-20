@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { User, Palette, BookOpen, CreditCard, Database, Camera, LogOut, Mail, KeyRound, Globe, Calendar, DollarSign, Home, Layers, TrendingUp, Wallet, HelpCircle, ChevronRight, LayoutDashboard, BarChart2, PiggyBank, Target, Receipt, LineChart, CalendarDays, FileText } from 'lucide-react'
+import { User, Palette, BookOpen, CreditCard, Database, Camera, LogOut, Mail, KeyRound, Globe, Calendar, DollarSign, Home, Layers, TrendingUp, Wallet, HelpCircle, ChevronRight, LayoutDashboard, BarChart2, PiggyBank, Target, Receipt, LineChart, CalendarDays, FileText, RefreshCw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { usePreferences } from '../context/UserPreferencesContext'
@@ -10,6 +10,7 @@ import CategoriesTab from '../components/settings/CategoriesTab'
 import AppearanceTab from '../components/settings/AppearanceTab'
 import CardsTab from '../components/settings/CardsTab'
 import FinancialSituationTab from '../components/settings/FinancialSituationTab'
+import SubscriptionsTab from '../components/settings/SubscriptionsTab'
 
 const CURRENCIES = [
   { value: 'EUR', label: '€ Euro' },
@@ -47,7 +48,6 @@ const LANDING_PAGES = [
   { value: '/budgets',      label: 'Budgets' },
   { value: '/transactions', label: 'Transactions' },
   { value: '/portfolio',    label: 'Portfolio' },
-  { value: '/summary',      label: 'Summary' },
 ]
 
 function SelectRow({ icon: Icon, label, value, onChange, options }) {
@@ -72,8 +72,9 @@ const TAB_IDS = [
   { id: 'account',    labelKey: 'set.account',    icon: User },
   { id: 'appearance', labelKey: 'set.appearance', icon: Palette },
   { id: 'categories', labelKey: 'set.library',    icon: BookOpen },
-  { id: 'cards',      labelKey: 'set.cards',      icon: CreditCard },
-  { id: 'financial',  labelKey: 'set.financial',  icon: TrendingUp },
+  { id: 'cards',         labelKey: 'set.cards',         icon: CreditCard },
+  { id: 'subscriptions', labelKey: 'set.subscriptions', icon: RefreshCw  },
+  { id: 'financial',     labelKey: 'set.financial',     icon: TrendingUp },
   { id: 'data',       labelKey: 'set.data',       icon: Database },
   { id: 'help',       labelKey: 'set.help',       icon: HelpCircle },
 ]
@@ -461,8 +462,9 @@ export default function Settings() {
     account:    <AccountTab />,
     appearance: <AppearanceTab />,
     categories: <CategoriesTab />,
-    cards:      <CardsTab />,
-    financial:  <FinancialSituationTab />,
+    cards:         <CardsTab />,
+    subscriptions: <SubscriptionsTab />,
+    financial:     <FinancialSituationTab />,
     data:       <DataTab />,
     help:       <HelpTab onTabSwitch={setActiveTab} />,
   }
@@ -496,7 +498,9 @@ export default function Settings() {
 
         {/* Tab content */}
         <div className="flex-1 md:min-h-0 md:overflow-hidden">
-          {TAB_CONTENT[activeTab] ?? TAB_CONTENT['account']}
+          <div key={activeTab} className="tab-fade-in h-full">
+            {TAB_CONTENT[activeTab] ?? TAB_CONTENT['account']}
+          </div>
         </div>
       </div>
     </div>

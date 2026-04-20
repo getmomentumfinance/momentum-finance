@@ -56,8 +56,8 @@ function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter
   )
 }
 
-const RANGE_IDS = ['week', 'month', '3m', 'year', 'all', 'compare', 'tree']
-const RANGE_KEYS = { week: 'an.rangeWeek', month: 'an.rangeMonth', '3m': 'an.range3m', year: 'an.rangeYear', all: 'an.rangeAll', compare: 'an.rangeCompare', tree: 'an.rangeTree' }
+const RANGE_IDS = ['week', 'month', '3m', 'year', 'all', 'compare']
+const RANGE_KEYS = { week: 'an.rangeWeek', month: 'an.rangeMonth', '3m': 'an.range3m', year: 'an.rangeYear', all: 'an.rangeAll', compare: 'an.rangeCompare' }
 
 const DOW_LABELS      = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const FALLBACK_COLORS = ['#a78bfa','#60a5fa','#4ade80','#f87171','#fb923c','#facc15','#94a3b8']
@@ -558,11 +558,27 @@ export default function Analytics() {
     const periodMap = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }
     const matchPeriod = periodMap[range]
     if (!matchPeriod) return []
+    // For weekly range always use the same Mon–Sun window as periodLabel so
+    // the spend shown here matches what the user sees when filtering the table
+    // by the displayed dates (avoids reset_day mismatch when currentDate lands
+    // on a Sunday with a Sunday-start budget).
+    let weekStart = null, weekEnd = null
+    if (matchPeriod === 'weekly') {
+      const mon = new Date(currentDate)
+      mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7))
+      mon.setHours(0, 0, 0, 0)
+      const sun = new Date(mon)
+      sun.setDate(mon.getDate() + 6)
+      weekStart = toLocalStr(mon)
+      weekEnd   = toLocalStr(sun)
+    }
     return budgets
       .filter(b => (b.period ?? 'monthly') === matchPeriod)
       .map(b => {
         const effectiveLimit = b.monthly_limit + (b.rollover_amount ?? 0)
-        const { startStr, endStr } = getPeriodBounds(matchPeriod, currentDate, b.reset_day)
+        const { startStr, endStr } = matchPeriod === 'weekly'
+          ? { startStr: weekStart, endStr: weekEnd }
+          : getPeriodBounds(matchPeriod, currentDate, b.reset_day)
         const spent = transactions
           .filter(t =>
             !t.is_split_parent && t.type === 'expense' &&
@@ -581,10 +597,22 @@ export default function Analytics() {
     const periodMap = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }
     const matchPeriod = periodMap[range]
     if (!matchPeriod) return []
+    let weekStart = null, weekEnd = null
+    if (matchPeriod === 'weekly') {
+      const mon = new Date(currentDate)
+      mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7))
+      mon.setHours(0, 0, 0, 0)
+      const sun = new Date(mon)
+      sun.setDate(mon.getDate() + 6)
+      weekStart = toLocalStr(mon)
+      weekEnd   = toLocalStr(sun)
+    }
     return targets
       .filter(tgt => (tgt.period ?? 'monthly') === matchPeriod)
       .map(tgt => {
-        const { startStr, endStr } = getPeriodBounds(matchPeriod, currentDate, tgt.reset_day)
+        const { startStr, endStr } = matchPeriod === 'weekly'
+          ? { startStr: weekStart, endStr: weekEnd }
+          : getPeriodBounds(matchPeriod, currentDate, tgt.reset_day)
         const spent = transactions
           .filter(t =>
             !t.is_split_parent && t.type === 'expense' &&
@@ -1679,47 +1707,43 @@ export default function Analytics() {
     return [1, 2, 3, 4, 5, 6, 0].map(i => ({ label: DOW_LABELS[i], value: byDow[i] }))
   }, [ddFiltered])
 
-  // ── Tree flow data (category > subcategory > importance) ──────────
-  const treeFlowData = useMemo(() => {
-    if (range !== 'tree') return []
-    const catGroups = {}
-    filtered.filter(t => !t.is_split_parent && t.type === 'expense').forEach(t => {
-      const catId = t.category_id
-      if (!catId) return
-      if (!catGroups[catId]) catGroups[catId] = { total: 0, subs: {} }
-      catGroups[catId].total += Number(t.amount)
-      const subId = t.subcategory_id
-      if (subId) {
-        catGroups[catId].subs[subId] = (catGroups[catId].subs[subId] ?? 0) + Number(t.amount)
-      }
-    })
-    return Object.entries(catGroups)
-      .map(([catId, data]) => {
-        const cat = categoryMap[catId] ?? {}
-        const subcategories = Object.entries(data.subs)
-          .map(([subId, amount]) => {
-            const sub = categoryMap[subId] ?? {}
-            return {
-              id: subId,
-              name: sub.name ?? 'Unknown',
-              color: midColor(sub.color) ?? midColor(cat.color) ?? FALLBACK_COLORS[0],
-              amount,
-              importance: null,
-            }
-          })
-          .sort((a, b) => b.amount - a.amount)
-        const impObj = null
-        return {
-          id: catId,
-          name: cat.name ?? 'Unknown',
-          color: midColor(cat.color) ?? FALLBACK_COLORS[0],
-          total: data.total,
-          subcategories,
-          importance: impObj ?? null,
+  // ── Weekly budget progress broken down per week within the month ──
+  const weeklyBudgetMonthData = useMemo(() => {
+    if (range !== 'month') return null
+    const weeklyBudgets = budgets.filter(b => b.period === 'weekly' && b.monthly_limit > 0)
+    if (weeklyBudgets.length === 0) return null
+
+    const y          = currentDate.getFullYear()
+    const mth        = currentDate.getMonth()
+    const monthEnd   = toLocalStr(new Date(y, mth + 1, 0))
+
+    return weeklyBudgets.map(b => {
+      const weeks  = []
+      const seen   = new Set()
+      let cursor   = new Date(y, mth, 1, 12, 0, 0)
+      const stopD  = new Date(monthEnd + 'T12:00:00')
+      while (cursor <= stopD) {
+        const { startStr, endStr } = getPeriodBounds('weekly', cursor, b.reset_day)
+        if (!seen.has(startStr)) {
+          seen.add(startStr)
+          const spent = transactions
+            .filter(t =>
+              !t.is_split_parent && t.type === 'expense' &&
+              t.date >= startStr && t.date <= endStr &&
+              (!b.card_id || t.card_id === b.card_id) &&
+              txMatchesBudget(t, b)
+            )
+            .reduce((s, t) => s + Number(t.amount), 0)
+          const startD = new Date(startStr + 'T12:00:00')
+          const label  = startD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          const pct    = b.monthly_limit > 0 ? (spent / b.monthly_limit) * 100 : 0
+          weeks.push({ startStr, endStr, spent, label, pct })
         }
-      })
-      .sort((a, b) => b.total - a.total)
-  }, [filtered, categoryMap, range])
+        cursor = new Date(cursor.getTime() + 7 * 86400000)
+      }
+      return { budget: b, weeks }
+    })
+  }, [range, budgets, transactions, currentDate])
 
   const prevMonthDate = range === 'compare' ? compareDate : new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1)
   const periodLabel = range === 'compare'
@@ -1828,6 +1852,8 @@ export default function Analytics() {
             </div>
           </div>
         </div>
+
+        <div key={range} className="tab-fade-in">
 
         {/* ── Compare view ── */}
         {range === 'compare' && (() => {
@@ -2136,73 +2162,9 @@ export default function Analytics() {
           )
         })()}
 
-        {/* ── Tree flow view ── */}
-        {range === 'tree' && (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs text-muted">
-              {periodLabel} · Expenses by category → subcategory → importance
-            </p>
-            {treeFlowData.length === 0 ? (
-              <p className="text-sm text-muted py-4">{t('an.noDataShort')}</p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {treeFlowData.map((cat, ci) => {
-                  const totalAll = treeFlowData.reduce((s, c) => s + c.total, 0)
-                  const catPct   = totalAll > 0 ? (cat.total / totalAll) * 100 : 0
-                  return (
-                    <div key={cat.id} className="glass-card rounded-2xl overflow-hidden">
-                      {/* Category header */}
-                      <div className="flex items-center gap-3 px-4 py-3"
-                        style={{ borderLeft: `3px solid ${cat.color}` }}>
-                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cat.color }} />
-                        <span className="text-sm font-semibold flex-1">{cat.name}</span>
-                        {cat.importance && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                            style={{ background: `color-mix(in srgb, ${cat.importance.color} 15%, transparent)`, color: cat.importance.color }}>
-                            {cat.importance.label}
-                          </span>
-                        )}
-                        <span className="text-[11px] text-white/40 tabular-nums">{catPct.toFixed(0)}%</span>
-                        <span className="text-sm font-bold tabular-nums" style={{ color: cat.color }}>{fmt(cat.total)}</span>
-                      </div>
-                      {/* Progress bar for category */}
-                      <div className="h-0.5 mx-4" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${catPct}%`, background: cat.color, opacity: 0.6 }} />
-                      </div>
-                      {/* Subcategories */}
-                      {cat.subcategories.length > 0 && (
-                        <div className="flex flex-col divide-y divide-white/[0.04] px-4 pb-2 pt-1">
-                          {cat.subcategories.map(sub => {
-                            const subPct = cat.total > 0 ? (sub.amount / cat.total) * 100 : 0
-                            return (
-                              <div key={sub.id} className="flex items-center gap-3 py-2">
-                                <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: sub.color, opacity: 0.5 }} />
-                                <span className="text-xs text-white/70 flex-1 truncate pl-2">{sub.name}</span>
-                                {sub.importance && (
-                                  <span className="text-[9px] px-1.5 py-0.5 rounded-full shrink-0"
-                                    style={{ background: `color-mix(in srgb, ${sub.importance.color} 12%, transparent)`, color: sub.importance.color }}>
-                                    {sub.importance.label}
-                                  </span>
-                                )}
-                                <div className="w-20 h-1 rounded-full shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                                  <div className="h-full rounded-full" style={{ width: `${subPct}%`, background: sub.color }} />
-                                </div>
-                                <span className="text-xs tabular-nums text-white/60 shrink-0 w-16 text-right">{fmtK(sub.amount)}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Normal two-column layout ── */}
-        {range !== 'compare' && range !== 'tree' && (
+        {range !== 'compare' && (
         <div className="flex flex-col gap-5">
 
         {/* ── Donut row — week and month only ── */}
@@ -2265,12 +2227,16 @@ export default function Analytics() {
 
 
 
+            {/* ── Period Performance + Weekly Budgets side by side ── */}
+            {(range === 'week' || range === 'month') && (periodBudgetStats.length > 0 || periodTargetStats.length > 0 || (range === 'month' && weeklyBudgetMonthData?.length > 0)) && (
+              <div className="flex flex-col md:flex-row gap-5 items-stretch">
+
             {/* ── Budget & Target performance panel ── */}
-            {(range === 'week' || range === 'month') && (periodBudgetStats.length > 0 || periodTargetStats.length > 0) && (() => {
+            {(periodBudgetStats.length > 0 || periodTargetStats.length > 0) && (() => {
               const effectiveTab = periodBudgetStats.length === 0 ? 'goals' : periodTargetStats.length === 0 ? 'limits' : periodPerfTab
               const items = effectiveTab === 'limits' ? periodBudgetStats : periodTargetStats
               return (
-                <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+                <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-sm font-semibold">Period Performance</h2>
@@ -2290,53 +2256,120 @@ export default function Analytics() {
                     )}
                   </div>
 
-                  {effectiveTab === 'limits' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {effectiveTab === 'limits' && (() => {
+                    // Period bounds for pacing marker (same Mon–Sun logic as periodBudgetStats)
+                    const rPeriod = { week: 'weekly', month: 'monthly', '3m': 'quarterly', year: 'yearly' }[range] ?? 'monthly'
+                    let paceStartStr, paceEndStr
+                    if (rPeriod === 'weekly') {
+                      const mon = new Date(currentDate)
+                      mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7))
+                      mon.setHours(0, 0, 0, 0)
+                      const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+                      paceStartStr = toLocalStr(mon); paceEndStr = toLocalStr(sun)
+                    } else {
+                      const b = getPeriodBounds(rPeriod, currentDate, null)
+                      paceStartStr = b.startStr; paceEndStr = b.endStr
+                    }
+                    const paceStart  = new Date(paceStartStr + 'T00:00:00')
+                    const paceEnd    = new Date(paceEndStr   + 'T23:59:59')
+                    const now        = new Date()
+                    const totalMs    = paceEnd - paceStart
+                    const elapsedMs  = Math.min(Math.max(now - paceStart, 0), totalMs)
+                    const pacingPct  = totalMs > 0 ? (elapsedMs / totalMs) * 100 : 100
+                    const isPast     = now > paceEnd
+                    return (
+                    <div className="flex flex-col gap-3">
                       {items.map(item => {
-                        let label = '', color = FALLBACK_COLORS[0]
-                        if (item.category_id || item.subcategory_id) {
-                          const cat = categoryMap[item.category_id ?? item.subcategory_id]
-                          label = cat?.name ?? '—'
-                          color = midColor(cat?.color) ?? FALLBACK_COLORS[0]
+                        // ── label + color ──────────────────────────────────
+                        let label = item.name ?? '', subtitle = '', color = FALLBACK_COLORS[0]
+                        if (item.category_ids?.length || item.category_id || item.subcategory_ids?.length || item.subcategory_id) {
+                          const ids = item.category_ids?.length ? item.category_ids : item.subcategory_ids?.length ? item.subcategory_ids : item.category_id ? [item.category_id] : [item.subcategory_id]
+                          const cats = ids.map(id => categoryMap[id]).filter(Boolean)
+                          subtitle = cats.map(c => c.name).join(' · ')
+                          label = label || subtitle
+                          color = midColor(cats[0]?.color) ?? FALLBACK_COLORS[0]
+                        } else if (item.importance_ids?.length) {
+                          const imps = item.importance_ids.map(v => importanceWithColors.find(i => i.value === v)).filter(Boolean)
+                          subtitle = imps.map(i => i.label).join(' · ')
+                          label = label || subtitle
+                          color = imps[0]?.color ?? FALLBACK_COLORS[0]
                         } else if (item.importance) {
                           const imp = importanceWithColors.find(i => i.value === item.importance)
-                          label = imp?.label ?? item.importance
+                          subtitle = imp?.label ?? item.importance
+                          label = label || subtitle
                           color = imp?.color ?? FALLBACK_COLORS[0]
-                        } else if (item.receiver_id) {
-                          label = receiverMap[item.receiver_id]?.name ?? '—'
+                        } else if (item.receiver_ids?.length || item.receiver_id) {
+                          const ids = item.receiver_ids?.length ? item.receiver_ids : [item.receiver_id]
+                          subtitle = ids.map(id => receiverMap[id]?.name).filter(Boolean).join(' · ')
+                          label = label || subtitle || '—'
                           color = colors.accent ?? FALLBACK_COLORS[0]
                         } else {
-                          label = item.name ?? 'Limit'
+                          label = label || 'Limit'
                           color = colors.accent ?? FALLBACK_COLORS[0]
                         }
+                        if (label === subtitle) subtitle = ''
+
                         const pctClamped = Math.min(item.pct, 100)
-                        const barColor   = item.isOver ? 'var(--color-alert)' : item.pct >= 80 ? 'var(--color-warning)' : 'var(--color-progress-bar)'
+                        const barColor   = item.isOver ? 'var(--color-alert)' : item.pct >= 80 ? 'var(--color-warning)' : color
+
+                        // ── pacing status ─────────────────────────────────
+                        const paceStatus = isPast ? null
+                          : item.pct > pacingPct + 10 ? 'over pace'
+                          : item.pct < pacingPct - 10 ? 'under pace'
+                          : 'on pace'
+
                         return (
-                          <div key={item.id} className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                                <span className="text-xs font-medium text-white/80 truncate">{label}</span>
+                          <div key={item.id} className="flex flex-col gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                            {/* Header row */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-0.5" style={{ background: color }} />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-white/90 truncate">{label}</p>
+                                  {subtitle && <p className="text-[10px] text-white/35 truncate mt-0.5">{subtitle}</p>}
+                                </div>
                               </div>
                               <span className="text-[10px] font-semibold tabular-nums shrink-0 px-1.5 py-0.5 rounded-full"
                                 style={{ background: `color-mix(in srgb, ${barColor} 15%, transparent)`, color: barColor }}>
                                 {Math.round(item.pct)}%
                               </span>
                             </div>
-                            <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${pctClamped}%`, background: barColor }} />
+
+                            {/* Spent amount + limit */}
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-lg font-bold tabular-nums leading-none"
+                                style={{ color: item.isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.9)' }}>
+                                {fmt(item.spent)}
+                              </span>
+                              <span className="text-[11px] text-white/30 tabular-nums">/ {fmt(item.limit)}</span>
                             </div>
+
+                            {/* Progress bar with pacing marker */}
+                            <div className="relative h-2 w-full rounded-full bg-white/[0.07] overflow-visible">
+                              <div className="h-full rounded-full transition-all overflow-hidden" style={{ width: `${pctClamped}%`, background: barColor }} />
+                              {!isPast && (
+                                <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3.5 rounded-full bg-white/30"
+                                  style={{ left: `${Math.min(pacingPct, 100)}%` }} />
+                              )}
+                            </div>
+
+                            {/* Bottom row */}
                             <div className="flex items-center justify-between text-[10px] tabular-nums">
                               <span style={{ color: item.isOver ? 'var(--color-alert)' : 'rgba(255,255,255,0.35)' }}>
-                                {item.isOver ? `+${fmt(item.spent - item.limit)} over` : `${fmt(item.limit - item.spent)} left`}
+                                {item.isOver ? `+${fmt(item.spent - item.limit)} over budget` : `${fmt(item.limit - item.spent)} remaining`}
                               </span>
-                              <span className="text-white/30">{fmt(item.spent)} / {fmt(item.limit)}</span>
+                              {paceStatus && (
+                                <span className="text-white/30">
+                                  {paceStatus === 'on pace' ? '✓ on pace' : paceStatus === 'over pace' ? '↑ over pace' : '↓ under pace'}
+                                </span>
+                              )}
                             </div>
                           </div>
                         )
                       })}
                     </div>
-                  )}
+                    )
+                  })()}
 
                   {effectiveTab === 'goals' && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2413,8 +2446,95 @@ export default function Analytics() {
               )
             })()}
 
-            {/* Projected spend + Financial Insights side by side */}
-            {(showProjected || showInsights) && <div className="flex flex-col md:flex-row gap-5 items-stretch">
+            {/* ── Weekly budget progress within month ── */}
+            {range === 'month' && weeklyBudgetMonthData && weeklyBudgetMonthData.length > 0 && (
+              <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col gap-5">
+                <div>
+                  <h2 className="text-sm font-semibold">Weekly Budgets</h2>
+                  <p className="text-[11px] text-muted mt-0.5">{periodLabel} · week-by-week</p>
+                </div>
+                {weeklyBudgetMonthData.map(({ budget, weeks }) => {
+                  let label = budget.name || '—'
+                  let color = 'var(--color-accent)'
+                  const catId = budget.category_ids?.[0] ?? budget.category_id ?? budget.subcategory_ids?.[0] ?? budget.subcategory_id
+                  if (catId) {
+                    const cat = categoryMap[catId]
+                    label = budget.name || cat?.name || '—'
+                    color = midColor(cat?.color) ?? color
+                  } else if (budget.importance_ids?.length) {
+                    const imp = importanceWithColors.find(i => i.value === budget.importance_ids[0])
+                    label = budget.name || imp?.label || '—'
+                    color = imp?.color ?? color
+                  } else if (budget.importance) {
+                    const imp = importanceWithColors.find(i => i.value === budget.importance)
+                    label = budget.name || imp?.label || '—'
+                    color = imp?.color ?? color
+                  }
+                  return (
+                    <div key={budget.id} className="flex flex-col gap-3">
+                      {/* Budget header */}
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                        <span className="text-xs font-semibold text-white/80">{label}</span>
+                        <span className="text-[11px] text-white/30 ml-auto tabular-nums">{fmt(budget.monthly_limit)}/wk</span>
+                      </div>
+                      {/* One row per week */}
+                      <div className="flex flex-col gap-2.5">
+                        {weeks.map(w => {
+                          const barC     = w.pct >= 100 ? 'var(--color-alert)' : w.pct >= 80 ? 'var(--color-warning)' : color
+                          const isOver   = w.pct >= 100
+                          const endLabel = new Date(w.endStr + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          return (
+                            <div key={w.startStr} className="flex items-center gap-3">
+                              {/* Date range */}
+                              <span className="text-[11px] text-white/35 shrink-0 w-28 tabular-nums">
+                                {w.label} – {endLabel}
+                              </span>
+                              {/* Bar */}
+                              <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/[0.06]">
+                                <div className="h-full rounded-full transition-all"
+                                  style={{ width: `${Math.min(w.pct, 100)}%`, background: barC }} />
+                              </div>
+                              {/* Amount */}
+                              <span className="text-[11px] tabular-nums shrink-0 w-24 text-right"
+                                style={{ color: isOver ? 'var(--color-alert)' : w.pct >= 80 ? 'var(--color-warning)' : 'rgba(255,255,255,0.4)' }}>
+                                {isOver
+                                  ? `+${fmt(w.spent - budget.monthly_limit)} over`
+                                  : `${fmt(w.spent)} / ${fmt(budget.monthly_limit)}`}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Financial Insights — week view only, sits next to Period Performance */}
+            {range === 'week' && showInsights && insights.length > 0 && (
+              <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col gap-3 justify-center">
+                <h2 className="text-sm font-semibold mb-1">{t('an.insights')}</h2>
+                {insights.map((ins, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: ins.color + '22' }}>
+                      <ins.Icon size={14} style={{ color: ins.color }} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold">{ins.title}</p>
+                      <p className="text-[11px] text-muted mt-0.5 leading-snug">{ins.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            </div>
+            )}
+
+            {/* Projected spend + Financial Insights side by side (month/other views) */}
+            {(showProjected || (showInsights && range !== 'week')) && <div className="flex flex-col md:flex-row gap-5 items-stretch">
               {showProjected && projectedSpend && (
                 <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col">
                   <div className="flex items-center justify-between mb-4">
@@ -2445,8 +2565,9 @@ export default function Analytics() {
                   </div>
                 </div>
               )}
-              {showInsights && insights.length > 0 && (
+              {showInsights && range !== 'week' && insights.length > 0 && (
                 <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col gap-3 justify-center">
+                  <h2 className="text-sm font-semibold mb-1">{t('an.insights')}</h2>
                   {insights.map((ins, i) => (
                     <div key={i} className="flex gap-3 items-start">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: ins.color + '22' }}>
@@ -2910,6 +3031,8 @@ export default function Analytics() {
         </div>
         </div>
         )}
+
+        </div>{/* end key={range} tab-fade-in */}
 
       </div>
     </div>

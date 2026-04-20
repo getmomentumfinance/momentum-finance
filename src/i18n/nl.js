@@ -606,7 +606,7 @@ const nl = {
   'an.rangeYear':       'Jaar',
   'an.rangeAll':        'Altijd',
   'an.rangeCompare':    'Vergelijken',
-  'an.rangeTree':       'Stroom',
+  'an.rangeCards':      'Kaarten',
   'an.expOnly':         'Alleen uitgaven',
   'an.allTypes':        'Alle typen',
   'an.stackedByWeek':   'gestapeld per week',

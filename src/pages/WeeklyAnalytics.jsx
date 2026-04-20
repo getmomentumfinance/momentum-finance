@@ -122,7 +122,7 @@ export default function WeeklyAnalytics() {
   useEffect(() => {
     if (!user?.id) return
     supabase.from('budgets')
-      .select('id, monthly_limit, period, category_id, subcategory_id, importance, card_id')
+      .select('id, monthly_limit, period, reset_day, name, category_id, subcategory_id, importance, card_id')
       .eq('user_id', user.id)
       .then(({ data }) => { if (data) setBudgets(data) })
   }, [user?.id])
@@ -163,16 +163,21 @@ export default function WeeklyAnalytics() {
     const weekLimit = weekly?.monthly_limit ?? (monthly ? monthly.monthly_limit / (cnt || 1) : null)
     const pctUsed   = weekLimit ? (totalExpenses / weekLimit) * 100 : null
 
-    const catBudgets = budgets.filter(b => b.category_id && b.monthly_limit > 0 && (b.period ?? 'monthly') === 'monthly')
+    const catBudgets = budgets.filter(b =>
+      b.category_id && b.monthly_limit > 0 &&
+      (b.period === 'weekly' || (b.period ?? 'monthly') === 'monthly')
+    )
     const catItems = catBudgets.map(b => {
-      const alloc  = b.monthly_limit / (cnt || 1)
+      // weekly budgets store the per-week limit directly in monthly_limit
+      const alloc  = b.period === 'weekly' ? b.monthly_limit : b.monthly_limit / (cnt || 1)
       const spent  = weekExpenses.filter(t => t.category_id === b.category_id).reduce((s, t) => s + Number(t.amount), 0)
       return {
         id:    b.id,
-        name:  categoryMap[b.category_id]?.name ?? 'Unknown',
+        name:  b.name || categoryMap[b.category_id]?.name || 'Unknown',
         color: midColor(categoryMap[b.category_id]?.color),
         alloc, spent,
         pct:   alloc ? (spent / alloc) * 100 : 0,
+        isWeekly: b.period === 'weekly',
       }
     }).sort((a, b) => b.pct - a.pct)
 
@@ -526,7 +531,7 @@ export default function WeeklyAnalytics() {
                       </div>
                       <BudgetBar pct={b.pct} color={b.color} height={4} />
                       <p className="text-[9px] text-white/20 tabular-nums">
-                        {fmt(b.spent, 0)} / {fmt(b.alloc, 0)} weekly
+                        {fmt(b.spent, 0)} / {fmt(b.alloc, 0)} {b.isWeekly ? 'weekly budget' : 'weekly alloc'}
                       </p>
                     </div>
                   ))}

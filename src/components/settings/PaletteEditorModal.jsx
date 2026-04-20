@@ -253,7 +253,7 @@ export default function PaletteEditorModal({ palette, onSave, onClose }) {
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4">
+        <div key={tab} className="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 tab-fade-in">
 
           {/* ── Solids ── */}
           {tab === 'solids' && (

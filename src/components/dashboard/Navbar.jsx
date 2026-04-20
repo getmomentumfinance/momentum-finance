@@ -15,7 +15,6 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
 
   const navItems = [
     { icon: Home,      label: t('nav.home'),         path: '/dashboard' },
-    { icon: Gauge,     label: t('nav.summary'),      path: '/summary'   },
     { icon: PieChart,  label: t('nav.analytics'),    path: '/analytics' },
     { icon: PiggyBank, label: t('nav.savings'),      path: '/savings' },
     { icon: Target,    label: t('nav.budgets'),      path: '/budgets' },

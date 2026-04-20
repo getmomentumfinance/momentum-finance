@@ -74,7 +74,7 @@ export default function ColorPickerPopup({ popupRef, pos, onSelect, showGradient
           </div>
         )}
 
-        <div className="grid grid-cols-6 gap-1.5">
+        <div key={tab} className="grid grid-cols-6 gap-1.5 tab-fade-in">
           {colors.map((c, i) => {
             const bg   = typeof c === 'string' ? c : c.value
             const name = typeof c === 'string' ? c : c.name

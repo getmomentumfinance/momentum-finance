@@ -10,10 +10,6 @@ import { usePreferences } from '../../context/UserPreferencesContext'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 
-function getStrictnessColors() {
-  const defaults = { easy: '#22c55e', medium: '#f59e0b', strict: '#ef4444' }
-  try { return { ...defaults, ...JSON.parse(localStorage.getItem('limits-strictnessColors')) } } catch { return defaults }
-}
 
 const PERIODS = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['yearly', 'Yearly']]
 const PERIOD_MULTIPLIER = { weekly: 1 / 4.33, monthly: 1, quarterly: 3, yearly: 12 }
@@ -276,7 +272,7 @@ export default function AddBudgetModal({
 
   const suggestedVal    = avgPeriod ? Math.round(avgPeriod * 0.80) : null
   const aggressiveVal   = avgPeriod ? Math.round(avgPeriod * 0.65) : null
-  const aggressiveColor = getStrictnessColors().medium
+  const aggressiveColor = 'var(--color-warning)'
 
   const isValid = limitVal > 0 && (
     dimension === 'all'                                  ||
