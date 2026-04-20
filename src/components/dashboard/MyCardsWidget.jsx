@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react'
-import { CreditCard } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { supabase } from '../../lib/supabase'
@@ -78,32 +77,17 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
   }, [cards, banks, txs, periodLabel, fmt])
 
   return (
-    <div
-      className="h-full rounded-2xl overflow-hidden"
-      style={{ border: '1px solid rgba(255,255,255,0.05)' }}
-    >
-      {/* Header */}
-      <div
-        className="px-4 py-3 flex items-center gap-2.5"
-        style={{ background: 'rgba(255,255,255,0.02)' }}
-      >
-        <div className="p-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }}>
-          <CreditCard size={13} className="text-white/40" />
-        </div>
-        <span className="font-semibold text-sm text-white/70">My Cards</span>
-        <span className="ml-auto text-xs text-white/30">{periodLabel}</span>
-      </div>
-
-      {/* Content */}
-      <div className="bg-dash-card px-4 py-4">
-        {loading ? (
-          <p className="text-xs text-white/25 py-2">Loading…</p>
-        ) : carouselItems.length === 0 ? (
-          <p className="text-xs text-white/25 py-2">No card spending this month.</p>
-        ) : (
-          <CardCarousel items={carouselItems} />
-        )}
-      </div>
+    <div className="h-full flex items-center justify-center" style={{
+      maskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%)',
+      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%)',
+    }}>
+      {loading ? (
+        <p className="text-xs text-white/25">Loading…</p>
+      ) : carouselItems.length === 0 ? (
+        <p className="text-xs text-white/25">No card spending this month.</p>
+      ) : (
+        <CardCarousel items={carouselItems} />
+      )}
     </div>
   )
 }
