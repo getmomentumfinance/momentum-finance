@@ -18,7 +18,7 @@ const MUTED_L   = 'rgba(212,187,248,0.45)'
 const BORDER_L  = 'rgba(167,139,250,0.15)'
 
 // ── Credit / Debit card — with 3D tilt + glare ────────────────────
-function Card({ gradient, number, name, expiry }) {
+function Card({ gradient, number, name, expiry, width = 260, height = 163 }) {
   const [tilt,  setTilt]  = useState({ x: 0, y: 0 })
   const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 })
   const cardRef = useRef(null)
@@ -48,7 +48,7 @@ function Card({ gradient, number, name, expiry }) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         style={{
-          width: 260, height: 163, borderRadius: 18, padding: '18px 22px',
+          width, height, borderRadius: 18, padding: '18px 22px',
           background: gradient, overflow: 'hidden', position: 'relative',
           boxShadow: tilt.x !== 0 || tilt.y !== 0
             ? '0 40px 70px rgba(0,0,0,0.55)'
@@ -101,25 +101,36 @@ function Card({ gradient, number, name, expiry }) {
 // ── Cards showcase ─────────────────────────────────────────────────
 function CardsShowcase() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 24, flexWrap: 'wrap', padding: '0 24px 48px' }}>
-      <Card
-        gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
-        number="•••• •••• •••• 3812"
-        name="A. Johnson"
-        expiry="09/27"
-      />
-      <Card
-        gradient="linear-gradient(140deg, #7c3aed 0%, #4338ca 100%)"
-        number="•••• •••• •••• 5524"
-        name="S. Lambert"
-        expiry="12/28"
-      />
-      <Card
-        gradient="linear-gradient(140deg, #0ea5e9 0%, #1d4ed8 100%)"
-        number="•••• •••• •••• 9073"
-        name="M. Williams"
-        expiry="03/26"
-      />
+    <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
+      {/* Left card */}
+      <div style={{ position: 'absolute', left: '2%', top: 55, transform: 'rotate(-14deg)', zIndex: 1, filter: 'brightness(0.82)' }}>
+        <Card
+          gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
+          number="•••• •••• •••• 3812"
+          name="A. Johnson"
+          expiry="09/27"
+          width={232} height={146}
+        />
+      </div>
+      {/* Center card */}
+      <div style={{ position: 'absolute', left: '50%', top: 0, transform: 'translateX(-50%) rotate(-2deg)', zIndex: 3 }}>
+        <Card
+          gradient="linear-gradient(140deg, #7c3aed 0%, #4338ca 100%)"
+          number="•••• •••• •••• 5524"
+          name="S. Lambert"
+          expiry="12/28"
+        />
+      </div>
+      {/* Right card */}
+      <div style={{ position: 'absolute', right: '2%', top: 48, transform: 'rotate(12deg)', zIndex: 2, filter: 'brightness(0.82)' }}>
+        <Card
+          gradient="linear-gradient(140deg, #0ea5e9 0%, #1d4ed8 100%)"
+          number="•••• •••• •••• 9073"
+          name="M. Williams"
+          expiry="03/26"
+          width={232} height={146}
+        />
+      </div>
     </div>
   )
 }
