@@ -18,6 +18,32 @@ const MUTED_D   = 'rgba(212,187,248,0.55)'
 const MUTED_L   = 'rgba(212,187,248,0.45)'
 const BORDER_L  = 'rgba(167,139,250,0.15)'
 
+// ── Scroll reveal ─────────────────────────────────────────────────
+function ScrollReveal({ children, delay = 0, style = {} }) {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect() } },
+      { threshold: 0.08 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return (
+    <div ref={ref} style={{
+      opacity:    visible ? 1 : 0,
+      transform:  visible ? 'translateY(0px)' : 'translateY(36px)',
+      transition: `opacity 0.75s cubic-bezier(0.22,1,0.36,1) ${delay}ms, transform 0.75s cubic-bezier(0.22,1,0.36,1) ${delay}ms`,
+      ...style,
+    }}>
+      {children}
+    </div>
+  )
+}
+
 // ── Credit / Debit card — with 3D tilt + glare ────────────────────
 function Card({ gradient, number, name, expiry, width = 260, height = 163 }) {
   const [tilt,  setTilt]  = useState({ x: 0, y: 0 })
@@ -303,7 +329,7 @@ export default function LandingPage() {
         <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px,6vw,72px)' }}>
 
           {/* Sign up button — the light source */}
-          <div style={{ paddingTop: 48, paddingBottom: 52, position: 'relative', zIndex: 4 }}>
+          <ScrollReveal style={{ paddingTop: 48, paddingBottom: 52, position: 'relative', zIndex: 4 }}>
             <Link to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '9px 20px', borderRadius: 99, fontSize: 13, fontWeight: 700,
@@ -314,7 +340,7 @@ export default function LandingPage() {
             }}>
               Sign up free <ArrowRight size={13} />
             </Link>
-          </div>
+          </ScrollReveal>
 
           {/* SVG cone — border lines only, behind the image */}
           <svg
@@ -375,17 +401,20 @@ export default function LandingPage() {
           CARDS SHOWCASE
       ══════════════════════════════════════════════════ */}
       <section style={{ background: DARK_BG, padding: 'clamp(48px,6vw,72px) clamp(24px,6vw,72px)', textAlign: 'center' }}>
-        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>Your cards</p>
-        <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.4rem,3vw,2.2rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 48px' }}>
-          Every account, beautifully tracked.
-        </h2>
-        <CardsShowcase />
+        <ScrollReveal>
+          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>Your cards</p>
+          <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.4rem,3vw,2.2rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 48px' }}>
+            Every account, beautifully tracked.
+          </h2>
+          <CardsShowcase />
+        </ScrollReveal>
       </section>
 
       {/* ══════════════════════════════════════════════════
           WHY MOMENTUM — dark
       ══════════════════════════════════════════════════ */}
       <section style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <ScrollReveal>
         <div style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
           <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>
             Why Momentum?
@@ -420,12 +449,14 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ══════════════════════════════════════════════════
           FEATURES — dark
       ══════════════════════════════════════════════════ */}
       <section id="features" style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <ScrollReveal>
         <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 64, alignItems: 'center', justifyContent: 'center' }}>
 
           {/* Left */}
@@ -462,12 +493,14 @@ export default function LandingPage() {
           {/* Right — payment mockup */}
           <PaymentMockup />
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ══════════════════════════════════════════════════
           FREE — dark
       ══════════════════════════════════════════════════ */}
       <section style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <ScrollReveal>
         <div style={{ maxWidth: 960, margin: '0 auto' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ flex: '1 1 300px' }}>
@@ -512,12 +545,14 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ══════════════════════════════════════════════════
           FAQ — dark
       ══════════════════════════════════════════════════ */}
       <section id="faq" style={{ background: DARK_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)' }}>
+        <ScrollReveal>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
           <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>FAQ</p>
           <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,2.8rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 48px' }}>
@@ -532,12 +567,14 @@ export default function LandingPage() {
             ].map(faq => <FAQItem key={faq.q} {...faq} />)}
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ══════════════════════════════════════════════════
           FINAL CTA — dark
       ══════════════════════════════════════════════════ */}
       <section style={{ background: HERO_BG, padding: 'clamp(80px,10vw,120px) clamp(24px,6vw,72px)', textAlign: 'center' }}>
+        <ScrollReveal>
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 20 }}>
           Start today
         </p>
@@ -566,6 +603,7 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+        </ScrollReveal>
       </section>
 
       {/* ── Footer ───────────────────────────────────────── */}
