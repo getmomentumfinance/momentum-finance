@@ -249,8 +249,7 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           HERO — dark
       ══════════════════════════════════════════════════ */}
-      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(120px,14vw,160px) clamp(24px,6vw,72px) 0', textAlign: 'center' }}>
-
+      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(120px,14vw,160px) clamp(24px,6vw,72px) clamp(64px,8vw,96px)', textAlign: 'center' }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
           All-in-one personal finance
         </p>
@@ -267,7 +266,7 @@ export default function LandingPage() {
         </p>
 
         {/* Email CTA */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 'clamp(48px,8vw,80px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <div style={{
             display: 'flex', borderRadius: 99, overflow: 'hidden',
             background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
@@ -294,49 +293,69 @@ export default function LandingPage() {
             </Link>
           </div>
         </div>
-
-        {/* Cards */}
-        <CardsShowcase />
       </section>
 
       {/* ══════════════════════════════════════════════════
-          SCREENSHOT — glow light effect
+          SCREENSHOT — button glow light
       ══════════════════════════════════════════════════ */}
-      <section style={{ background: DARK_BG, padding: '0 clamp(24px,6vw,72px)', overflow: 'hidden' }}>
-        <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto' }}>
-          {/* Glow light source above the screenshot */}
+      <section style={{ background: DARK_BG, textAlign: 'center', overflow: 'hidden', paddingTop: 0 }}>
+        {/* Button that IS the light source */}
+        <div style={{ position: 'relative', display: 'inline-block', marginBottom: -1, zIndex: 3 }}>
+          {/* Glow radiating from the button */}
           <div style={{
             position: 'absolute',
-            top: -60,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 700,
-            height: 280,
-            background: 'radial-gradient(ellipse at 50% 0%, rgba(167,139,250,0.55) 0%, rgba(109,40,217,0.22) 45%, transparent 72%)',
+            top: '50%', left: '50%',
+            transform: 'translate(-50%, -30%)',
+            width: 560, height: 420,
+            background: 'radial-gradient(ellipse at 50% 20%, rgba(220,190,255,0.92) 0%, rgba(167,139,250,0.6) 18%, rgba(109,40,217,0.28) 42%, transparent 68%)',
             pointerEvents: 'none',
-            zIndex: 1,
+            zIndex: 0,
           }} />
-
-          {/* Screenshot */}
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <img
-              src={homeImg}
-              alt="Momentum dashboard"
-              style={{
-                width: '100%', display: 'block',
-                borderRadius: '14px 14px 0 0',
-                boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px rgba(0,0,0,0.5)',
-              }}
-            />
-            {/* Bottom fade into page */}
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              height: '55%',
-              background: `linear-gradient(to bottom, transparent 0%, ${DARK_BG} 100%)`,
-              pointerEvents: 'none',
-            }} />
-          </div>
+          <Link to="/register" style={{
+            position: 'relative', zIndex: 1,
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '10px 22px', borderRadius: 99, fontSize: 13, fontWeight: 700,
+            background: 'rgba(255,255,255,0.12)',
+            border: '1px solid rgba(255,255,255,0.28)',
+            backdropFilter: 'blur(12px)',
+            color: WHITE, textDecoration: 'none',
+            boxShadow: '0 0 24px rgba(167,139,250,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
+          }}>
+            Get Started <ArrowRight size={13} />
+          </Link>
         </div>
+
+        {/* Screenshot */}
+        <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px,6vw,72px)' }}>
+          <img
+            src={homeImg}
+            alt="Momentum dashboard"
+            style={{
+              width: '100%', display: 'block',
+              borderRadius: '14px 14px 0 0',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.07), 0 -8px 60px rgba(167,139,250,0.15)',
+              position: 'relative', zIndex: 2,
+            }}
+          />
+          {/* Bottom fade */}
+          <div style={{
+            position: 'absolute', bottom: 0, left: 'clamp(24px,6vw,72px)', right: 'clamp(24px,6vw,72px)',
+            height: '52%', zIndex: 3,
+            background: `linear-gradient(to bottom, transparent, ${DARK_BG})`,
+            pointerEvents: 'none',
+          }} />
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          CARDS SHOWCASE
+      ══════════════════════════════════════════════════ */}
+      <section style={{ background: DARK_BG, padding: 'clamp(48px,6vw,72px) clamp(24px,6vw,72px)', textAlign: 'center' }}>
+        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>Your cards</p>
+        <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.4rem,3vw,2.2rem)', color: WHITE, lineHeight: 1.07, margin: '0 0 48px' }}>
+          Every account, beautifully tracked.
+        </h2>
+        <CardsShowcase />
       </section>
 
       {/* ══════════════════════════════════════════════════
