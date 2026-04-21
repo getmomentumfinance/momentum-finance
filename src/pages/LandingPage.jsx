@@ -275,11 +275,51 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           HERO — dark
       ══════════════════════════════════════════════════ */}
-      <section id="hero" style={{ background: HERO_BG, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(100px,12vw,140px) clamp(24px,6vw,72px) clamp(64px,8vw,96px)', textAlign: 'center' }}>
-        <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
+      <section id="hero" style={{ background: HERO_BG, minHeight: '100vh', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(100px,12vw,140px) clamp(24px,6vw,72px) clamp(64px,8vw,96px)', textAlign: 'center', overflow: 'hidden' }}>
+
+        {/* Floating stat chips */}
+        {/* Top-left: balance */}
+        <div style={{ position: 'absolute', left: 'clamp(24px,7vw,100px)', top: '28%', animation: 'heroFloat 5s ease-in-out infinite', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '12px 18px', textAlign: 'left', pointerEvents: 'none' }}>
+          <p style={{ fontSize: 10, color: MUTED_D, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Net worth</p>
+          <p style={{ fontSize: 22, fontWeight: 800, color: WHITE, margin: '0 0 2px', letterSpacing: '-0.02em' }}>€48,650</p>
+          <p style={{ fontSize: 11, color: '#6ee7a0', margin: 0, fontWeight: 600 }}>↑ 12.4% this month</p>
+        </div>
+
+        {/* Top-right: budget */}
+        <div style={{ position: 'absolute', right: 'clamp(24px,7vw,100px)', top: '24%', animation: 'heroFloat2 6s ease-in-out infinite 1s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '12px 18px', textAlign: 'left', pointerEvents: 'none' }}>
+          <p style={{ fontSize: 10, color: MUTED_D, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food budget</p>
+          <div style={{ height: 4, borderRadius: 99, background: 'rgba(255,255,255,0.1)', marginBottom: 6, width: 120 }}>
+            <div style={{ height: '100%', width: '68%', borderRadius: 99, background: `linear-gradient(90deg, ${ROSE}, ${PINK})` }} />
+          </div>
+          <p style={{ fontSize: 11, color: MUTED_D, margin: 0 }}>€57.50 remaining</p>
+        </div>
+
+        {/* Bottom-left: transaction */}
+        <div style={{ position: 'absolute', left: 'clamp(24px,6vw,80px)', bottom: '22%', animation: 'heroFloat 7s ease-in-out infinite 0.5s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, pointerEvents: 'none' }}>
+          <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(110,231,160,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 14 }}>💰</span>
+          </div>
+          <div>
+            <p style={{ fontSize: 12, fontWeight: 700, color: WHITE, margin: '0 0 1px' }}>Salary received</p>
+            <p style={{ fontSize: 11, color: '#6ee7a0', margin: 0, fontWeight: 600 }}>+€2,800.00</p>
+          </div>
+        </div>
+
+        {/* Bottom-right: savings */}
+        <div style={{ position: 'absolute', right: 'clamp(24px,6vw,80px)', bottom: '26%', animation: 'heroFloat2 5.5s ease-in-out infinite 2s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '10px 16px', textAlign: 'left', pointerEvents: 'none' }}>
+          <p style={{ fontSize: 10, color: MUTED_D, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Savings goal</p>
+          <p style={{ fontSize: 16, fontWeight: 800, color: WHITE, margin: '0 0 2px' }}>€3,200 <span style={{ fontSize: 11, color: MUTED_D, fontWeight: 500 }}>/ €5,000</span></p>
+          <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.1)', width: 110 }}>
+            <div style={{ height: '100%', width: '64%', borderRadius: 99, background: `linear-gradient(90deg, #6ee7a0, ${ROSE})` }} />
+          </div>
+        </div>
+
+        {/* Hero text */}
+        <p style={{ position: 'relative', zIndex: 1, fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
           All-in-one personal finance
         </p>
         <h1 style={{
+          position: 'relative', zIndex: 1,
           fontWeight: 900, lineHeight: 1.04, letterSpacing: '-0.03em',
           fontSize: 'clamp(2.8rem, 7vw, 5.5rem)',
           color: WHITE, margin: '0 0 20px',
@@ -287,12 +327,12 @@ export default function LandingPage() {
           Smart and simple<br />
           <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK }}>personal finance</em>
         </h1>
-        <p style={{ fontSize: 'clamp(14px,1.5vw,17px)', lineHeight: 1.75, color: MUTED_D, maxWidth: 440, margin: '0 auto 40px' }}>
+        <p style={{ position: 'relative', zIndex: 1, fontSize: 'clamp(14px,1.5vw,17px)', lineHeight: 1.75, color: MUTED_D, maxWidth: 440, margin: '0 auto 40px' }}>
           Track every transaction, beat every budget, and grow toward the goals that actually matter — free, forever.
         </p>
 
         {/* Email CTA */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'center' }}>
           <div style={{
             display: 'flex', borderRadius: 99, overflow: 'hidden',
             background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
