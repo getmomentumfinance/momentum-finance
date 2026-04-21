@@ -249,7 +249,7 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════════════
           HERO — dark
       ══════════════════════════════════════════════════ */}
-      <section id="hero" style={{ background: HERO_BG, padding: 'clamp(120px,14vw,160px) clamp(24px,6vw,72px) clamp(64px,8vw,96px)', textAlign: 'center' }}>
+      <section id="hero" style={{ background: HERO_BG, minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(100px,12vw,140px) clamp(24px,6vw,72px) clamp(64px,8vw,96px)', textAlign: 'center' }}>
         <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED_D, marginBottom: 18 }}>
           All-in-one personal finance
         </p>
