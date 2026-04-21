@@ -77,14 +77,14 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
   }, [cards, banks, txs, periodLabel, fmt])
 
   return (
-    <div className="h-full flex items-center justify-center" style={{
+    <div style={{
       maskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%)',
       WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%)',
     }}>
       {loading ? (
-        <p className="text-xs text-white/25">Loading…</p>
+        <p className="text-xs text-white/25 px-4 py-2">Loading…</p>
       ) : carouselItems.length === 0 ? (
-        <p className="text-xs text-white/25">No card spending this month.</p>
+        <p className="text-xs text-white/25 px-4 py-2">No card spending this month.</p>
       ) : (
         <CardCarousel items={carouselItems} />
       )}
