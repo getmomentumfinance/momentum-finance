@@ -286,6 +286,7 @@ export default function LandingPage() {
               background: `linear-gradient(135deg, ${ROSE}, ${BERRY})`,
               color: WHITE, textDecoration: 'none', borderRadius: 99,
               margin: 3, transition: 'opacity .18s',
+              boxShadow: '0 0 16px rgba(167,139,250,0.5)',
             }}
               onMouseEnter={e => e.currentTarget.style.opacity = '.88'}
               onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
@@ -296,54 +297,77 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════════════════════════════════════════════
-          SCREENSHOT — button glow light
+          SCREENSHOT — cone border glow from button
       ══════════════════════════════════════════════════ */}
-      <section style={{ background: DARK_BG, textAlign: 'center', overflow: 'hidden', paddingTop: 0 }}>
-        {/* Button that IS the light source */}
-        <div style={{ position: 'relative', display: 'inline-block', marginBottom: -1, zIndex: 3 }}>
-          {/* Glow radiating from the button */}
-          <div style={{
-            position: 'absolute',
-            top: '50%', left: '50%',
-            transform: 'translate(-50%, -30%)',
-            width: 560, height: 420,
-            background: 'radial-gradient(ellipse at 50% 20%, rgba(220,190,255,0.92) 0%, rgba(167,139,250,0.6) 18%, rgba(109,40,217,0.28) 42%, transparent 68%)',
-            pointerEvents: 'none',
-            zIndex: 0,
-          }} />
-          <Link to="/register" style={{
-            position: 'relative', zIndex: 1,
-            display: 'inline-flex', alignItems: 'center', gap: 7,
-            padding: '10px 22px', borderRadius: 99, fontSize: 13, fontWeight: 700,
-            background: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.28)',
-            backdropFilter: 'blur(12px)',
-            color: WHITE, textDecoration: 'none',
-            boxShadow: '0 0 24px rgba(167,139,250,0.5), inset 0 1px 0 rgba(255,255,255,0.2)',
-          }}>
-            Get Started <ArrowRight size={13} />
-          </Link>
-        </div>
-
-        {/* Screenshot */}
+      <section style={{ background: DARK_BG, textAlign: 'center', overflow: 'hidden' }}>
         <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px,6vw,72px)' }}>
-          <img
-            src={homeImg}
-            alt="Momentum dashboard"
+
+          {/* Sign up button — the light source */}
+          <div style={{ paddingTop: 48, paddingBottom: 52, position: 'relative', zIndex: 4 }}>
+            <Link to="/register" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '9px 20px', borderRadius: 99, fontSize: 13, fontWeight: 700,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(167,139,250,0.55)',
+              color: WHITE, textDecoration: 'none',
+              boxShadow: '0 0 12px rgba(167,139,250,0.7), 0 0 40px rgba(167,139,250,0.3), 0 0 80px rgba(167,139,250,0.12)',
+            }}>
+              Sign up free <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          {/* SVG cone — border lines only, behind the image */}
+          <svg
+            viewBox="0 0 800 300"
+            preserveAspectRatio="none"
             style={{
-              width: '100%', display: 'block',
-              borderRadius: '14px 14px 0 0',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.07), 0 -8px 60px rgba(167,139,250,0.15)',
-              position: 'relative', zIndex: 2,
+              position: 'absolute', top: 0, left: 'clamp(24px,6vw,72px)', right: 'clamp(24px,6vw,72px)',
+              width: 'calc(100% - clamp(48px,12vw,144px))',
+              height: '100%',
+              pointerEvents: 'none', zIndex: 1,
             }}
-          />
-          {/* Bottom fade */}
-          <div style={{
-            position: 'absolute', bottom: 0, left: 'clamp(24px,6vw,72px)', right: 'clamp(24px,6vw,72px)',
-            height: '52%', zIndex: 3,
-            background: `linear-gradient(to bottom, transparent, ${DARK_BG})`,
-            pointerEvents: 'none',
-          }} />
+          >
+            <defs>
+              <linearGradient id="rayFade" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stopColor="rgba(167,139,250,0)"   />
+                <stop offset="20%"  stopColor="rgba(190,165,255,0.75)" />
+                <stop offset="65%"  stopColor="rgba(167,139,250,0.25)" />
+                <stop offset="100%" stopColor="rgba(167,139,250,0)"   />
+              </linearGradient>
+              <filter id="rayGlow">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {/* Left border of cone */}
+            <line x1="400" y1="48" x2="0"   y2="300" stroke="url(#rayFade)" strokeWidth="1.2" filter="url(#rayGlow)" />
+            {/* Right border of cone */}
+            <line x1="400" y1="48" x2="800" y2="300" stroke="url(#rayFade)" strokeWidth="1.2" filter="url(#rayGlow)" />
+          </svg>
+
+          {/* Image — on top of the cone so no glow lands on it */}
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <img
+              src={homeImg}
+              alt="Momentum dashboard"
+              style={{
+                width: '100%', display: 'block',
+                borderRadius: '14px 14px 0 0',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.07)',
+              }}
+            />
+            {/* Bottom fade */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              height: '52%', zIndex: 3, pointerEvents: 'none',
+              background: `linear-gradient(to bottom, transparent, ${DARK_BG})`,
+            }} />
+          </div>
+
         </div>
       </section>
 
