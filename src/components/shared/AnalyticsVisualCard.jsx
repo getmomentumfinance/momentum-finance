@@ -53,7 +53,7 @@ function BankLogo({ bank, size = 22 }) {
   )
 }
 
-export default function AnalyticsVisualCard({ card, bank, exp, inc, periodLabel, fmt, idx = 0, interactive = true }) {
+export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, periodLabel, fmt, idx = 0, interactive = true }) {
   const label = `analytics-card-${card.id}`
   const c = useCardCustomization(label)
 
@@ -143,12 +143,12 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, periodLabel,
             </div>
           </div>
 
-          {/* Expense amount */}
+          {/* Main amount — balance if available, else monthly expense */}
           <p className="relative z-10" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', color: 'rgba(255,255,255,0.95)', margin: '0 0 14px' }}>
-            {fmt(exp, 0)}
+            {balance != null ? fmt(balance, 2) : fmt(exp, 0)}
           </p>
 
-          {/* Name + income/period */}
+          {/* Name + secondary info */}
           <div className="relative z-10" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Card</p>
@@ -156,10 +156,10 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, periodLabel,
             </div>
             <div style={{ textAlign: 'right' }}>
               <p style={{ fontSize: 8, color: 'rgba(255,255,255,0.38)', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {inc > 0 ? 'Income' : 'Period'}
+                {balance != null ? 'Spent' : inc > 0 ? 'Income' : 'Period'}
               </p>
               <p style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)', margin: 0 }}>
-                {inc > 0 ? fmt(inc, 0) : periodLabel}
+                {balance != null ? fmt(exp, 0) : inc > 0 ? fmt(inc, 0) : periodLabel}
               </p>
             </div>
           </div>

@@ -101,11 +101,7 @@ function Card({ gradient, number, name, expiry, width = 260, height = 163 }) {
 // ── Cards showcase ─────────────────────────────────────────────────
 function CardsShowcase() {
   return (
-    <div style={{
-      position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto',
-      maskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)',
-      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 22%, black 78%, transparent 100%)',
-    }}>
+    <div style={{ position: 'relative', height: 240, maxWidth: 720, width: '100%', margin: '0 auto' }}>
       {/* Left card */}
       <div style={{ position: 'absolute', left: '2%', top: 55, transform: 'rotate(-14deg)', zIndex: 1, opacity: 0.38 }}>
         <Card
