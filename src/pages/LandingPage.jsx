@@ -6,6 +6,7 @@ import {
   TrendingUp, Shield, Zap,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
+import homeImg from '../assets/home.png'
 // ── Palette ─────────────────────────────────────────────────────────
 const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #2a2b45 0%, #181929 60%, #0f1020 100%)'
 const DARK_BG   = '#181929'
@@ -296,6 +297,46 @@ export default function LandingPage() {
 
         {/* Cards */}
         <CardsShowcase />
+      </section>
+
+      {/* ══════════════════════════════════════════════════
+          SCREENSHOT — glow light effect
+      ══════════════════════════════════════════════════ */}
+      <section style={{ background: DARK_BG, padding: '0 clamp(24px,6vw,72px)', overflow: 'hidden' }}>
+        <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto' }}>
+          {/* Glow light source above the screenshot */}
+          <div style={{
+            position: 'absolute',
+            top: -60,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 700,
+            height: 280,
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(167,139,250,0.55) 0%, rgba(109,40,217,0.22) 45%, transparent 72%)',
+            pointerEvents: 'none',
+            zIndex: 1,
+          }} />
+
+          {/* Screenshot */}
+          <div style={{ position: 'relative', zIndex: 2 }}>
+            <img
+              src={homeImg}
+              alt="Momentum dashboard"
+              style={{
+                width: '100%', display: 'block',
+                borderRadius: '14px 14px 0 0',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 32px 80px rgba(0,0,0,0.5)',
+              }}
+            />
+            {/* Bottom fade into page */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              height: '55%',
+              background: `linear-gradient(to bottom, transparent 0%, ${DARK_BG} 100%)`,
+              pointerEvents: 'none',
+            }} />
+          </div>
+        </div>
       </section>
 
       {/* ══════════════════════════════════════════════════
