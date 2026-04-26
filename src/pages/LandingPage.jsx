@@ -6,10 +6,9 @@ import {
   TrendingUp, Shield, Zap, Target, Bell, LineChart,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
-import homeImg from '../assets/home.png'
 // ── Palette ─────────────────────────────────────────────────────────
-const HERO_BG   = 'radial-gradient(ellipse at 60% 30%, #2a2b45 0%, #181929 60%, #0f1020 100%)'
-const DARK_BG   = '#181929'
+const HERO_BG   = 'transparent'
+const DARK_BG   = 'transparent'
 const PINK      = '#d4bbf8'   // light lavender accent
 const ROSE      = '#a78bfa'   // violet accent
 const BERRY     = '#0f1020'   // darker surface
@@ -360,8 +359,8 @@ function FAQItem({ q, a }) {
 // ── Page ───────────────────────────────────────────────────────────
 export default function LandingPage() {
   useEffect(() => {
-    document.body.style.background = '#181929'
-    document.documentElement.style.background = '#181929'
+    document.body.style.background = '#0a0a12'
+    document.documentElement.style.background = '#0a0a12'
 
     const style = document.createElement('style')
     style.textContent = `
@@ -370,6 +369,29 @@ export default function LandingPage() {
       @keyframes waveMove2 { from { transform: translateX(0px); } to { transform: translateX(-6px); } }
       @keyframes heroFloat  { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
       @keyframes heroFloat2 { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+      @keyframes orb1 {
+        0%   { transform: translate(0px, 0px) scale(1); }
+        33%  { transform: translate(120px, -80px) scale(1.15); }
+        66%  { transform: translate(-60px, 100px) scale(0.9); }
+        100% { transform: translate(0px, 0px) scale(1); }
+      }
+      @keyframes orb2 {
+        0%   { transform: translate(0px, 0px) scale(1); }
+        33%  { transform: translate(-100px, 60px) scale(0.85); }
+        66%  { transform: translate(80px, -120px) scale(1.2); }
+        100% { transform: translate(0px, 0px) scale(1); }
+      }
+      @keyframes orb3 {
+        0%   { transform: translate(0px, 0px) scale(1); }
+        50%  { transform: translate(60px, 80px) scale(1.1); }
+        100% { transform: translate(0px, 0px) scale(1); }
+      }
+      @keyframes orb4 {
+        0%   { transform: translate(0px, 0px) scale(1); }
+        40%  { transform: translate(-80px, -60px) scale(1.15); }
+        80%  { transform: translate(50px, 40px) scale(0.9); }
+        100% { transform: translate(0px, 0px) scale(1); }
+      }
     `
     document.head.appendChild(style)
     return () => {
@@ -380,7 +402,46 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div style={{ overflowX: 'hidden' }}>
+    <div style={{ overflowX: 'hidden', background: '#0a0a12' }}>
+
+      {/* ── All page content sits above the fixed orbs ── */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+
+      {/* ── Animated gradient orbs — fixed behind everything ── */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+        {/* Orb 1 — large violet, top-left */}
+        <div style={{
+          position: 'absolute', top: '-10%', left: '-5%',
+          width: 700, height: 700, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(109,40,217,0.55) 0%, transparent 70%)',
+          filter: 'blur(60px)',
+          animation: 'orb1 14s ease-in-out infinite',
+        }} />
+        {/* Orb 2 — indigo, bottom-right */}
+        <div style={{
+          position: 'absolute', bottom: '5%', right: '-10%',
+          width: 650, height: 650, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(79,70,229,0.5) 0%, transparent 70%)',
+          filter: 'blur(70px)',
+          animation: 'orb2 18s ease-in-out infinite',
+        }} />
+        {/* Orb 3 — pink/rose, center-right */}
+        <div style={{
+          position: 'absolute', top: '35%', right: '10%',
+          width: 450, height: 450, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(167,139,250,0.4) 0%, transparent 70%)',
+          filter: 'blur(50px)',
+          animation: 'orb3 11s ease-in-out infinite',
+        }} />
+        {/* Orb 4 — deep blue, bottom-left */}
+        <div style={{
+          position: 'absolute', bottom: '20%', left: '5%',
+          width: 500, height: 500, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(67,56,202,0.45) 0%, transparent 70%)',
+          filter: 'blur(65px)',
+          animation: 'orb4 16s ease-in-out infinite',
+        }} />
+      </div>
 
       {/* ══════════════════════════════════════════════════
           NAV — transparent over hero
@@ -491,81 +552,6 @@ export default function LandingPage() {
       </section>
 
       <BigTextSection />
-
-      {/* ══════════════════════════════════════════════════
-          SCREENSHOT — cone border glow from button
-      ══════════════════════════════════════════════════ */}
-      <section style={{ background: DARK_BG, textAlign: 'center', overflow: 'hidden' }}>
-        <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', padding: '0 clamp(24px,6vw,72px)' }}>
-
-          {/* Sign up button — the light source */}
-          <ScrollReveal style={{ paddingTop: 48, paddingBottom: 52, position: 'relative', zIndex: 4 }}>
-            <Link to="/register" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '9px 20px', borderRadius: 99, fontSize: 13, fontWeight: 700,
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(167,139,250,0.55)',
-              color: WHITE, textDecoration: 'none',
-              boxShadow: '0 0 12px rgba(167,139,250,0.7), 0 0 40px rgba(167,139,250,0.3), 0 0 80px rgba(167,139,250,0.12)',
-            }}>
-              Sign up free <ArrowRight size={13} />
-            </Link>
-          </ScrollReveal>
-
-          {/* SVG cone — border lines only, behind the image */}
-          <svg
-            viewBox="0 0 800 300"
-            preserveAspectRatio="none"
-            style={{
-              position: 'absolute', top: 0, left: 'clamp(24px,6vw,72px)', right: 'clamp(24px,6vw,72px)',
-              width: 'calc(100% - clamp(48px,12vw,144px))',
-              height: '100%',
-              pointerEvents: 'none', zIndex: 1,
-            }}
-          >
-            <defs>
-              <linearGradient id="rayFade" x1="0" y1="0" x2="0" y2="1" gradientUnits="userSpaceOnUse">
-                <stop offset="0%"   stopColor="rgba(167,139,250,0)"   />
-                <stop offset="20%"  stopColor="rgba(190,165,255,0.75)" />
-                <stop offset="65%"  stopColor="rgba(167,139,250,0.25)" />
-                <stop offset="100%" stopColor="rgba(167,139,250,0)"   />
-              </linearGradient>
-              <filter id="rayGlow">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* Left border of cone */}
-            <line x1="400" y1="48" x2="0"   y2="300" stroke="url(#rayFade)" strokeWidth="1.2" filter="url(#rayGlow)" />
-            {/* Right border of cone */}
-            <line x1="400" y1="48" x2="800" y2="300" stroke="url(#rayFade)" strokeWidth="1.2" filter="url(#rayGlow)" />
-          </svg>
-
-          {/* Image — on top of the cone so no glow lands on it */}
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <img
-              src={homeImg}
-              alt="Momentum dashboard"
-              style={{
-                width: '100%', display: 'block',
-                borderRadius: '14px 14px 0 0',
-                boxShadow: '0 0 0 1px rgba(255,255,255,0.07)',
-              }}
-            />
-            {/* Bottom fade */}
-            <div style={{
-              position: 'absolute', bottom: 0, left: 0, right: 0,
-              height: '52%', zIndex: 3, pointerEvents: 'none',
-              background: `linear-gradient(to bottom, transparent, ${DARK_BG})`,
-            }} />
-          </div>
-
-        </div>
-      </section>
 
       <FloatingCardsSection />
 
@@ -793,6 +779,7 @@ export default function LandingPage() {
         <p style={{ fontSize: 12, color: 'rgba(143,168,212,0.35)', margin: 0 }}>© {new Date().getFullYear()} Momentum Finance · Free forever</p>
       </footer>
 
+      </div>{/* end z-index wrapper */}
     </div>
   )
 }
