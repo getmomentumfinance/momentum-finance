@@ -163,32 +163,14 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Right — floating cards + stat chips */}
+        {/* Right — cards stack */}
         <div style={{ flex: '1 1 340px', position: 'relative', height: '100%', maxWidth: 560, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-
-          {/* Floating stat — net worth */}
-          <div style={{ position: 'absolute', left: '0%', top: '18%', animation: 'chipFloat2 5s ease-in-out infinite', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 16px', zIndex: 10, pointerEvents: 'none' }}>
-            <p style={{ fontSize: 9, color: MUTED, margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Net worth</p>
-            <p style={{ fontSize: 18, fontWeight: 800, color: WHITE, margin: '0 0 2px', letterSpacing: '-0.02em' }}>€48,650</p>
-            <p style={{ fontSize: 10, color: '#6ee7a0', margin: 0, fontWeight: 600 }}>↑ 12.4% this month</p>
-          </div>
-
-          {/* Floating stat — savings */}
-          <div style={{ position: 'absolute', right: '2%', top: '14%', animation: 'chipFloat1 6s ease-in-out infinite 1s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 16px', zIndex: 10, pointerEvents: 'none' }}>
-            <p style={{ fontSize: 9, color: MUTED, margin: '0 0 5px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Savings goal</p>
-            <p style={{ fontSize: 14, fontWeight: 800, color: WHITE, margin: '0 0 4px' }}>€3,200 <span style={{ fontSize: 10, color: MUTED, fontWeight: 500 }}>/ €5,000</span></p>
-            <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.1)', width: 100 }}>
-              <div style={{ height: '100%', width: '64%', borderRadius: 99, background: `linear-gradient(90deg, #6ee7a0, ${ROSE})` }} />
-            </div>
-          </div>
-
-          {/* Cards stack */}
           <div style={{ position: 'relative', width: 280, height: 180 }}>
             <TiltCard
               gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
               number="•••• •••• •••• 3812" name="A. Johnson" expiry="09/27"
               width={220} height={138}
-              style={{ position: 'absolute', left: '-8%', top: 40, animation: 'float1 5s ease-in-out infinite', zIndex: 1, opacity: 0.4 }}
+              style={{ position: 'absolute', left: '-8%', top: 40, animation: 'float1 5s ease-in-out infinite', zIndex: 1 }}
             />
             <TiltCard
               gradient="linear-gradient(140deg, #7c3aed 0%, #4338ca 100%)"
@@ -200,28 +182,8 @@ export default function LandingPage() {
               gradient="linear-gradient(140deg, #0ea5e9 0%, #1d4ed8 100%)"
               number="•••• •••• •••• 9073" name="M. Williams" expiry="03/26"
               width={220} height={138}
-              style={{ position: 'absolute', right: '-8%', top: 36, animation: 'float3 7s ease-in-out infinite 0.5s', zIndex: 2, opacity: 0.4 }}
+              style={{ position: 'absolute', right: '-8%', top: 36, animation: 'float3 7s ease-in-out infinite 0.5s', zIndex: 2 }}
             />
-          </div>
-
-          {/* Floating stat — salary */}
-          <div style={{ position: 'absolute', left: '5%', bottom: '20%', animation: 'chipFloat1 7s ease-in-out infinite 0.5s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 10, pointerEvents: 'none' }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(110,231,160,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ fontSize: 13 }}>💰</span>
-            </div>
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 700, color: WHITE, margin: '0 0 1px' }}>Salary received</p>
-              <p style={{ fontSize: 10, color: '#6ee7a0', margin: 0, fontWeight: 600 }}>+€2,800.00</p>
-            </div>
-          </div>
-
-          {/* Floating stat — budget */}
-          <div style={{ position: 'absolute', right: '4%', bottom: '22%', animation: 'chipFloat2 5.5s ease-in-out infinite 2s', background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '10px 14px', zIndex: 10, pointerEvents: 'none' }}>
-            <p style={{ fontSize: 9, color: MUTED, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Food budget</p>
-            <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,0.1)', marginBottom: 4, width: 110 }}>
-              <div style={{ height: '100%', width: '68%', borderRadius: 99, background: `linear-gradient(90deg, ${ROSE}, ${PINK})` }} />
-            </div>
-            <p style={{ fontSize: 10, color: MUTED, margin: 0 }}>€57.50 remaining</p>
           </div>
         </div>
       </div>
