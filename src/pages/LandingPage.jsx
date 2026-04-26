@@ -10,6 +10,66 @@ const WHITE   = '#ffffff'
 const MUTED   = 'rgba(212,187,248,0.5)'
 const BORDER  = 'rgba(167,139,250,0.15)'
 
+// ── OS-aware download button ──────────────────────────────────────────
+function getOS() {
+  const ua = navigator.userAgent
+  if (ua.includes('Win'))    return 'windows'
+  if (ua.includes('Mac'))    return 'mac'
+  if (ua.includes('Linux'))  return 'linux'
+  return 'unknown'
+}
+
+function DownloadButton() {
+  const [url,     setUrl]     = useState(null)
+  const [label,   setLabel]   = useState('Download app')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const os = getOS()
+    const labels = { mac: 'Download for Mac', windows: 'Download for Windows', linux: 'Download for Linux', unknown: 'Download app' }
+    setLabel(labels[os] ?? 'Download app')
+
+    fetch('https://api.github.com/repos/getmomentumfinance/momentum-finance/releases/latest')
+      .then(r => r.json())
+      .then(release => {
+        const assets = release.assets ?? []
+        let asset
+        if (os === 'mac')     asset = assets.find(a => a.name.endsWith('.dmg') && a.name.includes('aarch64'))
+                                   ?? assets.find(a => a.name.endsWith('.dmg'))
+        if (os === 'windows') asset = assets.find(a => a.name.endsWith('.msi'))
+                                   ?? assets.find(a => a.name.endsWith('.exe'))
+        if (os === 'linux')   asset = assets.find(a => a.name.endsWith('.AppImage'))
+                                   ?? assets.find(a => a.name.endsWith('.deb'))
+        if (!asset)           asset = assets[0]
+        setUrl(asset?.browser_download_url ?? null)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const btnStyle = {
+    display: 'inline-flex', alignItems: 'center', gap: 8,
+    padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
+    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.25)',
+    color: WHITE, textDecoration: 'none', cursor: url ? 'pointer' : 'default',
+    transition: 'border-color .18s, background .18s',
+    opacity: loading ? 0.5 : 1,
+  }
+
+  if (!url && !loading) return null
+
+  return (
+    <a
+      href={url ?? '#'}
+      style={btnStyle}
+      onMouseEnter={e => { e.currentTarget.style.background='rgba(167,139,250,0.12)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.5)' }}
+      onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.25)' }}
+    >
+      <Download size={14} /> {loading ? 'Loading…' : label}
+    </a>
+  )
+}
+
 // ── 3D tilt card ─────────────────────────────────────────────────────
 function TiltCard({ gradient, number, name, expiry, width = 260, height = 163, style: extraStyle = {} }) {
   const [tilt,  setTilt]  = useState({ x: 0, y: 0 })
@@ -132,19 +192,7 @@ export default function LandingPage() {
               onMouseLeave={e => { e.currentTarget.style.opacity='1'; e.currentTarget.style.transform='scale(1)' }}>
               Use in browser <ArrowRight size={14} />
             </Link>
-            <a
-              href="https://github.com/getmomentumfinance/momentum-finance/releases/latest"
-              target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8,
-                padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
-                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.25)',
-                color: WHITE, textDecoration: 'none', transition: 'border-color .18s, background .18s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background='rgba(167,139,250,0.12)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.5)' }}
-              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.25)' }}>
-              <Download size={14} /> Download app
-            </a>
+            <DownloadButton />
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', marginTop: 4 }}>
               {[{ Icon: Shield, t: 'Private' }, { Icon: Zap, t: 'Always free' }].map(({ Icon, t }) => (
                 <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
