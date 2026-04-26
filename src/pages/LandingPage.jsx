@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, Wallet, PiggyBank, CalendarDays, Shield, Zap } from 'lucide-react'
+import { ArrowRight, BarChart3, Wallet, PiggyBank, CalendarDays, Shield, Zap, Download } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 
 const ROSE    = '#a78bfa'
@@ -120,7 +120,7 @@ export default function LandingPage() {
           </p>
 
           {/* CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Link to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
@@ -130,9 +130,22 @@ export default function LandingPage() {
             }}
               onMouseEnter={e => { e.currentTarget.style.opacity='.88'; e.currentTarget.style.transform='scale(1.02)' }}
               onMouseLeave={e => { e.currentTarget.style.opacity='1'; e.currentTarget.style.transform='scale(1)' }}>
-              Get started free <ArrowRight size={14} />
+              Use in browser <ArrowRight size={14} />
             </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <a
+              href="https://github.com/getmomentumfinance/momentum-finance/releases/latest"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.25)',
+                color: WHITE, textDecoration: 'none', transition: 'border-color .18s, background .18s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(167,139,250,0.12)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.5)' }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.25)' }}>
+              <Download size={14} /> Download app
+            </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', marginTop: 4 }}>
               {[{ Icon: Shield, t: 'Private' }, { Icon: Zap, t: 'Always free' }].map(({ Icon, t }) => (
                 <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <Icon size={12} color={MUTED} />
