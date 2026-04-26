@@ -63,16 +63,18 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Momentum ${{ github.ref_name }}
           releaseBody: |
-            ## What's new
-            See the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for changes.
+            ## Momentum ${{ github.ref_name }}
 
-            ## Downloads
+            **Download for your platform below.**
+
             | Platform | File |
             |----------|------|
-            | macOS (Apple Silicon) | `.dmg` ending in `aarch64` |
-            | macOS (Intel) | `.dmg` ending in `x86_64` |
-            | Windows | `.msi` or `.exe` |
+            | macOS Apple Silicon | `.dmg` ending in `aarch64` |
+            | macOS Intel | `.dmg` ending in `x86_64` |
+            | Windows | `.msi` |
             | Linux | `.AppImage` or `.deb` |
-          releaseDraft: true
+
+            Existing users will be updated automatically.
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

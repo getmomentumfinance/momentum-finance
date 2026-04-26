@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { TransactionModalProvider } from './context/TransactionModalContext'
@@ -28,6 +29,26 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return null
   return user ? children : <Navigate to="/login" />
+}
+
+// Silently checks for updates on startup — only runs inside the Tauri app
+function UpdateChecker() {
+  useEffect(() => {
+    async function check() {
+      try {
+        const { check } = await import('@tauri-apps/plugin-updater')
+        const { relaunch } = await import('@tauri-apps/plugin-process')
+        const update = await check()
+        if (!update) return
+        await update.downloadAndInstall()
+        await relaunch()
+      } catch {
+        // Not in Tauri, or update check failed — silently ignore
+      }
+    }
+    check()
+  }, [])
+  return null
 }
 
 function ThemeApplier() {
@@ -75,6 +96,7 @@ export default function App() {
             <SharedDataProvider>
               <TransactionModalProvider>
               <ThemeApplier />
+              <UpdateChecker />
               <Toast />
               <div id="design-overlay" aria-hidden="true" />
               <VercelAnalytics />
