@@ -47,20 +47,20 @@ function DownloadButton() {
       .catch(() => setLoading(false))
   }, [])
 
+  const FALLBACK = 'https://github.com/getmomentumfinance/momentum-finance/releases/latest'
+
   const btnStyle = {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
     background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.25)',
-    color: WHITE, textDecoration: 'none', cursor: url ? 'pointer' : 'default',
+    color: WHITE, textDecoration: 'none',
     transition: 'border-color .18s, background .18s',
     opacity: loading ? 0.5 : 1,
   }
 
-  if (!url && !loading) return null
-
   return (
     <a
-      href={url ?? '#'}
+      href={url ?? FALLBACK}
       style={btnStyle}
       onMouseEnter={e => { e.currentTarget.style.background='rgba(167,139,250,0.12)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.5)' }}
       onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.25)' }}
