@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Plus, Download, SlidersHorizontal, GripHorizontal, RotateCcw } from 'lucide-react'
+import { Plus, SlidersHorizontal, GripHorizontal, RotateCcw } from 'lucide-react'
 import {
   DndContext, DragOverlay,
   closestCenter,
@@ -302,9 +302,6 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 shrink-0 ml-3">
             <button onClick={openTransactionModal} className="btn-primary flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium">
               <Plus size={15} /> <span className="hidden sm:inline">{t('dash.addTransaction')}</span>
-            </button>
-            <button className="hidden sm:flex bg-dash-card border border-border items-center gap-2 px-4 py-2 rounded-xl text-sm hover:border-accent transition-colors">
-              <Download size={14} /> {t('dash.exportView')}
             </button>
             <div className="relative" ref={visRef}>
               <button

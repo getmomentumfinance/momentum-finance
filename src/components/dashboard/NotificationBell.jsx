@@ -69,9 +69,7 @@ export default function NotificationBell({ currentDate = new Date() }) {
   const warningCount = visibleItems.filter(i => i.severity === 'warning').length
   const totalBadge   = alertCount + warningCount
 
-  const bellColor = alertCount > 0   ? 'var(--color-alert)'
-                  : warningCount > 0 ? 'var(--color-warning)'
-                  : undefined
+  const bellColor = totalBadge > 0 ? 'var(--color-accent)' : undefined
 
   return (
     <>
@@ -86,7 +84,7 @@ export default function NotificationBell({ currentDate = new Date() }) {
             <span
               className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] rounded-full
                 text-[9px] font-bold flex items-center justify-center text-white px-0.5 leading-none"
-              style={{ background: 'var(--color-alert)' }}
+              style={{ background: 'var(--color-accent)' }}
             >
               {totalBadge > 9 ? '9+' : totalBadge}
             </span>

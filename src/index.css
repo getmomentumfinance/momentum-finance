@@ -232,11 +232,6 @@ body {
   backdrop-filter: blur(var(--card-blur, 14px));
   -webkit-backdrop-filter: blur(var(--card-blur, 14px));
   border-radius: 1rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.glass-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0,0,0,0.28);
 }
 
 /* ════════════════════════════════════════
@@ -665,16 +660,4 @@ html[data-design="apricot"] .skeleton {
   12%  { opacity: 1; transform: translateY(0)    scale(1);    }
   75%  { opacity: 1; transform: translateY(0)    scale(1);    }
   100% { opacity: 0; transform: translateY(-4px) scale(0.95); }
-}
-
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
-@keyframes marquee-reverse {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
-}
-.marquee-pause:hover .marquee-track {
-  animation-play-state: paused;
 }

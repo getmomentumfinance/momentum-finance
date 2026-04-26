@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
+import { useMemo } from 'react'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useSharedData } from '../../context/SharedDataContext'
 
-// Matches the period key logic in RecurringBills.jsx exactly
 function getNextDueDate(nextDueDateStr, frequency) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   let d = new Date(nextDueDateStr + 'T00:00:00')
@@ -33,90 +31,50 @@ function getBillDueDate(bill, date) {
 }
 
 export default function StillToPayCard({ currentDate = new Date() }) {
-  const { user } = useAuth()
-  const [data, setData] = useState({
-    recurring:     { count: 0, total: 0 },
-    pending:       { count: 0, total: 0 },
-    planned:       { count: 0, total: 0 },
-    subscriptions: { count: 0, total: 0 },
-  })
-  const [loading, setLoading] = useState(true)
+  const { fmt, t } = usePreferences()
+  const { pendingItems, subscriptions, subPayments, recurringBills, billPayments, plannedBills } = useSharedData()
 
-  useEffect(() => {
-    if (!user?.id) return
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, currentDate])
+  const data = useMemo(() => {
+    const y = currentDate.getFullYear()
+    const m = currentDate.getMonth()
+    const monthEnd = `${y}-${String(m + 1).padStart(2, '0')}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
 
-  async function load() {
-    setLoading(true)
-
-    const y         = currentDate.getFullYear()
-    const m         = currentDate.getMonth()
-    const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
-    const monthEnd   = `${y}-${String(m + 1).padStart(2, '0')}-${String(new Date(y, m + 1, 0).getDate()).padStart(2, '0')}`
-
-    // Recurring bills: unpaid AND due this month
-    const { data: bills } = await supabase
-      .from('recurring_bills').select('id, amount, frequency, due_day, next_due_date').eq('user_id', user.id)
-
+    // Recurring bills unpaid and due this month
     let recurringCount = 0, recurringTotal = 0
-    if (bills?.length) {
-      const { data: payments } = await supabase
-        .from('recurring_bill_payments').select('bill_id, period')
-        .in('bill_id', bills.map(b => b.id))
-      bills.forEach(b => {
-        const dueDate = getBillDueDate(b, currentDate)
-        const dueYear = dueDate.getFullYear(), dueMo = dueDate.getMonth()
-        const curYear = currentDate.getFullYear(), curMo = currentDate.getMonth()
-        if (dueYear !== curYear || dueMo !== curMo) return // not due this month
-        const period = getBillPeriodKey(b, currentDate)
-        const paid = (payments ?? []).some(p => p.bill_id === b.id && p.period === period)
-        if (!paid) { recurringCount++; recurringTotal += Number(b.amount) }
-      })
+    for (const b of recurringBills) {
+      const dueDate = getBillDueDate(b, currentDate)
+      if (dueDate.getFullYear() !== y || dueDate.getMonth() !== m) continue
+      const period = getBillPeriodKey(b, currentDate)
+      const paid = billPayments.some(p => p.bill_id === b.id && p.period === period)
+      if (!paid) { recurringCount++; recurringTotal += Number(b.amount) }
     }
 
-    // Pending items: overdue or due this month (pay_before <= monthEnd, or no date set)
-    const { data: pendingItems } = await supabase
-      .from('pending_items').select('amount, pay_before').eq('user_id', user.id).eq('status', 'pending')
-    const pendingFiltered = (pendingItems ?? []).filter(i => !i.pay_before || i.pay_before <= monthEnd)
+    // Pending items due this month or overdue
+    const pendingFiltered = pendingItems.filter(i => !i.pay_before || i.pay_before <= monthEnd)
     const pendingCount = pendingFiltered.length
     const pendingTotal = pendingFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // Planned bills: overdue or due this month
-    const { data: plannedItems } = await supabase
-      .from('planned_bills').select('amount, pay_before').eq('user_id', user.id).eq('status', 'pending')
-    const plannedFiltered = (plannedItems ?? []).filter(i => !i.pay_before || i.pay_before <= monthEnd)
+    // Planned bills due this month or overdue
+    const plannedFiltered = plannedBills.filter(i => !i.pay_before || i.pay_before <= monthEnd)
     const plannedCount = plannedFiltered.length
     const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
     // Active subscriptions unpaid this month
-    const { data: allSubs } = await supabase
-      .from('subscriptions').select('id, amount').eq('user_id', user.id).eq('status', 'active')
-
+    const period = `${y}-${String(m + 1).padStart(2, '0')}`
     let subsCount = 0, subsTotal = 0
-    if (allSubs?.length) {
-      const period = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
-      const { data: subPayments } = await supabase
-        .from('subscription_payments').select('subscription_id, period')
-        .in('subscription_id', allSubs.map(s => s.id))
-      allSubs.forEach(s => {
-        const paid = (subPayments ?? []).some(p => p.subscription_id === s.id && p.period === period)
-        if (!paid) { subsCount++; subsTotal += Number(s.amount) }
-      })
+    for (const s of subscriptions) {
+      const paid = subPayments.some(p => p.subscription_id === s.id && p.period === period)
+      if (!paid) { subsCount++; subsTotal += Number(s.amount) }
     }
 
-    setData({
+    return {
       recurring:     { count: recurringCount, total: recurringTotal },
       pending:       { count: pendingCount,   total: pendingTotal   },
       planned:       { count: plannedCount,   total: plannedTotal   },
       subscriptions: { count: subsCount,      total: subsTotal      },
-    })
-    setLoading(false)
-  }
+    }
+  }, [currentDate, pendingItems, subscriptions, subPayments, recurringBills, billPayments, plannedBills])
 
-  const { fmt, t } = usePreferences()
   const grandTotal = data.recurring.total + data.pending.total + data.planned.total + data.subscriptions.total
 
   const items = [
@@ -128,25 +86,19 @@ export default function StillToPayCard({ currentDate = new Date() }) {
 
   return (
     <div className="glass-card rounded-2xl px-4 py-3 h-full flex flex-col justify-center gap-2">
-      {loading ? (
-        <span className="text-xs text-muted">{t('common.loading')}</span>
-      ) : (
-        <>
-          <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
-            {items.map(({ label, count, total }) => (
-              <div key={label} className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-muted uppercase tracking-wider">{label}</span>
-                <span className="text-sm font-semibold text-white">{fmt(total)}</span>
-                <span className="text-[10px] text-white/35">{count !== 1 ? t('common.items', { count }) : t('common.item', { count })}</span>
-              </div>
-            ))}
+      <div className="grid gap-3" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+        {items.map(({ label, count, total }) => (
+          <div key={label} className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-muted uppercase tracking-wider">{label}</span>
+            <span className="text-sm font-semibold text-white">{fmt(total)}</span>
+            <span className="text-[10px] text-white/35">{count !== 1 ? t('common.items', { count }) : t('common.item', { count })}</span>
           </div>
-          <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
-            <span className="text-[10px] text-muted uppercase tracking-wider">{t('stp.title')}</span>
-            <span className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{fmt(grandTotal)}</span>
-          </div>
-        </>
-      )}
+        ))}
+      </div>
+      <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+        <span className="text-[10px] text-muted uppercase tracking-wider">{t('stp.title')}</span>
+        <span className="text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>{fmt(grandTotal)}</span>
+      </div>
     </div>
   )
 }

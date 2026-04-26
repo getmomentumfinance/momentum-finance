@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
+import { useState } from 'react'
 import { useCashLabel } from '../../hooks/useCashLabel'
 import CardActivityModal from './CardActivityModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
-import { SkeletonRow } from '../shared/Skeleton'
+import { useSharedData } from '../../context/SharedDataContext'
 
 const CREDIT_TYPES = new Set(['income'])
 
@@ -26,39 +24,10 @@ function computeCashBalance(cards, transactions) {
 }
 
 export default function AccountsList({ currentDate }) {
-  const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { label: cashLabel } = useCashLabel()
-  const [cards,        setCards]        = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [activeCard,   setActiveCard]   = useState(undefined) // null = cash wallet, card obj = card
-
-  useEffect(() => {
-    if (!user?.id) return
-
-    async function load() {
-      const [{ data: c }, { data: t }] = await Promise.all([
-        supabase.from('cards').select('id, name, type, initial_balance, is_main').eq('user_id', user.id).order('type').order('name'),
-        supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id').eq('user_id', user.id).eq('is_deleted', false),
-      ])
-      if (c) setCards(c)
-      if (t) setTransactions(t)
-      setLoading(false)
-    }
-
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id])
-
-  if (loading) {
-    return (
-      <div className="glass-card p-4 h-full flex flex-col gap-1">
-        {[1,2,3].map(i => <SkeletonRow key={i} />)}
-      </div>
-    )
-  }
+  const { cards, allTransactions } = useSharedData()
+  const [activeCard, setActiveCard] = useState(undefined)
 
   if (cards.length === 0) {
     return (
@@ -68,7 +37,7 @@ export default function AccountsList({ currentDate }) {
     )
   }
 
-  const cashBalance  = computeCashBalance(cards, transactions)
+  const cashBalance  = computeCashBalance(cards, allTransactions)
   const nonCashCards = cards.filter(c => c.type !== 'cash')
 
   return (
@@ -89,7 +58,7 @@ export default function AccountsList({ currentDate }) {
         </div>
 
         {nonCashCards.map(card => {
-          const balance = computeBalance(card, transactions)
+          const balance = computeBalance(card, allTransactions)
           return (
             <div
               key={card.id}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { useSharedData } from '../context/SharedDataContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
 import { getPeriodBounds, getPreviousPeriodBounds } from '../utils/budgetPeriod'
 
@@ -18,6 +19,7 @@ export function useNotifications(userId, currentDate) {
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const { fmt: fmtAmt } = usePreferences()
+  const { pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments } = useSharedData()
 
   const load = useCallback(async () => {
     if (!userId) return
@@ -27,17 +29,12 @@ export function useNotifications(userId, currentDate) {
 
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    const start = new Date(year, month, 1).toISOString().slice(0, 10)
-    const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
 
     const actions = []
 
-    // 1. Overdue pending items
-    const { data: pendingItems } = await supabase
-      .from('pending_items').select('id, name, amount, pay_before')
-      .eq('user_id', userId).eq('status', 'pending').lt('pay_before', todayStr)
-
-    for (const p of pendingItems ?? []) {
+    // 1. Overdue pending items — filter from shared context
+    for (const p of pendingItems) {
+      if (!p.pay_before || p.pay_before >= todayStr) continue
       const daysAgo = Math.round((today - new Date(p.pay_before + 'T00:00:00')) / 86400000)
       actions.push({
         id: `pending-${p.id}`, type: 'pending', recordId: p.id,
@@ -47,13 +44,9 @@ export function useNotifications(userId, currentDate) {
       })
     }
 
-    // 2. Planned bills due in ≤3 days
-    const { data: plannedBills } = await supabase
-      .from('planned_bills').select('id, name, amount, pay_before')
-      .eq('user_id', userId).eq('status', 'pending')
-      .gte('pay_before', todayStr).lte('pay_before', in3dStr)
-
-    for (const p of plannedBills ?? []) {
+    // 2. Planned bills due in ≤3 days — filter from shared context
+    for (const p of plannedBills) {
+      if (!p.pay_before || p.pay_before < todayStr || p.pay_before > in3dStr) continue
       const daysLeft = Math.round((new Date(p.pay_before + 'T00:00:00') - today) / 86400000)
       actions.push({
         id: `planned-${p.id}`, type: 'planned', recordId: p.id,
@@ -63,63 +56,43 @@ export function useNotifications(userId, currentDate) {
       })
     }
 
-    // 3. Recurring bills due in ≤3 days (unpaid)
-    const { data: bills } = await supabase
-      .from('recurring_bills').select('id, name, amount, due_day, frequency')
-      .eq('user_id', userId)
-
-    if (bills?.length) {
-      const { data: payments } = await supabase
-        .from('recurring_bill_payments').select('bill_id, period')
-        .in('bill_id', bills.map(b => b.id))
-
-      for (const b of bills) {
-        const period = getPeriodKey(b.frequency, currentDate)
-        if ((payments ?? []).some(p => p.bill_id === b.id && p.period === period)) continue
-        const lastDay = new Date(year, month + 1, 0).getDate()
-        const dueDate = new Date(year, month, Math.min(b.due_day, lastDay))
-        const daysLeft = Math.round((dueDate - today) / 86400000)
-        if (daysLeft <= 3) {
-          const badge = daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue`
-                      : daysLeft === 0 ? 'Due today' : `Due in ${daysLeft}d`
-          actions.push({
-            id: `bill-${b.id}`, type: 'bill', recordId: b.id,
-            severity: daysLeft <= 0 ? 'alert' : 'warning', label: b.name,
-            detail: `${badge} · ${fmtAmt(b.amount)}`,
-            amount: b.amount, period, canPay: true,
-          })
-        }
+    // 3. Recurring bills due in ≤3 days (unpaid) — from shared context
+    for (const b of recurringBills) {
+      const period = getPeriodKey(b.frequency, currentDate)
+      if (billPayments.some(p => p.bill_id === b.id && p.period === period)) continue
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      const dueDate = new Date(year, month, Math.min(b.due_day, lastDay))
+      const daysLeft = Math.round((dueDate - today) / 86400000)
+      if (daysLeft <= 3) {
+        const badge = daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue`
+                    : daysLeft === 0 ? 'Due today' : `Due in ${daysLeft}d`
+        actions.push({
+          id: `bill-${b.id}`, type: 'bill', recordId: b.id,
+          severity: daysLeft <= 0 ? 'alert' : 'warning', label: b.name,
+          detail: `${badge} · ${fmtAmt(b.amount)}`,
+          amount: b.amount, period, canPay: true,
+        })
       }
     }
 
-    // 4. Subscriptions renewing in ≤7 days (unpaid)
-    const { data: allSubs } = await supabase
-      .from('subscriptions').select('id, name, amount, billing_day')
-      .eq('user_id', userId).eq('status', 'active')
-
-    if (allSubs?.length) {
-      const period = getPeriodKey('monthly', currentDate)
-      const { data: subPayments } = await supabase
-        .from('subscription_payments').select('subscription_id, period')
-        .in('subscription_id', allSubs.map(s => s.id))
-
-      for (const s of allSubs) {
-        if ((subPayments ?? []).some(p => p.subscription_id === s.id && p.period === period)) continue
-        const lastDay = new Date(year, month + 1, 0).getDate()
-        const dueDate = new Date(year, month, Math.min(s.billing_day, lastDay))
-        const daysLeft = Math.round((dueDate - today) / 86400000)
-        if (daysLeft >= 0 && daysLeft <= 7) {
-          actions.push({
-            id: `sub-${s.id}`, type: 'sub', recordId: s.id,
-            severity: 'info', label: s.name,
-            detail: `Renewing ${daysLeft === 0 ? 'today' : `in ${daysLeft}d`} · ${fmtAmt(s.amount)}/mo`,
-            amount: s.amount, period, canPay: true,
-          })
-        }
+    // 4. Subscriptions renewing in ≤7 days (unpaid) — from shared context
+    const subPeriod = getPeriodKey('monthly', currentDate)
+    for (const s of subscriptions) {
+      if (subPayments.some(p => p.subscription_id === s.id && p.period === subPeriod)) continue
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      const dueDate = new Date(year, month, Math.min(s.billing_day, lastDay))
+      const daysLeft = Math.round((dueDate - today) / 86400000)
+      if (daysLeft >= 0 && daysLeft <= 7) {
+        actions.push({
+          id: `sub-${s.id}`, type: 'sub', recordId: s.id,
+          severity: 'info', label: s.name,
+          detail: `Renewing ${daysLeft === 0 ? 'today' : `in ${daysLeft}d`} · ${fmtAmt(s.amount)}/mo`,
+          amount: s.amount, period: subPeriod, canPay: true,
+        })
       }
     }
 
-    // 5. Budgets ≥80% used
+    // 5. Budgets ≥80% used — still needs own fetch (budget-specific data)
     const [{ data: budgets }, { data: yearExpenses }, { data: categories }] = await Promise.all([
       supabase.from('budgets').select('*').eq('user_id', userId),
       supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
@@ -159,9 +132,9 @@ export function useNotifications(userId, currentDate) {
       }
     }
 
-    // 6. Period budget leftovers — previous period ended with unused amount, not yet resolved
+    // 6. Period budget leftovers
     const periodBudgets = (budgets ?? []).filter(b => b.period && b.period !== 'monthly' || (b.period === 'monthly' && b.card_id))
-      .filter(b => b.card_id) // only period budgets with a source card
+      .filter(b => b.card_id)
 
     if (periodBudgets.length) {
       const { data: resolutions } = await supabase
@@ -178,7 +151,6 @@ export function useNotifications(userId, currentDate) {
         const periodKey = `${prevStart}__${prevEnd}`
         if (resolvedSet.has(`${b.id}::${periodKey}`)) continue
 
-        // sum spending in previous period
         const prevSpent = (yearExpenses ?? [])
           .filter(t =>
             t.date >= prevStart && t.date <= prevEnd &&
@@ -231,7 +203,7 @@ export function useNotifications(userId, currentDate) {
     actions.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
     setItems(actions)
     setLoading(false)
-  }, [userId, currentDate])
+  }, [userId, currentDate, pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments])
 
   useEffect(() => {
     load()

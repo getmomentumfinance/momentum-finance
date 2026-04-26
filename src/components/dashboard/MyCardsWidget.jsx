@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { supabase } from '../../lib/supabase'
 import CardCarousel from '../shared/CardCarousel'
 
@@ -14,11 +15,9 @@ function computeBalance(card, allTxs) {
 export default function MyCardsWidget({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { fmt } = usePreferences()
+  const { cards, allTransactions } = useSharedData()
 
-  const [cards,   setCards]   = useState([])
   const [banks,   setBanks]   = useState([])
-  const [txs,     setTxs]     = useState([])   // all-time, for balance
-  const [monthTxs, setMonthTxs] = useState([]) // this month, for exp/inc
   const [loading, setLoading] = useState(true)
 
   const year  = currentDate.getFullYear()
@@ -27,30 +26,20 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
 
   useEffect(() => {
     if (!user?.id) return
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, currentDate])
-
-  async function load() {
-    setLoading(true)
-
     const start = new Date(year, month, 1).toISOString().slice(0, 10)
     const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+    setLoading(true)
+    supabase.from('banks').select('*').eq('user_id', user.id).order('name')
+      .then(({ data }) => { setBanks(data ?? []); setLoading(false) })
+  }, [user?.id, year, month])
 
-    const [{ data: cardsData }, { data: banksData }, { data: allTxsData }, { data: monthTxsData }] = await Promise.all([
-      supabase.from('cards').select('id, name, bank_id, initial_balance').eq('user_id', user.id).order('created_at'),
-      supabase.from('banks').select('*').eq('user_id', user.id).order('name'),
-      supabase.from('transactions').select('card_id, type, amount, is_split_parent').eq('user_id', user.id).eq('is_deleted', false),
-      supabase.from('transactions').select('card_id, type, amount, is_split_parent').eq('user_id', user.id).eq('is_deleted', false).gte('date', start).lte('date', end),
-    ])
+  const start = new Date(year, month, 1).toISOString().slice(0, 10)
+  const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
 
-    setCards(cardsData ?? [])
-    setBanks(banksData ?? [])
-    setTxs(allTxsData ?? [])
-    setMonthTxs(monthTxsData ?? [])
-    setLoading(false)
-  }
+  const monthTxs = useMemo(
+    () => allTransactions.filter(t => t.date >= start && t.date <= end),
+    [allTransactions, start, end]
+  )
 
   const carouselItems = useMemo(() => {
     const bankMap = Object.fromEntries((banks ?? []).map(b => [b.id, b]))
@@ -65,19 +54,19 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
     }
 
     return cards
-      .filter(card => (perCard[card.id]?.expense ?? 0) > 0 || computeBalance(card, txs) !== 0)
+      .filter(card => (perCard[card.id]?.expense ?? 0) > 0 || computeBalance(card, allTransactions) !== 0)
       .map((card, idx) => ({
         id:          card.id,
         card,
         bank:        card.bank_id ? (bankMap[card.bank_id] ?? null) : null,
         exp:         perCard[card.id]?.expense ?? 0,
         inc:         perCard[card.id]?.income  ?? 0,
-        balance:     computeBalance(card, txs),
+        balance:     computeBalance(card, allTransactions),
         periodLabel,
         fmt,
         idx,
       }))
-  }, [cards, banks, txs, monthTxs, periodLabel, fmt])
+  }, [cards, banks, allTransactions, monthTxs, periodLabel, fmt])
 
   return (
     <div style={{

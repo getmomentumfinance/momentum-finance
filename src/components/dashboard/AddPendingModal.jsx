@@ -6,6 +6,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
+import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
@@ -136,6 +138,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const isEdit = !!item
   const { user } = useAuth()
   const { cards } = useCards()
+  const { importance: importanceOptions } = useImportance()
 
   const [name,       setName]       = useState(item?.name        ?? '')
   const [icon,       setIcon]       = useState(item?.icon        ?? '')
@@ -146,6 +149,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const [subId,      setSubId]      = useState(item?.subcategory_id ?? '')
   const [cardId,     setCardId]     = useState(item?.card_id     ?? '')
   const [comment,    setComment]    = useState(item?.comment     ?? '')
+  const [importance, setImportance] = useState(item?.importance  ?? '')
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(false)
   const [categories, setCategories] = useState([])
@@ -172,25 +176,29 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     if (data) setReceivers(prev => [...prev, data])
   }
 
+  function parseAmount(val) { return parseFloat(String(val).replace(',', '.')) }
+
   async function handleSave() {
-    if (!name.trim() || !amount || isNaN(parseFloat(amount)) || !payBefore) return
+    if (!amount || isNaN(parseAmount(amount)) || !payBefore) return
     setSaving(true)
     const payload = {
       name:           name.trim(),
       icon:           icon        || null,
       receiver_id:    receiverId  || null,
-      amount:         parseFloat(amount),
+      amount:         parseAmount(amount),
       pay_before:     payBefore,
       category_id:    categoryId  || null,
       subcategory_id: subId       || null,
       card_id:        cardId      || null,
       comment:        comment.trim() || null,
+      importance:     importance     || null,
     }
     const { error } = isEdit
       ? await supabase.from('pending_items').update(payload).eq('id', item.id)
       : await supabase.from('pending_items').insert({ ...payload, user_id: user.id, status: 'pending' })
     if (error) { console.error('pending_items save error:', error.message); setSaving(false); return }
     setSaving(false)
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
     onSaved()
     onClose()
   }
@@ -203,6 +211,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     }
     await supabase.from('pending_items').delete().eq('id', item.id)
     setDeleting(false)
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
     onSaved()
     onClose()
   }
@@ -225,9 +234,11 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
         {/* Body */}
         <div className="overflow-y-auto flex flex-col gap-5 p-6 scrollbar-thin">
 
-          {/* Name */}
+          {/* Description */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs text-muted uppercase tracking-widest">Name</label>
+            <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+              Description <span className="text-white/30 normal-case font-normal">(optional)</span>
+            </label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New phone" className={inp} />
           </div>
 
@@ -256,8 +267,8 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
               <input
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
-                type="number" step="0.01" min="0" placeholder="0,00"
+                onChange={e => setAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
+                type="text" inputMode="decimal" placeholder="0,00"
                 className={inp + ' pl-8'}
               />
             </div>
@@ -295,18 +306,24 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
             </select>
           </div>
 
-          {/* Description */}
+          {/* Comment */}
           <div className="flex flex-col gap-2">
             <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-              Description <span className="text-white/30 normal-case font-normal">(optional)</span>
+              Comment <span className="text-white/30 normal-case font-normal">(optional)</span>
             </label>
             <textarea
               value={comment}
               onChange={e => setComment(e.target.value)}
-              placeholder="Add a description…"
+              placeholder="Add a comment…"
               rows={3}
               className={inp + ' resize-none'}
             />
+          </div>
+
+          {/* Importance */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+            <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
           </div>
 
           {/* Actions */}
@@ -331,7 +348,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || !name.trim() || !amount || !payBefore}
+              disabled={saving || !amount || !payBefore}
               className="btn-modal-primary"
             >
               {saving ? 'Saving…' : isEdit ? 'Update' : 'Save'}

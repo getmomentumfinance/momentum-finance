@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ArrowRight, BarChart3, Wallet, PiggyBank,
   CalendarDays, Receipt, CreditCard, Check,
-  TrendingUp, Shield, Zap,
+  TrendingUp, Shield, Zap, Target, Bell, LineChart,
 } from 'lucide-react'
 import GradientMenu from '../components/ui/gradient-menu'
 import homeImg from '../assets/home.png'
@@ -41,6 +41,123 @@ function ScrollReveal({ children, delay = 0, style = {} }) {
     }}>
       {children}
     </div>
+  )
+}
+
+// ── Big typography moment ──────────────────────────────────────────
+function BigTextSection() {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current; if (!el) return
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.2 })
+    obs.observe(el); return () => obs.disconnect()
+  }, [])
+  return (
+    <section ref={ref} style={{ background: '#0a0a0f', padding: 'clamp(80px,12vw,140px) clamp(24px,6vw,72px)', position: 'relative', overflow: 'hidden' }}>
+      {/* Animated wave top-right */}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: 360, height: 260, opacity: 0.55, pointerEvents: 'none' }}>
+        <svg viewBox="0 0 360 260" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%' }}>
+          {[0,1,2,3,4,5,6,7,8,9,10].map(i => (
+            <path key={i}
+              d={`M ${360 - i * 12} 0 Q ${280 - i * 8} ${80 + i * 6} ${200 - i * 5} ${130 + i * 4} T ${60 - i * 3} 260`}
+              stroke={`rgba(120,80,220,${0.35 - i * 0.025})`}
+              strokeWidth="1.2"
+              fill="none"
+              style={{ animation: `waveMove${i % 3} ${3.5 + i * 0.3}s ease-in-out infinite alternate` }}
+            />
+          ))}
+        </svg>
+      </div>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+        <h2 style={{
+          fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.0,
+          fontSize: 'clamp(3rem,8vw,6.5rem)', color: '#fff', margin: 0,
+          opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(48px)',
+          transition: 'opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1)',
+        }}>
+          Take control<br />
+          <em style={{
+            fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif',
+            color: PINK, fontWeight: 400,
+            opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(32px)',
+            transition: 'opacity 0.9s cubic-bezier(0.22,1,0.36,1) 0.15s, transform 0.9s cubic-bezier(0.22,1,0.36,1) 0.15s',
+            display: 'inline-block',
+          }}>of your money.</em>
+        </h2>
+        <p style={{
+          fontSize: 'clamp(14px,1.6vw,18px)', color: MUTED_D, maxWidth: 480, marginTop: 32,
+          lineHeight: 1.7, opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(24px)',
+          transition: 'opacity 0.8s ease 0.3s, transform 0.8s ease 0.3s',
+        }}>
+          Every euro tracked. Every goal in reach. Built for people who want clarity without complexity.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+// ── Floating feature cards on scroll ──────────────────────────────
+const FEATURE_CARDS = [
+  { Icon: BarChart3,    title: 'Deep Analytics',       desc: 'Drill into any chart. See the transactions behind every number.',            rotation: -8,  x: '2%',  y: 60  },
+  { Icon: Target,       title: 'Savings Goals',         desc: 'Set a target, plan contributions, and watch your progress grow.',            rotation: 5,   x: '28%', y: 0   },
+  { Icon: Bell,         title: 'Bill Reminders',        desc: 'Never miss a payment. Recurring bills tracked and alerted automatically.',   rotation: -4,  x: '55%', y: 80  },
+  { Icon: Wallet,       title: 'Smart Budgets',         desc: 'Category budgets with automatic rollover and real-time tracking.',           rotation: 7,   x: '72%', y: 10  },
+  { Icon: LineChart,    title: 'Portfolio Tracking',    desc: 'Monitor your investments and net worth alongside daily spending.',            rotation: -6,  x: '18%', y: 200 },
+  { Icon: CreditCard,   title: 'Multiple Cards',        desc: 'All your accounts in one view — debit, credit, cash and savings.',          rotation: 4,   x: '62%', y: 230 },
+]
+
+function FloatingCardsSection() {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const el = ref.current; if (!el) return
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect() } }, { threshold: 0.1 })
+    obs.observe(el); return () => obs.disconnect()
+  }, [])
+
+  return (
+    <section ref={ref} style={{ background: '#0a0a0f', padding: 'clamp(60px,8vw,100px) clamp(24px,6vw,72px)', overflow: 'hidden' }}>
+      <div style={{ textAlign: 'center', marginBottom: 80 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: ROSE, marginBottom: 16 }}>Everything you need</p>
+        <h2 style={{ fontWeight: 900, letterSpacing: '-0.03em', fontSize: 'clamp(1.8rem,4vw,3rem)', color: '#fff', margin: 0 }}>
+          One app.<br /><em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK, fontWeight: 400 }}>Every feature.</em>
+        </h2>
+      </div>
+
+      {/* Cards grid — scattered layout */}
+      <div style={{ position: 'relative', maxWidth: 960, margin: '0 auto', height: 420 }}>
+        {FEATURE_CARDS.map(({ Icon, title, desc, rotation, x, y }, i) => (
+          <div key={title} style={{
+            position: 'absolute', left: x, top: y,
+            width: 'clamp(180px, 22vw, 230px)',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(167,139,250,0.15)',
+            borderRadius: 20,
+            padding: '20px 20px 22px',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+            transform: visible
+              ? `rotate(${rotation}deg) translateY(0px)`
+              : `rotate(${rotation}deg) translateY(${i % 2 === 0 ? '60px' : '-60px'}) translateX(${i % 3 === 0 ? '-40px' : '40px'})`,
+            opacity: visible ? 1 : 0,
+            transition: `opacity 0.7s cubic-bezier(0.22,1,0.36,1) ${i * 80}ms, transform 0.8s cubic-bezier(0.22,1,0.36,1) ${i * 80}ms`,
+          }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 12, marginBottom: 14,
+              background: 'rgba(167,139,250,0.12)',
+              border: '1px solid rgba(167,139,250,0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Icon size={17} color={ROSE} />
+            </div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>{title}</p>
+            <p style={{ fontSize: 11, lineHeight: 1.6, color: MUTED_L, margin: 0 }}>{desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -245,9 +362,20 @@ export default function LandingPage() {
   useEffect(() => {
     document.body.style.background = '#181929'
     document.documentElement.style.background = '#181929'
+
+    const style = document.createElement('style')
+    style.textContent = `
+      @keyframes waveMove0 { from { d: path('M 360 0 Q 280 80 200 130 T 60 260'); } to { d: path('M 360 0 Q 300 100 210 120 T 50 260'); } }
+      @keyframes waveMove1 { from { transform: translateY(0px); } to { transform: translateY(8px); } }
+      @keyframes waveMove2 { from { transform: translateX(0px); } to { transform: translateX(-6px); } }
+      @keyframes heroFloat  { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+      @keyframes heroFloat2 { 0%,100% { transform: translateY(0px); } 50% { transform: translateY(-14px); } }
+    `
+    document.head.appendChild(style)
     return () => {
       document.body.style.background = ''
       document.documentElement.style.background = ''
+      document.head.removeChild(style)
     }
   }, [])
 
@@ -362,6 +490,8 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <BigTextSection />
+
       {/* ══════════════════════════════════════════════════
           SCREENSHOT — cone border glow from button
       ══════════════════════════════════════════════════ */}
@@ -436,6 +566,8 @@ export default function LandingPage() {
 
         </div>
       </section>
+
+      <FloatingCardsSection />
 
       {/* ══════════════════════════════════════════════════
           CARDS SHOWCASE

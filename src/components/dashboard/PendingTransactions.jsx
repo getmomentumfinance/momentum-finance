@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Clock, Plus, Check, Undo2, PackageCheck } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
@@ -13,14 +14,14 @@ import AddPendingModal from './AddPendingModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
 
 // ── Days-left progress bar ─────────────────────────────────────
-function DaysProgress({ payBefore, t }) {
+function DaysProgress({ payBefore, createdAt, t }) {
   const now      = new Date()
   const end      = new Date(payBefore + 'T00:00:00')
   const daysLeft = Math.ceil((end - now) / 86400000)
 
-  // Bar shows urgency: 0% = 30+ days away, 100% = due today / overdue
-  const REF_DAYS = 30
-  const pct = daysLeft <= 0 ? 100 : Math.min(100, Math.max(0, ((REF_DAYS - daysLeft) / REF_DAYS) * 100))
+  const start    = createdAt ? new Date(createdAt) : end
+  const total    = end - start
+  const pct      = daysLeft <= 0 ? 100 : total <= 0 ? 0 : Math.min(100, Math.max(0, ((now - start) / total) * 100))
 
   const isOverdue = daysLeft < 0
   const isUrgent  = !isOverdue && daysLeft <= 3
@@ -62,7 +63,7 @@ function ItemIcon({ item, receiver }) {
   if (receiver) return <ReceiverAvatar receiver={receiver} size="md" />
   return (
     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[11px] font-bold text-white/40 shrink-0">
-      {item.name[0]?.toUpperCase()}
+      {item.name?.[0]?.toUpperCase() ?? '?'}
     </div>
   )
 }
@@ -73,15 +74,19 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
   const { categoryMap, receiverMap } = useSharedData()
   const c = useCardCustomization('Pending Transactions')
 
-  const [items,         setItems]         = useState([])
-  const [showModal,     setShowModal]     = useState(false)
-  const [editItem,      setEditItem]      = useState(null)
-  const [loading,       setLoading]       = useState(false)
-  const [savedFlash,    setSavedFlash]    = useState(null) // { id, amount }
-  const [collapsed,     setCollapsed]     = useCollapsed('PendingTransactions')
-  const [receiveItem,   setReceiveItem]   = useState(null)  // item pending confirmation
-  const [receiveAmount, setReceiveAmount] = useState('')
-  const receiveInputRef = useRef(null)
+  const [items,          setItems]          = useState([])
+  const [showModal,      setShowModal]      = useState(false)
+  const [editItem,       setEditItem]       = useState(null)
+  const [loading,        setLoading]        = useState(false)
+  const [savedFlash,     setSavedFlash]     = useState(null) // { id, amount }
+  const [collapsed,      setCollapsed]      = useCollapsed('PendingTransactions')
+  const [receiveItem,    setReceiveItem]    = useState(null)
+  const [receiveAmount,  setReceiveAmount]  = useState('')
+  const receiveInputRef  = useRef(null)
+  const [returnItem,     setReturnItem]     = useState(null)
+  const [returnType,     setReturnType]     = useState('full')
+  const [returnedAmount, setReturnedAmount] = useState('')
+  const [returnIsPaid,   setReturnIsPaid]   = useState(false)
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 
@@ -164,17 +169,71 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
     load()
   }
 
-  async function toggleReturned(item) {
+  function openReturnModal(item) {
+    setReturnItem(item)
+    setReturnType('full')
+    setReturnedAmount(String(item.amount))
+    setReturnIsPaid(false)
+  }
+
+  async function undoReturn(item) {
     if (loading) return
     setLoading(true)
-    const returning = item.status !== 'returned'
-    const newStatus = returning ? 'returned' : 'pending'
-    await supabase.from('pending_items').update({ status: newStatus }).eq('id', item.id)
+    await supabase.from('pending_items').update({ status: 'pending' }).eq('id', item.id)
     setLoading(false)
-    if (returning) {
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
+    load()
+  }
+
+  async function confirmReturn() {
+    if (!returnItem) return
+    const item = returnItem
+    setReturnItem(null)
+    setLoading(true)
+
+    if (returnType === 'full') {
+      await supabase.from('pending_items').update({ status: 'returned' }).eq('id', item.id)
       setSavedFlash({ id: item.id, amount: item.amount })
       setTimeout(() => setSavedFlash(null), 2800)
+    } else {
+      const remaining = Math.max(0, parseFloat(String(returnedAmount).replace(',', '.')) || 0)
+
+      if (returnIsPaid) {
+        const _d    = new Date()
+        const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
+        const receiver = receiverById(item.receiver_id)
+        const desc     = receiver ? receiver.name : item.name
+        const commentParts = []
+        if (receiver && item.name) commentParts.push(item.name)
+        if (item.comment) commentParts.push(item.comment)
+        const { data: tx } = await supabase.from('transactions').insert({
+          user_id:        user.id,
+          type:           'expense',
+          description:    desc,
+          amount:         remaining,
+          date:           today,
+          source:         'pending',
+          receiver_id:    item.receiver_id    || null,
+          category_id:    item.category_id    || null,
+          subcategory_id: item.subcategory_id || null,
+          card_id:        item.card_id        || null,
+          comment:        commentParts.join(' — ') || null,
+          is_cash:        false,
+          is_deleted:     false,
+          status:         'completed',
+        }).select().single()
+        await supabase.from('pending_items').update({
+          status:         'paid',
+          amount:         remaining,
+          transaction_id: tx?.id ?? null,
+        }).eq('id', item.id)
+      } else {
+        // Keep pending with adjusted amount
+        await supabase.from('pending_items').update({ amount: remaining }).eq('id', item.id)
+      }
     }
+
+    setLoading(false)
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     load()
   }
@@ -263,8 +322,11 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
                         onClick={() => { setEditItem(item); setShowModal(true) }}
                         className={`text-sm text-left font-medium leading-tight truncate w-full ${item.status !== 'pending' ? 'line-through text-white/50 cursor-default' : 'text-white hover:text-white/70 transition-colors'}`}
                       >
-                        {item.name}
+                        {receiver ? receiver.name : (item.name || '—')}
                       </button>
+                      {item.name && receiver && (
+                        <p className="text-[10px] text-white/35 truncate leading-tight mt-0.5">{item.name}</p>
+                      )}
                       {(cat || sub) && item.status === 'pending' && (
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {cat && <CategoryPill name={cat.name} color={cat.color} icon={cat.icon} />}
@@ -272,7 +334,7 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
                         </div>
                       )}
                       {item.status === 'pending' && (
-                        <DaysProgress payBefore={item.pay_before} t={t} />
+                        <DaysProgress payBefore={item.pay_before} createdAt={item.created_at} t={t} />
                       )}
                     </div>
 
@@ -283,7 +345,7 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
                       </span>
                       {item.status !== 'paid' && (
                         <button
-                          onClick={() => toggleReturned(item)}
+                          onClick={() => item.status === 'returned' ? undoReturn(item) : openReturnModal(item)}
                           disabled={loading}
                           title={item.status === 'returned' ? t('common.undo') : t('pending.markReturn')}
                           className={`flex items-center gap-1 text-[10px] transition-colors ${item.status === 'returned' ? 'text-white/50 hover:text-white/80' : 'text-white/25 hover:text-white/60'}`}
@@ -322,6 +384,106 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
           onClose={() => { setShowModal(false); setEditItem(null) }}
           onSaved={load}
         />
+      )}
+
+      {/* Return modal */}
+      {returnItem && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={e => { if (e.target === e.currentTarget) setReturnItem(null) }}>
+          <div className="glass-popup border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}>
+                <Undo2 size={16} style={{ color: 'var(--color-accent)' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Return Item</p>
+                <p className="text-[11px] text-white/40 truncate max-w-[200px]">{returnItem.name}</p>
+              </div>
+            </div>
+
+            {/* Return type */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white/50 uppercase tracking-widest">Return type</label>
+              <div className="flex gap-2">
+                <button type="button"
+                  onClick={() => { setReturnType('full'); setReturnedAmount(String(returnItem.amount)) }}
+                  className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${returnType === 'full' ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                  Full return
+                </button>
+                <button type="button"
+                  onClick={() => setReturnType('partial')}
+                  className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${returnType === 'partial' ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                  Partial return
+                </button>
+              </div>
+            </div>
+
+            {/* Partial: user sets the new remaining amount */}
+            {returnType === 'partial' && (<>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-white/50">New amount</label>
+                <input
+                  autoFocus
+                  type="text" inputMode="decimal"
+                  value={returnedAmount}
+                  onChange={e => setReturnedAmount(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmReturn(); if (e.key === 'Escape') setReturnItem(null) }}
+                  className="w-full bg-white/[0.06] border border-white/10 rounded-xl px-4 py-3 text-lg font-semibold text-white outline-none focus:border-white/25 transition-colors tabular-nums"
+                />
+                {(() => {
+                  const newAmt = parseFloat(String(returnedAmount).replace(',', '.')) || 0
+                  const deducted = returnItem.amount - newAmt
+                  if (deducted <= 0) return null
+                  return (
+                    <p className="text-[11px] text-white/40">
+                      {fmt(returnItem.amount)} − {fmt(newAmt)} = <span className="text-white/70 font-medium">{fmt(deducted)} returned</span>
+                    </p>
+                  )
+                })()}
+              </div>
+
+              {/* Payment status */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-white/50 uppercase tracking-widest">Payment status</label>
+                <div className="flex gap-2">
+                  <button type="button"
+                    onClick={() => setReturnIsPaid(false)}
+                    className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${!returnIsPaid ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                    Not paid yet
+                  </button>
+                  <button type="button"
+                    onClick={() => setReturnIsPaid(true)}
+                    className={`flex-1 py-2 rounded-xl border text-sm font-medium transition-all ${returnIsPaid ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                    Already paid
+                  </button>
+                </div>
+                {!returnIsPaid && (
+                  <p className="text-[11px] text-white/30">The pending item will stay open with the adjusted amount.</p>
+                )}
+              </div>
+            </>)}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button onClick={() => setReturnItem(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={confirmReturn}
+                disabled={loading || (returnType === 'partial' && (returnedAmount === '' || isNaN(parseFloat(String(returnedAmount).replace(',', '.'))) || parseFloat(String(returnedAmount).replace(',', '.')) < 0))}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-40"
+                style={{ background: 'var(--color-accent)' }}>
+                Confirm
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Mark as Received popup */}

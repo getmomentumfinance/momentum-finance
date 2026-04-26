@@ -4,6 +4,7 @@ import { X, Banknote, ChevronDown, Building2, UserRound, Calendar, Scissors, Plu
 import SplitTransactionModal from './SplitTransactionModal'
 import { TRANSACTION_TYPES as TYPES } from '../../constants/transactionTypes'
 import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 import { fetchHistoricalPrice, fetchLivePrice } from '../../lib/yahooFinance'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -11,6 +12,7 @@ import { usePreferences } from '../../context/UserPreferencesContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar as SharedReceiverAvatar } from '../shared/ReceiverCombobox'
+import { showToast } from '../shared/Toast'
 
 // ── Category custom select ────────────────────────────────────
 function CategorySelect({ value, onChange, options, placeholder = 'Empty', disabled = false }) {
@@ -260,36 +262,6 @@ function Toggle({ label, on, onToggle }) {
   )
 }
 
-function ImportancePicker({ value, onChange, options }) {
-  return (
-    <div className="flex gap-1.5">
-      {options.map(imp => {
-        const active = value === imp.value
-        return (
-          <button
-            key={imp.value}
-            type="button"
-            onClick={() => onChange(active ? '' : imp.value)}
-            className="flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border text-[11px] font-medium transition-all"
-            style={{
-              borderColor: active ? imp.color : 'rgba(255,255,255,0.08)',
-              background:  active ? `color-mix(in srgb, ${imp.color} 15%, transparent)` : 'rgba(255,255,255,0.02)',
-              color:       active ? imp.color : 'rgba(255,255,255,0.35)',
-            }}
-          >
-            <span className="flex gap-0.5">
-              {Array.from({ length: imp.dots }).map((_, i) => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: active ? imp.color : 'rgba(255,255,255,0.2)' }} />
-              ))}
-            </span>
-            {imp.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 export default function AddTransactionModal({ onClose, defaults = {}, transaction = null }) {
   const isEditing = !!transaction
@@ -592,6 +564,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
 
     setSaving(false)
     window.dispatchEvent(new CustomEvent('transaction-saved'))
+    showToast(isEditing ? 'Transaction updated' : 'Transaction saved')
     onClose()
   }
 

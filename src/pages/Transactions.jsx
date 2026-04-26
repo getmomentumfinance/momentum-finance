@@ -15,8 +15,16 @@ const DEFAULT_WIDTHS = {
   category: 120, subcategory: 120, label: 90, date: 80, card: 100, comment: 180,
 }
 
+const STORAGE_KEY = 'tx-col-widths'
+
 function useColResize(initial) {
-  const [widths, setWidths] = useState(initial)
+  const [widths, setWidths] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) return { ...initial, ...JSON.parse(saved) }
+    } catch {}
+    return initial
+  })
   const dragging = useRef(null)
 
   const onMouseDown = useCallback((col, e) => {
@@ -27,7 +35,11 @@ function useColResize(initial) {
       if (!dragging.current) return
       const { col, startX, startW } = dragging.current
       const next = Math.max(50, startW + e.clientX - startX)
-      setWidths(w => ({ ...w, [col]: next }))
+      setWidths(w => {
+        const updated = { ...w, [col]: next }
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)) } catch {}
+        return updated
+      })
     }
     function onUp() {
       dragging.current = null

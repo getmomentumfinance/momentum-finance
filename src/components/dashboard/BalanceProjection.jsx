@@ -1,11 +1,12 @@
 import { TableProperties } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useSharedData } from '../../context/SharedDataContext'
 
 function getPeriodKey(frequency, date) {
   const y = date.getFullYear()
@@ -13,6 +14,29 @@ function getPeriodKey(frequency, date) {
   if (frequency === 'monthly')   return `${y}-${String(m).padStart(2, '0')}`
   if (frequency === 'quarterly') return `${y}-Q${Math.ceil(m / 3)}`
   return `${y}`
+}
+
+function getBillDueDate(b, refDate) {
+  if ((b.frequency === 'quarterly' || b.frequency === 'yearly') && b.next_due_date) {
+    const today = new Date(); today.setHours(0,0,0,0)
+    let d = new Date(b.next_due_date + 'T00:00:00')
+    while (d < today) {
+      if (b.frequency === 'quarterly') d.setMonth(d.getMonth() + 3)
+      else d.setFullYear(d.getFullYear() + 1)
+    }
+    return d
+  }
+  const lastDay = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate()
+  return new Date(refDate.getFullYear(), refDate.getMonth(), Math.min(b.due_day || 1, lastDay))
+}
+
+function getBillPeriodKey(b, refDate) {
+  if ((b.frequency === 'quarterly' || b.frequency === 'yearly') && b.next_due_date) {
+    const d = getBillDueDate(b, refDate)
+    const dy = d.getFullYear(), dm = d.getMonth() + 1, dd = d.getDate()
+    return `${dy}-${String(dm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`
+  }
+  return `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`
 }
 
 const ROW_KEYS = [
@@ -26,116 +50,77 @@ const ROW_KEYS = [
 export default function BalanceProjection({ currentDate = new Date() }) {
   const { user } = useAuth()
   const c = useCardCustomization('Balance Projection')
-
   const { fmt, t } = usePreferences()
+  const { pendingItems, subscriptions, subPayments, recurringBills, billPayments, plannedBills } = useSharedData()
+
   const ROWS = ROW_KEYS.map(r => ({ ...r, label: t(r.tKey) }))
-  const [checked, setChecked] = useState({ recurring: true, pending: true, planned: false, subscriptions: false, wishlist: false })
-  const [amounts, setAmounts] = useState({ recurring: 0, pending: 0, planned: 0, subscriptions: 0, wishlist: 0 })
+  const [checked,   setChecked]   = useState({ recurring: true, pending: true, planned: false, subscriptions: false, wishlist: false })
+  const [wishlist,  setWishlist]  = useState(0)
   const [collapsed, setCollapsed] = useCollapsed('BalanceProjection')
-  const [mode, setMode] = useState('thisMonth')
+  const [mode,      setMode]      = useState('thisMonth')
 
   const toggle = (key) => setChecked(p => ({ ...p, [key]: !p[key] }))
 
+  // Only wishlist still needs its own fetch
   useEffect(() => {
     if (!user?.id) return
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, currentDate, mode])
+    async function loadWishlist() {
+      const { data } = await supabase
+        .from('wishlist').select('amount').eq('user_id', user.id).eq('status', 'active')
+      setWishlist((data ?? []).reduce((s, i) => s + (Number(i.amount) || 0), 0))
+    }
+    loadWishlist()
+    window.addEventListener('transaction-saved', loadWishlist)
+    return () => window.removeEventListener('transaction-saved', loadWishlist)
+  }, [user?.id])
 
-  async function load() {
+  const amounts = useMemo(() => {
     const y = currentDate.getFullYear()
     const m = currentDate.getMonth()
     const pad = n => String(n).padStart(2, '0')
     const monthStart = `${y}-${pad(m + 1)}-01`
     const monthEnd   = `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`
 
-    // ── Recurring bills ───────────────────────────────────────────
-    const { data: bills } = await supabase
-      .from('recurring_bills').select('id, amount, frequency, due_day, next_due_date').eq('user_id', user.id)
-
-    function getBillDueDate(b, refDate) {
-      if ((b.frequency === 'quarterly' || b.frequency === 'yearly') && b.next_due_date) {
-        const today = new Date(); today.setHours(0,0,0,0)
-        let d = new Date(b.next_due_date + 'T00:00:00')
-        while (d < today) {
-          if (b.frequency === 'quarterly') d.setMonth(d.getMonth() + 3)
-          else d.setFullYear(d.getFullYear() + 1)
-        }
-        return d
-      }
-      const lastDay = new Date(refDate.getFullYear(), refDate.getMonth() + 1, 0).getDate()
-      return new Date(refDate.getFullYear(), refDate.getMonth(), Math.min(b.due_day || 1, lastDay))
-    }
-
-    function getBillPeriodKey(b, refDate) {
-      if ((b.frequency === 'quarterly' || b.frequency === 'yearly') && b.next_due_date) {
-        const d = getBillDueDate(b, refDate)
-        const dy = d.getFullYear(), dm = d.getMonth() + 1, dd = d.getDate()
-        return `${dy}-${String(dm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`
-      }
-      return `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`
-    }
-
+    // Recurring bills
     let recurringTotal = 0
-    if (bills?.length) {
-      if (mode === 'thisMonth') {
-        const { data: payments } = await supabase
-          .from('recurring_bill_payments')
-          .select('bill_id, period')
-          .in('bill_id', bills.map(b => b.id))
-        recurringTotal = bills.reduce((sum, b) => {
-          const dueDate = getBillDueDate(b, currentDate)
-          // Only include if the due date falls within the current month
-          if (dueDate.getFullYear() !== y || dueDate.getMonth() !== m) return sum
-          const period = getBillPeriodKey(b, currentDate)
-          const paid = (payments ?? []).some(p => p.bill_id === b.id && p.period === period)
-          return paid ? sum : sum + Number(b.amount)
-        }, 0)
-      } else {
-        recurringTotal = bills.reduce((sum, b) => sum + Number(b.amount), 0)
+    if (mode === 'thisMonth') {
+      for (const b of recurringBills) {
+        const dueDate = getBillDueDate(b, currentDate)
+        if (dueDate.getFullYear() !== y || dueDate.getMonth() !== m) continue
+        const period = getBillPeriodKey(b, currentDate)
+        const paid = billPayments.some(p => p.bill_id === b.id && p.period === period)
+        if (!paid) recurringTotal += Number(b.amount)
       }
+    } else {
+      recurringTotal = recurringBills.reduce((sum, b) => sum + Number(b.amount), 0)
     }
 
-    // ── Pending items: status = 'pending' ─────────────────────────
-    let pendingQuery = supabase.from('pending_items').select('amount').eq('user_id', user.id).eq('status', 'pending')
-    if (mode === 'thisMonth') pendingQuery = pendingQuery.gte('pay_before', monthStart).lte('pay_before', monthEnd)
-    const { data: pendingItems } = await pendingQuery
-    const pendingTotal = (pendingItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
+    // Pending items
+    const pendingFiltered = mode === 'thisMonth'
+      ? pendingItems.filter(i => i.pay_before >= monthStart && i.pay_before <= monthEnd)
+      : pendingItems
+    const pendingTotal = pendingFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // ── Planned bills: status = 'pending' ─────────────────────────
-    let plannedQuery = supabase.from('planned_bills').select('amount').eq('user_id', user.id).eq('status', 'pending')
-    if (mode === 'thisMonth') plannedQuery = plannedQuery.gte('pay_before', monthStart).lte('pay_before', monthEnd)
-    const { data: plannedItems } = await plannedQuery
-    const plannedTotal = (plannedItems ?? []).reduce((s, i) => s + Number(i.amount), 0)
+    // Planned bills
+    const plannedFiltered = mode === 'thisMonth'
+      ? plannedBills.filter(i => i.pay_before >= monthStart && i.pay_before <= monthEnd)
+      : plannedBills
+    const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // ── Subscriptions ─────────────────────────────────────────────
-    const { data: allSubs } = await supabase
-      .from('subscriptions').select('id, amount').eq('user_id', user.id).eq('status', 'active')
-
+    // Subscriptions
     let subscriptionsTotal = 0
-    if (allSubs?.length) {
-      if (mode === 'thisMonth') {
-        const period = getPeriodKey('monthly', currentDate)
-        const { data: subPayments } = await supabase
-          .from('subscription_payments').select('subscription_id, period')
-          .in('subscription_id', allSubs.map(s => s.id))
-        subscriptionsTotal = allSubs.reduce((sum, s) => {
-          const paid = (subPayments ?? []).some(p => p.subscription_id === s.id && p.period === period)
-          return paid ? sum : sum + Number(s.amount)
-        }, 0)
-      } else {
-        subscriptionsTotal = allSubs.reduce((sum, s) => sum + Number(s.amount), 0)
+    if (mode === 'thisMonth') {
+      const period = getPeriodKey('monthly', currentDate)
+      for (const s of subscriptions) {
+        const paid = subPayments.some(p => p.subscription_id === s.id && p.period === period)
+        if (!paid) subscriptionsTotal += Number(s.amount)
       }
+    } else {
+      subscriptionsTotal = subscriptions.reduce((sum, s) => sum + Number(s.amount), 0)
     }
 
-    // ── Wishlist: active items with an amount ──────────────────────
-    const { data: wishlistItems } = await supabase
-      .from('wishlist').select('amount').eq('user_id', user.id).eq('status', 'active')
-    const wishlistTotal = (wishlistItems ?? []).reduce((s, i) => s + (Number(i.amount) || 0), 0)
-
-    setAmounts(prev => ({ ...prev, recurring: recurringTotal, pending: pendingTotal, planned: plannedTotal, subscriptions: subscriptionsTotal, wishlist: wishlistTotal }))
-  }
+    return { recurring: recurringTotal, pending: pendingTotal, planned: plannedTotal, subscriptions: subscriptionsTotal, wishlist }
+  }, [currentDate, mode, pendingItems, subscriptions, subPayments, recurringBills, billPayments, plannedBills, wishlist])
 
   const total = ROWS.reduce((sum, { key }) => checked[key] ? sum + amounts[key] : sum, 0)
 
