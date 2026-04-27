@@ -24,8 +24,18 @@ function getDueDate(billingDay, date) {
   return new Date(y, m, Math.min(billingDay, lastDay))
 }
 
-function DueBadge({ dueDate, isPaid, t }) {
+function DueBadge({ dueDate, isPaid, isTrial, trialEndsAt, t }) {
   if (isPaid) return null
+  if (isTrial) {
+    if (trialEndsAt) {
+      const today = new Date(); today.setHours(0, 0, 0, 0)
+      const trialDays = Math.round((new Date(trialEndsAt + 'T00:00:00') - today) / 86400000)
+      if (trialDays < 0)  return <span className="text-[10px]" style={{ color: 'var(--color-alert)' }}>Trial ended</span>
+      if (trialDays === 0) return <span className="text-[10px]" style={{ color: 'var(--color-warning)' }}>Trial ends today</span>
+      return <span className="text-[10px]" style={{ color: 'var(--color-accent)' }}>Free trial · {trialDays}d left</span>
+    }
+    return <span className="text-[10px]" style={{ color: 'var(--color-accent)' }}>Free trial</span>
+  }
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const days = Math.round((dueDate - today) / 86400000)
   if (days < 0)  return <span className="text-[10px]" style={{ color: 'var(--color-alert)' }}>{t('subs.overdue', { days: Math.abs(days) })}</span>
@@ -171,9 +181,11 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
   }
 
   const period        = getPeriodKey(currentDate)
-  const activeSubs    = subs.filter(s => s.status === 'active')
+  const activeSubs    = subs.filter(s => s.status === 'active' && !s.is_trial)
+  const trialSubs     = subs.filter(s => s.status === 'active' && s.is_trial)
   const cancelledSubs = subs.filter(s => s.status === 'cancelled')
-  const displayed     = (activeTab === 'active' ? activeSubs : cancelledSubs).filter(sub => {
+  const tabSubs       = activeTab === 'active' ? activeSubs : activeTab === 'trial' ? trialSubs : cancelledSubs
+  const displayed     = tabSubs.filter(sub => {
     if (!hidePaid || activeTab !== 'active') return true
     return !payments.some(p => p.subscription_id === sub.id && p.period === period)
   }).sort((a, b) => {
@@ -213,15 +225,17 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
           {!collapsed && (<>
           {/* Tabs */}
           <div className="flex gap-2 mb-4">
-            {['active', 'cancelled'].map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium capitalize transition-colors ${
-                  activeTab === tab ? 'bg-white/10 text-white' : 'text-muted hover:text-white'
+            {[
+              { key: 'active',    label: t('subs.active'),    count: null },
+              { key: 'trial',     label: 'Free trial',        count: trialSubs.length },
+              { key: 'cancelled', label: t('subs.cancelled'), count: cancelledSubs.length },
+            ].map(({ key, label, count }) => (
+              <button key={key} onClick={() => setActiveTab(key)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  activeTab === key ? 'bg-white/10 text-white' : 'text-muted hover:text-white'
                 }`}>
-                {tab === 'active' ? t('subs.active') : t('subs.cancelled')}
-                {tab === 'cancelled' && cancelledSubs.length > 0 && (
-                  <span className="ml-1.5 text-white/30">{cancelledSubs.length}</span>
-                )}
+                {label}
+                {count > 0 && <span className="ml-1.5 text-white/30">{count}</span>}
               </button>
             ))}
           </div>
@@ -230,7 +244,7 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
           {loading ? (
             <p className="text-center text-muted text-xs py-4">{t('common.loading')}</p>
           ) : displayed.length === 0 ? (
-            <p className="text-center text-muted text-sm py-6">{activeTab === 'active' ? t('subs.noActive') : t('subs.noCancelled')}</p>
+            <p className="text-center text-muted text-sm py-6">{activeTab === 'trial' ? 'No free trials' : activeTab === 'active' ? t('subs.noActive') : t('subs.noCancelled')}</p>
           ) : (
             <div className="flex flex-col divide-y divide-white/[0.04]">
               {displayed.map(sub => {
@@ -291,7 +305,7 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
                               {subCat && <CategoryPill name={subCat.name} color={subCat.color} icon={subCat.icon} />}
                             </div>
                           )}
-                          <div className="mt-1"><DueBadge dueDate={dueDate} isPaid={isPaid} t={t} /></div>
+                          <div className="mt-1"><DueBadge dueDate={dueDate} isPaid={isPaid} isTrial={sub.is_trial} trialEndsAt={sub.trial_ends_at} t={t} /></div>
                         </>
                       )}
                     </div>

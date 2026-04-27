@@ -81,8 +81,8 @@ export function useNotifications(userId, currentDate) {
       if (subPayments.some(p => p.subscription_id === s.id && p.period === subPeriod)) continue
       const lastDay = new Date(year, month + 1, 0).getDate()
       const dueDate = new Date(year, month, Math.min(s.billing_day, lastDay))
-      // Skip if still within free trial period
-      if (s.is_trial && s.trial_ends_at && dueDate.toISOString().slice(0, 10) <= s.trial_ends_at) {
+      // Skip if free trial (with or without end date)
+      if (s.is_trial) {
         // Instead alert when trial is ending soon
         const trialEnd = new Date(s.trial_ends_at + 'T00:00:00')
         const trialDaysLeft = Math.round((trialEnd - today) / 86400000)
