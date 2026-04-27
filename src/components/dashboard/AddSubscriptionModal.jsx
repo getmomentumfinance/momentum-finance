@@ -6,6 +6,8 @@ import { useAuth } from '../../context/AuthContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
+import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
@@ -117,6 +119,7 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
   const isEdit = !!sub
   const { user } = useAuth()
   const { cards } = useCards()
+  const { importance: importanceOptions } = useImportance()
 
   const [name,       setName]       = useState(sub?.name           ?? '')
   const [icon,       setIcon]       = useState(sub?.icon           ?? '')
@@ -126,8 +129,11 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
   const [categoryId, setCategoryId] = useState(sub?.category_id    ?? '')
   const [subId,      setSubId]      = useState(sub?.subcategory_id ?? '')
   const [cardId,     setCardId]     = useState(sub?.card_id        ?? '')
-  const [comment,    setComment]    = useState(sub?.comment        ?? '')
-  const [saving,     setSaving]     = useState(false)
+  const [comment,      setComment]      = useState(sub?.comment        ?? '')
+  const [importance,   setImportance]   = useState(sub?.importance     ?? '')
+  const [isTrial,      setIsTrial]      = useState(sub?.is_trial       ?? false)
+  const [trialEndsAt,  setTrialEndsAt]  = useState(sub?.trial_ends_at  ?? '')
+  const [saving,       setSaving]       = useState(false)
   const [deleting,   setDeleting]   = useState(false)
   const [categories, setCategories] = useState([])
   const [receivers,  setReceivers]  = useState([])
@@ -166,6 +172,9 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
       subcategory_id: subId       || null,
       card_id:        cardId      || null,
       comment:        comment.trim() || null,
+      importance:     importance     || null,
+      is_trial:       isTrial,
+      trial_ends_at:  isTrial && trialEndsAt ? trialEndsAt : null,
     }
     const { error } = isEdit
       ? await supabase.from('subscriptions').update(payload).eq('id', sub.id)
@@ -233,6 +242,35 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
             </div>
           </div>
 
+          {/* Free trial toggle */}
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => { setIsTrial(v => !v); if (isTrial) setTrialEndsAt('') }}
+              className="flex items-center justify-between w-full"
+            >
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-xs text-muted uppercase tracking-widest">Free trial</span>
+                {isTrial && <span className="text-[11px] text-white/35">Amount is €0 until trial ends</span>}
+              </div>
+              <div className={`w-10 h-5.5 rounded-full transition-colors relative flex items-center ${isTrial ? 'bg-accent' : 'bg-white/10'}`}
+                style={{ background: isTrial ? 'var(--color-accent)' : undefined }}>
+                <div className={`absolute w-4 h-4 rounded-full bg-white shadow transition-transform ${isTrial ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </div>
+            </button>
+            {isTrial && (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-muted uppercase tracking-widest">Trial ends on</label>
+                <input
+                  type="date"
+                  value={trialEndsAt}
+                  onChange={e => setTrialEndsAt(e.target.value)}
+                  className={inp + ' [color-scheme:dark]'}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-2">
               <label className="text-xs text-muted uppercase tracking-widest">Category</label>
@@ -258,6 +296,11 @@ export default function AddSubscriptionModal({ onClose, onSaved, sub = null }) {
             </label>
             <textarea value={comment} onChange={e => setComment(e.target.value)}
               placeholder="Add a description…" rows={3} className={inp + ' resize-none'} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+            <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
           </div>
 
           <div className="flex gap-3 pt-1">
