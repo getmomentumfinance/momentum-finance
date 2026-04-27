@@ -81,6 +81,21 @@ export function useNotifications(userId, currentDate) {
       if (subPayments.some(p => p.subscription_id === s.id && p.period === subPeriod)) continue
       const lastDay = new Date(year, month + 1, 0).getDate()
       const dueDate = new Date(year, month, Math.min(s.billing_day, lastDay))
+      // Skip if still within free trial period
+      if (s.is_trial && s.trial_ends_at && dueDate.toISOString().slice(0, 10) <= s.trial_ends_at) {
+        // Instead alert when trial is ending soon
+        const trialEnd = new Date(s.trial_ends_at + 'T00:00:00')
+        const trialDaysLeft = Math.round((trialEnd - today) / 86400000)
+        if (trialDaysLeft >= 0 && trialDaysLeft <= 7) {
+          actions.push({
+            id: `trial-${s.id}`, type: 'sub', recordId: s.id,
+            severity: trialDaysLeft <= 1 ? 'alert' : 'warning', label: s.name,
+            detail: `Free trial ends ${trialDaysLeft === 0 ? 'today' : `in ${trialDaysLeft}d`} · then ${fmtAmt(s.amount)}/mo`,
+            amount: s.amount, period: subPeriod, canPay: false,
+          })
+        }
+        continue
+      }
       const daysLeft = Math.round((dueDate - today) / 86400000)
       if (daysLeft >= 0 && daysLeft <= 7) {
         actions.push({

@@ -62,7 +62,7 @@ export function SharedDataProvider({ children }) {
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
       supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, is_split_parent, date').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),
-      supabase.from('subscriptions').select('id, name, amount, billing_day, status').eq('user_id', user.id).eq('status', 'active'),
+      supabase.from('subscriptions').select('id, name, amount, billing_day, status, is_trial, trial_ends_at').eq('user_id', user.id).eq('status', 'active'),
       supabase.from('recurring_bills').select('id, name, amount, frequency, due_day, next_due_date').eq('user_id', user.id),
       supabase.from('planned_bills').select('id, name, amount, pay_before').eq('user_id', user.id).eq('status', 'pending'),
     ])

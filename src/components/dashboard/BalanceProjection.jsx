@@ -107,16 +107,22 @@ export default function BalanceProjection({ currentDate = new Date() }) {
       : plannedBills
     const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // Subscriptions
+    // Subscriptions (skip free trials whose billing date is within the trial period)
+    const inTrial = (s) => {
+      if (!s.is_trial || !s.trial_ends_at) return false
+      const bd = new Date(y, m, Math.min(s.billing_day, new Date(y, m + 1, 0).getDate()))
+      return bd.toISOString().slice(0, 10) <= s.trial_ends_at
+    }
     let subscriptionsTotal = 0
     if (mode === 'thisMonth') {
       const period = getPeriodKey('monthly', currentDate)
       for (const s of subscriptions) {
+        if (inTrial(s)) continue
         const paid = subPayments.some(p => p.subscription_id === s.id && p.period === period)
         if (!paid) subscriptionsTotal += Number(s.amount)
       }
     } else {
-      subscriptionsTotal = subscriptions.reduce((sum, s) => sum + Number(s.amount), 0)
+      subscriptionsTotal = subscriptions.filter(s => !inTrial(s)).reduce((sum, s) => sum + Number(s.amount), 0)
     }
 
     return { recurring: recurringTotal, pending: pendingTotal, planned: plannedTotal, subscriptions: subscriptionsTotal, wishlist }

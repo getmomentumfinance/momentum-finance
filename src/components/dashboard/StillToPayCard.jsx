@@ -2,6 +2,11 @@ import { useMemo } from 'react'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
 
+function isInTrial(sub, billingDate) {
+  if (!sub.is_trial || !sub.trial_ends_at) return false
+  return billingDate.toISOString().slice(0, 10) <= sub.trial_ends_at
+}
+
 function getNextDueDate(nextDueDateStr, frequency) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   let d = new Date(nextDueDateStr + 'T00:00:00')
@@ -59,10 +64,12 @@ export default function StillToPayCard({ currentDate = new Date() }) {
     const plannedCount = plannedFiltered.length
     const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // Active subscriptions unpaid this month
+    // Active subscriptions unpaid this month (skip free trials)
     const period = `${y}-${String(m + 1).padStart(2, '0')}`
     let subsCount = 0, subsTotal = 0
     for (const s of subscriptions) {
+      const billingDate = new Date(y, m, Math.min(s.billing_day, new Date(y, m + 1, 0).getDate()))
+      if (isInTrial(s, billingDate)) continue
       const paid = subPayments.some(p => p.subscription_id === s.id && p.period === period)
       if (!paid) { subsCount++; subsTotal += Number(s.amount) }
     }
