@@ -31,6 +31,29 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" />
 }
 
+// Debounce transaction-saved at the source — all 20+ listeners collapse into one burst
+function TransactionSavedDebouncer() {
+  useEffect(() => {
+    let timer = null
+    let pending = null
+    const original = window.dispatchEvent.bind(window)
+    window.dispatchEvent = function(event) {
+      if (event.type === 'transaction-saved') {
+        pending = event
+        clearTimeout(timer)
+        timer = setTimeout(() => { original(pending); pending = null }, 350)
+        return true
+      }
+      return original(event)
+    }
+    return () => {
+      window.dispatchEvent = original
+      clearTimeout(timer)
+    }
+  }, [])
+  return null
+}
+
 // Silently checks for updates on startup — only runs inside the Tauri app
 function UpdateChecker() {
   useEffect(() => {
@@ -96,6 +119,7 @@ export default function App() {
             <SharedDataProvider>
               <TransactionModalProvider>
               <ThemeApplier />
+              <TransactionSavedDebouncer />
               <UpdateChecker />
               <Toast />
               <div id="design-overlay" aria-hidden="true" />

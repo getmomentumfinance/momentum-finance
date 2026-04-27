@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthContext'
 import { extractNColors } from '../utils/gradientColors'
@@ -39,6 +39,8 @@ export function SharedDataProvider({ children }) {
   const [billPayments,     setBillPayments]     = useState([])
   const [plannedBills,     setPlannedBills]     = useState([])
 
+  const debounceRef = useRef(null)
+
   const load = useCallback(async () => {
     if (!user?.id) return
 
@@ -58,7 +60,7 @@ export function SharedDataProvider({ children }) {
       supabase.from('receivers').select('*').eq('user_id', user.id),
       supabase.from('receiver_groups').select('*').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
-      supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, is_split_parent, date').eq('user_id', user.id).eq('is_deleted', false),
+      supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, is_split_parent, date').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),
       supabase.from('subscriptions').select('id, name, amount, billing_day, status').eq('user_id', user.id).eq('status', 'active'),
       supabase.from('recurring_bills').select('id, name, amount, frequency, due_day, next_due_date').eq('user_id', user.id),
@@ -116,11 +118,16 @@ export function SharedDataProvider({ children }) {
   }, [user?.id, load])
 
   useEffect(() => {
-    window.addEventListener('transaction-saved', load)
-    window.addEventListener('receiver-group-saved', load)
+    function debouncedLoad() {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(load, 300)
+    }
+    window.addEventListener('transaction-saved', debouncedLoad)
+    window.addEventListener('receiver-group-saved', debouncedLoad)
     return () => {
-      window.removeEventListener('transaction-saved', load)
-      window.removeEventListener('receiver-group-saved', load)
+      window.removeEventListener('transaction-saved', debouncedLoad)
+      window.removeEventListener('receiver-group-saved', debouncedLoad)
+      clearTimeout(debounceRef.current)
     }
   }, [load])
 
