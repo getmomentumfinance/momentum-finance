@@ -9,6 +9,7 @@ import { fetchHistoricalPrice, fetchLivePrice } from '../../lib/yahooFinance'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar as SharedReceiverAvatar } from '../shared/ReceiverCombobox'
@@ -296,20 +297,15 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [saving,      setSaving]      = useState(false)
   const [pendingSplit, setPendingSplit] = useState(null) // transaction to split after save
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
-  const [categories,    setCategories]    = useState([])
-  const [receivers,     setReceivers]     = useState([])
-  const [tickers,       setTickers]       = useState([])
-  const [cardTxs,       setCardTxs]       = useState([])
+  const { categories, receivers: sharedReceivers, allTransactions } = useSharedData()
+  const [extraReceivers, setExtraReceivers] = useState([])
+  const receivers = [...sharedReceivers, ...extraReceivers]
+  const cardTxs   = allTransactions
+  const [tickers, setTickers] = useState([])
 
   useEffect(() => {
     if (!user?.id) return
-    supabase.from('categories').select('*').eq('user_id', user.id)
-      .then(({ data }) => { if (data) setCategories(data) })
-    supabase.from('receivers').select('*').eq('user_id', user.id).order('name')
-      .then(({ data }) => { if (data) setReceivers(data) })
-    supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id').eq('user_id', user.id).eq('is_deleted', false)
-      .then(({ data }) => { if (data) setCardTxs(data) })
-    supabase.from('tickers').select('*').eq('user_id', user.id).order('symbol')
+    supabase.from('tickers').select('id, symbol, name, quantity, avg_price').eq('user_id', user.id).order('symbol')
       .then(({ data }) => { if (data) setTickers(data) })
   }, [user?.id])
 
@@ -320,7 +316,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       .select()
       .single()
     if (!error && data) {
-      setReceivers(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      setExtraReceivers(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       setDescription(data.name)
       setReceiverId(data.id)
     }
