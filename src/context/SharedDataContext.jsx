@@ -39,10 +39,15 @@ export function SharedDataProvider({ children }) {
   const [billPayments,     setBillPayments]     = useState([])
   const [plannedBills,     setPlannedBills]     = useState([])
 
-  const debounceRef = useRef(null)
+  const debounceRef  = useRef(null)
+  const lastLoadRef  = useRef(0)
 
   const load = useCallback(async () => {
     if (!user?.id) return
+    // Skip if loaded within the last 10 seconds (prevents burst refetches)
+    const now = Date.now()
+    if (now - lastLoadRef.current < 10000) return
+    lastLoadRef.current = now
 
     // First batch — all independent queries in parallel
     const [
@@ -57,8 +62,8 @@ export function SharedDataProvider({ children }) {
       { data: plannedData },
     ] = await Promise.all([
       supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
-      supabase.from('receivers').select('*').eq('user_id', user.id),
-      supabase.from('receiver_groups').select('*').eq('user_id', user.id).order('created_at'),
+      supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
+      supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
       supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, is_split_parent, date').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),

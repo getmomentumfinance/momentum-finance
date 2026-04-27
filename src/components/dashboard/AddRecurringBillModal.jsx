@@ -3,10 +3,13 @@ import { createPortal } from 'react-dom'
 import { X, ChevronDown, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 
 function todayStr() {
   const d = new Date()
@@ -153,6 +156,8 @@ export default function AddRecurringBillModal({ onClose, onSaved, bill = null })
   const { cards } = useCards()
   const { symbol } = usePreferences()
 
+  const { importance: importanceOptions } = useImportance()
+
   const [name,       setName]       = useState(bill?.name        ?? '')
   const [icon,       setIcon]       = useState(bill?.icon        ?? '')
   const [receiverId, setReceiverId] = useState(bill?.receiver_id ?? '')
@@ -165,18 +170,13 @@ export default function AddRecurringBillModal({ onClose, onSaved, bill = null })
   const [cardId,     setCardId]     = useState(bill?.card_id     ?? '')
   const [comment,    setComment]    = useState(bill?.comment     ?? '')
   const [reminder,   setReminder]   = useState(bill?.reminder    ?? 'none')
+  const [importance, setImportance] = useState(bill?.importance  ?? '')
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(false)
-  const [categories, setCategories] = useState([])
-  const [receivers,  setReceivers]  = useState([])
+  const [extraReceivers, setExtraReceivers] = useState([])
+  const { categories, receivers: sharedReceivers } = useSharedData()
+  const receivers = [...sharedReceivers, ...extraReceivers]
 
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('categories').select('*').eq('user_id', user.id)
-      .then(({ data }) => setCategories(data ?? []))
-    supabase.from('receivers').select('*').eq('user_id', user.id).order('name')
-      .then(({ data }) => setReceivers(data ?? []))
-  }, [user?.id])
 
   useEffect(() => { if (!isEdit) setSubId('') }, [categoryId])
 
@@ -188,7 +188,7 @@ export default function AddRecurringBillModal({ onClose, onSaved, bill = null })
     const { data } = await supabase.from('receivers').insert({
       user_id: user.id, name, type, domain: null, logo_url: null,
     }).select().single()
-    if (data) setReceivers(prev => [...prev, data])
+    if (data) setExtraReceivers(prev => [...prev, data])
   }
 
   async function handleSave() {
@@ -209,6 +209,7 @@ export default function AddRecurringBillModal({ onClose, onSaved, bill = null })
       card_id:        cardId      || null,
       comment:        comment.trim() || null,
       reminder,
+      importance:     importance     || null,
     }
     const { error } = isEdit
       ? await supabase.from('recurring_bills').update(payload).eq('id', bill.id)
@@ -375,6 +376,12 @@ export default function AddRecurringBillModal({ onClose, onSaved, bill = null })
             <select value={reminder} onChange={e => setReminder(e.target.value)} className={sel}>
               {REMINDERS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
+          </div>
+
+          {/* Importance */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+            <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
           </div>
 
           {/* Actions */}

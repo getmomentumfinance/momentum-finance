@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, ChevronDown, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
@@ -152,16 +153,10 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const [importance, setImportance] = useState(item?.importance  ?? '')
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(false)
-  const [categories, setCategories] = useState([])
-  const [receivers,  setReceivers]  = useState([])
+  const [extraReceivers, setExtraReceivers] = useState([])
+  const { categories, receivers: sharedReceivers } = useSharedData()
+  const receivers = [...sharedReceivers, ...extraReceivers]
 
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('categories').select('*').eq('user_id', user.id)
-      .then(({ data }) => setCategories(data ?? []))
-    supabase.from('receivers').select('*').eq('user_id', user.id).order('name')
-      .then(({ data }) => setReceivers(data ?? []))
-  }, [user?.id])
 
   useEffect(() => { if (!isEdit) setSubId('') }, [categoryId])
 
@@ -173,7 +168,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     const { data } = await supabase.from('receivers').insert({
       user_id: user.id, name, type, domain: null, logo_url: null,
     }).select().single()
-    if (data) setReceivers(prev => [...prev, data])
+    if (data) setExtraReceivers(prev => [...prev, data])
   }
 
   function parseAmount(val) { return parseFloat(String(val).replace(',', '.')) }

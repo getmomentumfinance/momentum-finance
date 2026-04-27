@@ -3,9 +3,12 @@ import { createPortal } from 'react-dom'
 import { X, ChevronDown, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
+import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
@@ -130,6 +133,7 @@ export default function AddPlannedBillModal({ onClose, onSaved, item = null }) {
   const isEdit = !!item
   const { user } = useAuth()
   const { cards } = useCards()
+  const { importance: importanceOptions } = useImportance()
 
   const [name,       setName]       = useState(item?.name           ?? '')
   const [icon,       setIcon]       = useState(item?.icon           ?? '')
@@ -140,18 +144,13 @@ export default function AddPlannedBillModal({ onClose, onSaved, item = null }) {
   const [subId,      setSubId]      = useState(item?.subcategory_id ?? '')
   const [cardId,     setCardId]     = useState(item?.card_id        ?? '')
   const [comment,    setComment]    = useState(item?.comment        ?? '')
+  const [importance, setImportance] = useState(item?.importance     ?? '')
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(false)
-  const [categories, setCategories] = useState([])
-  const [receivers,  setReceivers]  = useState([])
+  const [extraReceivers, setExtraReceivers] = useState([])
+  const { categories, receivers: sharedReceivers } = useSharedData()
+  const receivers = [...sharedReceivers, ...extraReceivers]
 
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('categories').select('*').eq('user_id', user.id)
-      .then(({ data }) => setCategories(data ?? []))
-    supabase.from('receivers').select('*').eq('user_id', user.id).order('name')
-      .then(({ data }) => setReceivers(data ?? []))
-  }, [user?.id])
 
   useEffect(() => { if (!isEdit) setSubId('') }, [categoryId])
 
@@ -163,7 +162,7 @@ export default function AddPlannedBillModal({ onClose, onSaved, item = null }) {
     const { data } = await supabase.from('receivers').insert({
       user_id: user.id, name, type, domain: null, logo_url: null,
     }).select().single()
-    if (data) setReceivers(prev => [...prev, data])
+    if (data) setExtraReceivers(prev => [...prev, data])
   }
 
   async function handleSave() {
@@ -179,6 +178,7 @@ export default function AddPlannedBillModal({ onClose, onSaved, item = null }) {
       subcategory_id: subId       || null,
       card_id:        cardId      || null,
       comment:        comment.trim() || null,
+      importance:     importance     || null,
     }
     const { error } = isEdit
       ? await supabase.from('planned_bills').update(payload).eq('id', item.id)
@@ -301,6 +301,12 @@ export default function AddPlannedBillModal({ onClose, onSaved, item = null }) {
               rows={3}
               className={inp + ' resize-none'}
             />
+          </div>
+
+          {/* Importance */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+            <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
           </div>
 
           {/* Actions */}

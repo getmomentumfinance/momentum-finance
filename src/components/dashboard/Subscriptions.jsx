@@ -85,7 +85,7 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
 
   async function load() {
     setLoading(true)
-    const { data: subsData } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).order('created_at')
+    const { data: subsData } = await supabase.from('subscriptions').select('id, name, icon, amount, billing_day, status, category_id, subcategory_id, receiver_id, card_id, is_trial, trial_ends_at').eq('user_id', user.id).order('created_at')
     const allSubs = (subsData ?? []).sort((a, b) => a.billing_day - b.billing_day)
     setSubs(allSubs)
 

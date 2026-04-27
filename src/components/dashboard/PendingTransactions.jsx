@@ -94,8 +94,8 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10)
     const end   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10)
     const [{ data: activeData }, { data: paidData }] = await Promise.all([
-      supabase.from('pending_items').select('*').eq('user_id', user.id).in('status', ['pending', 'returned']).order('pay_before'),
-      supabase.from('pending_items').select('*').eq('user_id', user.id).eq('status', 'paid').gte('pay_before', start).lte('pay_before', end).order('pay_before'),
+      supabase.from('pending_items').select('id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at').eq('user_id', user.id).in('status', ['pending', 'returned']).order('pay_before'),
+      supabase.from('pending_items').select('id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at').eq('user_id', user.id).eq('status', 'paid').gte('pay_before', start).lte('pay_before', end).order('pay_before'),
     ])
     setItems([...(activeData ?? []), ...(paidData ?? [])].sort((a, b) => {
       const aDone = a.status !== 'pending', bDone = b.status !== 'pending'
