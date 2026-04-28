@@ -25,6 +25,7 @@ import { useIsMobile } from '../hooks/useIsMobile'
 import { useUIPrefs } from '../context/UIPrefContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
 import { toLocalStr, getPeriodBounds } from '../utils/budgetPeriod'
+import MoneyFlowTab from '../components/analytics/MoneyFlowTab'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -516,6 +517,7 @@ export default function Analytics() {
   const { setPref, loaded: prefsLoaded } = useUIPrefs()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [range, setRange] = useState('month')
+  const [view,  setView]  = useState('spending') // 'spending' | 'money-flow'
   const [compareDate, setCompareDate] = useState(() => {
     const d = new Date(); return new Date(d.getFullYear(), d.getMonth() - 1, 1)
   })
@@ -1778,6 +1780,22 @@ export default function Analytics() {
 
       <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
 
+        {/* View tabs — Spending / Money Flow */}
+        <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max mb-4">
+          {[{ id: 'spending', label: 'Spending' }, { id: 'money-flow', label: 'Money Flow' }].map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                view === id ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Title + range tabs */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
@@ -1853,7 +1871,13 @@ export default function Analytics() {
           </div>
         </div>
 
-        <div key={range} className="tab-fade-in">
+        {view === 'money-flow' && (
+          <div key="money-flow" className="tab-fade-in">
+            <MoneyFlowTab range={range === 'compare' ? 'month' : range} currentDate={currentDate} />
+          </div>
+        )}
+
+        {view === 'spending' && <div key={range} className="tab-fade-in">
 
         {/* ── Compare view ── */}
         {range === 'compare' && (() => {
@@ -3032,7 +3056,7 @@ export default function Analytics() {
         </div>
         )}
 
-        </div>{/* end key={range} tab-fade-in */}
+        </div>}{/* end key={range} tab-fade-in / spending view */}
 
       </div>
     </div>
