@@ -44,9 +44,9 @@ export function SharedDataProvider({ children }) {
 
   const load = useCallback(async () => {
     if (!user?.id) return
-    // Skip if loaded within the last 10 seconds (prevents burst refetches)
+    // Skip if loaded within the last 30 seconds (prevents burst refetches)
     const now = Date.now()
-    if (now - lastLoadRef.current < 10000) return
+    if (now - lastLoadRef.current < 30000) return
     lastLoadRef.current = now
 
     // First batch — all independent queries in parallel
@@ -65,7 +65,7 @@ export function SharedDataProvider({ children }) {
       supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
-      supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, is_split_parent, date').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false),
+      supabase.from('transactions').select('card_id, type, amount, is_cash, split_parent_id, date').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),
       supabase.from('subscriptions').select('id, name, amount, billing_day, status, is_trial, trial_ends_at').eq('user_id', user.id).eq('status', 'active'),
       supabase.from('recurring_bills').select('id, name, amount, frequency, due_day, next_due_date').eq('user_id', user.id),
