@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useSharedData } from '../context/SharedDataContext'
@@ -19,10 +19,24 @@ export function useNotifications(userId, currentDate) {
   const [items,   setItems]   = useState([])
   const [loading, setLoading] = useState(true)
   const { fmt: fmtAmt } = usePreferences()
-  const { pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments } = useSharedData()
+  const shared = useSharedData()
+
+  // Use a ref so load() always reads the latest context values
+  // without needing them as useCallback deps (which would cause infinite loops)
+  const sharedRef = useRef({})
+  sharedRef.current = {
+    pendingItems:  shared.pendingItems,
+    plannedBills:  shared.plannedBills,
+    recurringBills: shared.recurringBills,
+    billPayments:  shared.billPayments,
+    subscriptions: shared.subscriptions,
+    subPayments:   shared.subPayments,
+  }
 
   const load = useCallback(async () => {
     if (!userId) return
+    const { pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments } = sharedRef.current
+
     const today    = new Date(); today.setHours(0, 0, 0, 0)
     const todayStr = today.toISOString().slice(0, 10)
     const in3dStr  = new Date(today.getTime() + 3 * 86400000).toISOString().slice(0, 10)
@@ -218,7 +232,7 @@ export function useNotifications(userId, currentDate) {
     actions.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
     setItems(actions)
     setLoading(false)
-  }, [userId, currentDate, pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments])
+  }, [userId, currentDate])
 
   useEffect(() => {
     load()
