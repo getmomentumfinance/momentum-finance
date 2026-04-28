@@ -8,15 +8,81 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useThemeColors } from '../../hooks/useThemeColors'
 
-// How each card type contributes to balance metrics
-const BALANCE_TYPES = new Set(['debit', 'credit'])
-const CARD_PALETTE  = ['#38bdf8','#fb923c','#a3e635','#e879f9','#2dd4bf','#f87171','#facc15','#a78bfa']
+const CREDIT       = new Set(['income'])
+const DEBIT_CREDIT = new Set(['debit', 'credit'])
+const CARD_PALETTE = ['#38bdf8','#fb923c','#a3e635','#e879f9','#2dd4bf','#f87171','#facc15','#a78bfa']
+const MUTED        = 'rgba(255,255,255,0.35)'
+const GRID         = 'rgba(255,255,255,0.04)'
 
+// ── Exact same formulas as Dashboard.jsx ────────────────────────────────────
+function computeCurrentValues(cards, allTxs, currentDate) {
+  const nonSplit = allTxs.filter(t => !t.split_parent_id)
+
+  // debit + credit running balance
+  let debitCredit = 0
+  for (const card of cards) {
+    if (!DEBIT_CREDIT.has(card.type)) continue
+    const delta = nonSplit
+      .filter(t => t.card_id === card.id && !t.is_cash)
+      .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+    debitCredit += Number(card.initial_balance) + delta
+  }
+
+  // cash
+  const cashInitial = cards.filter(c => c.type === 'cash').reduce((s, c) => s + Number(c.initial_balance), 0)
+  const cashDelta   = nonSplit.filter(t => t.is_cash).reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+  const cash        = cashInitial + cashDelta
+  const total       = debitCredit + cash
+
+  // savings — global savings_in / savings_out (matches dashboard exactly)
+  const savingsInitial = cards.filter(c => c.type === 'savings').reduce((s, c) => s + Number(c.initial_balance), 0)
+  const savIn          = nonSplit.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const savOut         = nonSplit.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const savings        = savingsInitial + savIn - savOut
+
+  // invest card balance (cost basis — not live market value)
+  let invest = 0
+  for (const card of cards) {
+    if (card.type !== 'invest') continue
+    const delta = nonSplit
+      .filter(t => t.card_id === card.id && !t.is_cash)
+      .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+    invest += Number(card.initial_balance) + delta
+  }
+
+  // income this month (same as dashboard stat card)
+  const y = currentDate.getFullYear(), m = currentDate.getMonth()
+  const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
+  const monthEnd   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+  const income = nonSplit
+    .filter(t => t.type === 'income' && t.date >= monthStart && t.date <= monthEnd)
+    .reduce((s, t) => s + t.amount, 0)
+
+  // per-card current balances
+  const perCard = {}
+  for (const card of cards) {
+    if (card.type === 'cash') {
+      perCard[card.id] = Number(card.initial_balance) + cashDelta
+    } else if (card.type === 'savings') {
+      const si = nonSplit.filter(t => t.card_id === card.id && t.source === 'savings_in').reduce((s,t)=>s+t.amount,0)
+      const so = nonSplit.filter(t => t.card_id === card.id && t.source === 'savings_out').reduce((s,t)=>s+t.amount,0)
+      perCard[card.id] = Number(card.initial_balance) + si - so
+    } else {
+      const delta = nonSplit
+        .filter(t => t.card_id === card.id && !t.is_cash)
+        .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+      perCard[card.id] = Number(card.initial_balance) + delta
+    }
+  }
+
+  return { total, cash, savings, invest, income, perCard }
+}
+
+// ── Date generation ──────────────────────────────────────────────────────────
 function toStr(d) { return d.toISOString().slice(0, 10) }
 
 function buildDates(range, currentDate, firstTxDate) {
-  const y = currentDate.getFullYear()
-  const m = currentDate.getMonth()
+  const y = currentDate.getFullYear(), m = currentDate.getMonth()
   const res = []
 
   if (range === 'week') {
@@ -47,8 +113,8 @@ function buildDates(range, currentDate, firstTxDate) {
     }
   } else {
     const from = firstTxDate ? new Date(firstTxDate.slice(0, 7) + '-01') : new Date(new Date().getFullYear() - 3, 0, 1)
-    const now = new Date(); now.setDate(1)
-    const cur = new Date(from)
+    const now  = new Date(); now.setDate(1)
+    const cur  = new Date(from)
     while (cur <= now) {
       const last = new Date(cur.getFullYear(), cur.getMonth() + 1, 0)
       res.push({ key: toStr(last), label: cur.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }) })
@@ -58,10 +124,8 @@ function buildDates(range, currentDate, firstTxDate) {
   return res
 }
 
-const MUTED = 'rgba(255,255,255,0.35)'
-const GRID  = 'rgba(255,255,255,0.04)'
-
-function FlowTooltip({ active, payload, label, fmt, filterDefs }) {
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+function FlowTooltip({ active, payload, label, fmt }) {
   if (!active || !payload?.length) return null
   const items = payload.filter(p => p.value != null)
   if (!items.length) return null
@@ -78,34 +142,35 @@ function FlowTooltip({ active, payload, label, fmt, filterDefs }) {
   )
 }
 
+// ── Main component ───────────────────────────────────────────────────────────
 export default function MoneyFlowTab({ range, currentDate }) {
   const { cards, allTransactions } = useSharedData()
-  const { fmt, fmtK } = usePreferences()
-  const colors = useThemeColors()
+  const { fmt, fmtK }   = usePreferences()
+  const colors          = useThemeColors()
 
-  // ── Summary metric definitions (matching homepage stat cards) ──
+  // Current values computed with exact same formulas as the dashboard stat cards
+  const current = useMemo(
+    () => computeCurrentValues(cards, allTransactions, currentDate),
+    [cards, allTransactions, currentDate]
+  )
+
   const METRICS = useMemo(() => [
-    { key: 'total',   label: 'Total Balance', Icon: Wallet,         color: colors.accent  ?? '#a78bfa' },
-    { key: 'cash',    label: 'Cash',          Icon: Banknote,       color: '#fbbf24' },
-    { key: 'invest',  label: 'Investments',   Icon: LineChartIcon,  color: '#f472b6' },
-    { key: 'savings', label: 'Savings',       Icon: PiggyBank,      color: '#818cf8' },
-    { key: 'income',  label: 'Income',        Icon: TrendingUp,     color: colors.income  ?? '#4ade80' },
+    { key: 'total',   label: 'Total Balance', Icon: Wallet,        color: colors.accent ?? '#a78bfa' },
+    { key: 'cash',    label: 'Cash',          Icon: Banknote,      color: '#fbbf24' },
+    { key: 'invest',  label: 'Investments',   Icon: LineChartIcon, color: '#f472b6' },
+    { key: 'savings', label: 'Savings',       Icon: PiggyBank,     color: '#818cf8' },
+    { key: 'income',  label: 'Income',        Icon: TrendingUp,    color: colors.income ?? '#4ade80' },
   ], [colors.accent, colors.income])
 
-  // ── Per-card definitions (user cards) ──
   const cardDefs = useMemo(() =>
     cards.map((c, i) => ({
-      key:   `card_${c.id}`,
-      label: c.name,
-      Icon:  CreditCard,
-      color: CARD_PALETTE[i % CARD_PALETTE.length],
-      card:  c,
+      key: `card_${c.id}`, label: c.name, Icon: CreditCard,
+      color: CARD_PALETTE[i % CARD_PALETTE.length], card: c,
     }))
   , [cards])
 
   const allDefs = useMemo(() => [...METRICS, ...cardDefs], [METRICS, cardDefs])
 
-  // ── Selection state — default: Total Balance only ──
   const [selected, setSelected] = useState(new Set(['total']))
   function toggle(key) {
     setSelected(prev => {
@@ -116,71 +181,82 @@ export default function MoneyFlowTab({ range, currentDate }) {
     })
   }
 
-  // ── Chart data ──
+  // ── Chart data — running balances using exact dashboard formulas ────────────
   const chartData = useMemo(() => {
     if (!cards.length) return []
 
-    const cardById = Object.fromEntries(cards.map(c => [c.id, c]))
-
-    // Sorted, non-split-child transactions
-    const sorted = [...allTransactions]
-      .filter(t => !t.split_parent_id)
-      .sort((a, b) => a.date.localeCompare(b.date))
-
+    const cardById  = Object.fromEntries(cards.map(c => [c.id, c]))
+    const nonSplit  = allTransactions.filter(t => !t.split_parent_id)
+    const sorted    = [...nonSplit].sort((a, b) => a.date.localeCompare(b.date))
     const firstDate = sorted.length ? sorted[0].date : null
-    const dates = buildDates(range, currentDate, firstDate)
+    const dates     = buildDates(range, currentDate, firstDate)
     if (!dates.length) return []
 
-    // Running per-card balance, seeded with initial_balance
-    const bal     = Object.fromEntries(cards.map(c => [c.id, Number(c.initial_balance ?? 0)]))
-    let   income  = 0   // cumulative income
-    let   ti      = 0   // transaction pointer
+    const rangeStart = dates[0].key
 
+    // Seed accumulators from initial balances
+    let debitCredit = cards.filter(c => DEBIT_CREDIT.has(c.type)).reduce((s, c) => s + Number(c.initial_balance), 0)
+    let cash        = cards.filter(c => c.type === 'cash').reduce((s, c) => s + Number(c.initial_balance), 0)
+    let savings     = cards.filter(c => c.type === 'savings').reduce((s, c) => s + Number(c.initial_balance), 0)
+    let invest      = cards.filter(c => c.type === 'invest').reduce((s, c) => s + Number(c.initial_balance), 0)
+    let income      = 0  // resets at range start
+
+    // Per-card
+    const bal = Object.fromEntries(cards.map(c => [c.id, Number(c.initial_balance ?? 0)]))
+
+    let ti = 0
     return dates.map(({ key, label }) => {
-      // Advance transactions up to this date
       while (ti < sorted.length && sorted[ti].date <= key) {
         const tx   = sorted[ti++]
         const card = cardById[tx.card_id]
-        if (!card) continue
+        const sign = CREDIT.has(tx.type) ? 1 : -1
 
-        if (card.type === 'cash') {
-          // Cash cards: only is_cash transactions, income = +, else -
-          if (tx.is_cash) {
-            bal[card.id] += tx.type === 'income' ? Number(tx.amount) : -Number(tx.amount)
-          }
-        } else if (card.type === 'savings') {
-          // Savings cards: track via savings_in / savings_out source
-          if (tx.source === 'savings_in')  bal[card.id] += Number(tx.amount)
-          if (tx.source === 'savings_out') bal[card.id] -= Number(tx.amount)
-        } else {
-          // Debit, credit, invest: non-cash, non-split-child
-          if (!tx.is_cash) {
-            bal[card.id] += tx.type === 'income' ? Number(tx.amount) : -Number(tx.amount)
+        if (tx.is_cash) {
+          // Affects cash aggregate and cash card(s)
+          cash += sign * Number(tx.amount)
+          if (card?.type === 'cash') bal[card.id] += sign * Number(tx.amount)
+
+        } else if (tx.source === 'savings_in' && tx.amount > 0) {
+          // Savings_in — global aggregate + per-card
+          savings += Number(tx.amount)
+          if (card?.type === 'savings') bal[card.id] += Number(tx.amount)
+
+        } else if (tx.source === 'savings_out' && tx.amount > 0) {
+          // Savings_out — global aggregate + per-card
+          savings -= Number(tx.amount)
+          if (card?.type === 'savings') bal[card.id] -= Number(tx.amount)
+
+        } else if (card) {
+          // Regular transaction on a specific card
+          if (DEBIT_CREDIT.has(card.type)) {
+            debitCredit    += sign * Number(tx.amount)
+            bal[card.id]   += sign * Number(tx.amount)
+          } else if (card.type === 'invest') {
+            invest         += sign * Number(tx.amount)
+            bal[card.id]   += sign * Number(tx.amount)
           }
         }
 
-        // Track cumulative income regardless of card type
-        if (tx.type === 'income' && !tx.is_cash) income += Number(tx.amount)
+        // Income cumulative — only count from range start
+        if (tx.type === 'income' && !tx.is_cash && tx.date >= rangeStart) {
+          income += Number(tx.amount)
+        }
       }
 
-      // Build snapshot
-      let total = 0, cashSum = 0, investSum = 0, savingsSum = 0
-      for (const c of cards) {
-        const b = bal[c.id]
-        if      (c.type === 'cash')    cashSum    += b
-        else if (c.type === 'invest')  investSum  += b
-        else if (c.type === 'savings') savingsSum += b
-        else                           total      += b   // debit + credit
+      const snap = {
+        key, label,
+        total:   debitCredit + cash,
+        cash,
+        savings,
+        invest,
+        income,
       }
-      total += cashSum   // Total Balance = debit+credit+cash (mirrors dashboard)
-
-      const snap = { key, label, total, cash: cashSum, invest: investSum, savings: savingsSum, income }
       for (const c of cards) snap[`card_${c.id}`] = bal[c.id]
       return snap
     })
   }, [cards, allTransactions, range, currentDate])
 
-  // Y-axis domain from visible lines
+  // ── Y-axis domain ────────────────────────────────────────────────────────
   const yDomain = useMemo(() => {
     if (!chartData.length) return ['auto', 'auto']
     let lo = Infinity, hi = -Infinity
@@ -197,16 +273,16 @@ export default function MoneyFlowTab({ range, currentDate }) {
     return [Math.floor((lo - pad) / 100) * 100, Math.ceil((hi + pad) / 100) * 100]
   }, [chartData, selected])
 
-  // Current values (last data point)
-  const last = chartData[chartData.length - 1]
-
-  // Group metrics by whether they have non-zero data
-  const hasMetric = useMemo(() => {
-    const h = {}
-    for (const { key } of METRICS) h[key] = true  // always show summary metrics
-    for (const { key } of cardDefs) h[key] = cards.some(c => `card_${c.id}` === key)
-    return h
-  }, [METRICS, cardDefs, cards])
+  // ── Current value for a filter chip key ──────────────────────────────────
+  function chipValue(key) {
+    if (key === 'total')   return current.total
+    if (key === 'cash')    return current.cash
+    if (key === 'savings') return current.savings
+    if (key === 'invest')  return current.invest
+    if (key === 'income')  return current.income
+    const id = key.replace('card_', '')
+    return current.perCard[id] ?? 0
+  }
 
   if (!cards.length) return (
     <div className="flex items-center justify-center h-48 text-white/30 text-sm">No accounts found.</div>
@@ -215,8 +291,8 @@ export default function MoneyFlowTab({ range, currentDate }) {
   return (
     <div className="flex flex-col gap-5">
 
-      {/* ── Filter chips — Summary metrics ── */}
-      <div className="flex flex-col gap-3">
+      {/* ── Summary metric chips ── */}
+      <div className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
           {METRICS.map(({ key, label, Icon, color }) => {
             const on = selected.has(key)
@@ -229,7 +305,7 @@ export default function MoneyFlowTab({ range, currentDate }) {
               >
                 <Icon size={12} />
                 {label}
-                {last && <span className="opacity-60 font-normal tabular-nums">{fmtK(last[key] ?? 0)}</span>}
+                <span className="opacity-60 font-normal tabular-nums">{fmtK(chipValue(key))}</span>
               </button>
             )
           })}
@@ -249,7 +325,7 @@ export default function MoneyFlowTab({ range, currentDate }) {
                 >
                   <Icon size={12} />
                   {label}
-                  {last && <span className="opacity-60 font-normal tabular-nums">{fmtK(last[key] ?? 0)}</span>}
+                  <span className="opacity-60 font-normal tabular-nums">{fmtK(chipValue(key))}</span>
                 </button>
               )
             })}
