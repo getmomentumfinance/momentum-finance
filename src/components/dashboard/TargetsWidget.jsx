@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Target, ChevronDown } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
 import { useImportance } from '../../hooks/useImportance'
+import { useSharedData } from '../../context/SharedDataContext'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CategoryPill } from '../shared/CategoryPill'
@@ -255,15 +254,16 @@ function SortDropdown({ value, onChange }) {
 }
 
 export default function TargetsWidget({ currentDate = new Date() }) {
-  const { user } = useAuth()
   const { t } = usePreferences()
   const { importance: importanceLevels } = useImportance()
   const c = useCardCustomization('Targets Widget')
+  const { targets, allTransactions, categoryMap: catMap, receiverMap } = useSharedData()
 
-  const [targets,     setTargets]     = useState([])
-  const [allExpenses, setAllExpenses] = useState([])
-  const [categories,  setCategories]  = useState([])
-  const [receivers,   setReceivers]   = useState([])
+  const allExpenses = useMemo(() =>
+    allTransactions.filter(t => t.type === 'expense'), [allTransactions])
+
+  const receivers = useMemo(() => Object.values(receiverMap), [receiverMap])
+
   const [collapsed,   setCollapsed]   = useCollapsed('TargetsWidget')
   const [sortBy,      setSortBy]      = useState('risk')
   const [showSort,    setShowSort]    = useState(false)
@@ -271,35 +271,6 @@ export default function TargetsWidget({ currentDate = new Date() }) {
   // FLIP animation state
   const containerRef  = useRef(null)
   const snapRef = useRef({})
-
-  useEffect(() => {
-    if (!user?.id) return
-    load()
-    window.addEventListener('transaction-saved', load)
-    window.addEventListener('targets-updated', load)
-    return () => {
-      window.removeEventListener('transaction-saved', load)
-      window.removeEventListener('targets-updated', load)
-    }
-  }, [user?.id, currentDate])
-
-  async function load() {
-    const [{ data: tData }, { data: txData }, { data: catData }, { data: recData }] = await Promise.all([
-      supabase.from('targets').select('*').eq('user_id', user.id),
-      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, amount, date, importance')
-        .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
-        .eq('is_split_parent', false),
-      supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
-      supabase.from('receivers').select('id, name, domain, logo_url').eq('user_id', user.id),
-    ])
-    setTargets(tData ?? [])
-    setAllExpenses(txData ?? [])
-    setCategories(catData ?? [])
-    setReceivers(recData ?? [])
-  }
-
-  const catMap = useMemo(() =>
-    Object.fromEntries(categories.map(c => [c.id, c])), [categories])
 
   // Compute sort key per target
   const sortData = useMemo(() => {

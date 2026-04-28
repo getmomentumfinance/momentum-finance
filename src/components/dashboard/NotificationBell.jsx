@@ -4,6 +4,7 @@ import { Bell, AlertTriangle, Clock, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../hooks/useNotifications'
+import { useNotificationsContext } from '../../context/NotificationsContext'
 import PaymentModal from './PaymentModal'
 import BudgetRolloverModal from '../budgets/BudgetRolloverModal'
 
@@ -16,7 +17,9 @@ const SEVERITY_LABEL = { alert: 'Urgent', warning: 'Soon', info: 'Info' }
 
 export default function NotificationBell({ currentDate = new Date() }) {
   const { user } = useAuth()
-  const { items } = useNotifications(user?.id, currentDate)
+  const ctx = useNotificationsContext()
+  const ownHook = useNotifications(ctx ? null : user?.id, ctx ? new Date(0) : currentDate)
+  const { items } = ctx ?? ownHook
   const navigate  = useNavigate()
   const [open,     setOpen]     = useState(false)
   const [selected, setSelected] = useState(null)

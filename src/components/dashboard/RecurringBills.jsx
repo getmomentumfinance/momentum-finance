@@ -10,6 +10,7 @@ import AddRecurringBillModal from './AddRecurringBillModal'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useUIPrefs } from '../../context/UIPrefContext'
 
 // ── Helpers ──────────────────────────────────────────────────
 function getNextDueDate(nextDueDateStr, frequency) {
@@ -73,11 +74,15 @@ function BillIcon({ iconId, receiver, name }) {
 
 
 // ── Main component ────────────────────────────────────────────
-export default function RecurringBills({ currentDate, hidePaid = false }) {
+export default function RecurringBills({ currentDate }) {
   const c = useCardCustomization('Recurring Bills')
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { categoryMap: catMap, receiverMap } = useSharedData()
+  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
+  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('bills-hide-paid') === 'true')
+  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['bills-hide-paid'] === true || prefs['bills-hide-paid'] === 'true') }, [prefsLoaded])
+  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('bills-hide-paid', String(next)); return next }) }
   const [bills,    setBills]    = useState([])
   const [payments, setPayments] = useState([])
   const [showModal,  setShowModal]  = useState(false)
@@ -383,6 +388,15 @@ export default function RecurringBills({ currentDate, hidePaid = false }) {
         customIconColor={c.customIconColor} setCustomIconColor={c.setCustomIconColor}
         iconColor={c.iconColor}       setIconColor={c.setIconColor}
         colors={c.colors}
+        extras={
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/60">Hide paid</span>
+            <button type="button" onClick={toggleHidePaid}
+              className={`relative inline-flex w-9 h-5 rounded-full transition-colors shrink-0 ${hidePaid ? 'bg-accent' : 'bg-white/20'}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${hidePaid ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
+        }
       />
     )}
     </>

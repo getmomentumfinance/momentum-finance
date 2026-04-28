@@ -25,12 +25,16 @@ export function useNotifications(userId, currentDate) {
   // without needing them as useCallback deps (which would cause infinite loops)
   const sharedRef = useRef({})
   sharedRef.current = {
-    pendingItems:  shared.pendingItems,
-    plannedBills:  shared.plannedBills,
-    recurringBills: shared.recurringBills,
-    billPayments:  shared.billPayments,
-    subscriptions: shared.subscriptions,
-    subPayments:   shared.subPayments,
+    pendingItems:    shared.pendingItems,
+    plannedBills:    shared.plannedBills,
+    recurringBills:  shared.recurringBills,
+    billPayments:    shared.billPayments,
+    subscriptions:   shared.subscriptions,
+    subPayments:     shared.subPayments,
+    budgets:         shared.budgets,
+    allTransactions: shared.allTransactions,
+    categories:      shared.categories,
+    categoryMap:     shared.categoryMap,
   }
 
   const load = useCallback(async () => {
@@ -121,18 +125,12 @@ export function useNotifications(userId, currentDate) {
       }
     }
 
-    // 5. Budgets ≥80% used — still needs own fetch (budget-specific data)
-    const [{ data: budgets }, { data: yearExpenses }, { data: categories }] = await Promise.all([
-      supabase.from('budgets').select('*').eq('user_id', userId),
-      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
-        .eq('user_id', userId).eq('is_deleted', false).eq('type', 'expense')
-        .eq('is_split_parent', false)
-        .gte('date', `${currentDate.getFullYear()}-01-01`)
-        .lte('date', `${currentDate.getFullYear()}-12-31`),
-      supabase.from('categories').select('id, name, importance').eq('user_id', userId),
-    ])
-
-    const catMap = Object.fromEntries((categories ?? []).map(c => [c.id, c]))
+    // 5. Budgets ≥80% used — from shared context
+    const { budgets, allTransactions, categoryMap: catMap } = sharedRef.current
+    const yearStr = `${currentDate.getFullYear()}-`
+    const yearExpenses = (allTransactions ?? []).filter(t =>
+      t.type === 'expense' && t.date?.startsWith(yearStr)
+    )
 
     for (const b of budgets ?? []) {
       if (b.monthly_limit <= 0) continue

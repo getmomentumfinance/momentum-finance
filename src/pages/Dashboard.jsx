@@ -39,6 +39,7 @@ import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useUIPrefs } from '../context/UIPrefContext'
+import { NotificationsProvider } from '../context/NotificationsContext'
 
 
 const BALANCE_TYPES = ['debit', 'credit']
@@ -159,24 +160,6 @@ export default function Dashboard() {
     deletePrefs(['dash-left-col', 'dash-right-col'])
   }
 
-  // ── Hide-paid toggles ─────────────────────────────────────────
-  const HIDE_PAID_CARDS = [
-    { key: 'bills-hide-paid',   label: 'Recurring Bills' },
-    { key: 'planned-hide-paid', label: 'Planned Bills'   },
-    { key: 'subs-hide-paid',    label: 'Subscriptions'   },
-    { key: 'pending-hide-paid', label: 'Pending'         },
-  ]
-  const [hidePaidMap, setHidePaidMap] = useState(() =>
-    Object.fromEntries(HIDE_PAID_CARDS.map(c => [c.key, localStorage.getItem(c.key) === 'true']))
-  )
-  function toggleHidePaid(key) {
-    setHidePaidMap(prev => {
-      const next = { ...prev, [key]: !prev[key] }
-      setPref(key, String(next[key]))
-      return next
-    })
-  }
-
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
     { key: 'dash-showMyCards',           label: 'My Cards'           },
@@ -227,7 +210,6 @@ export default function Dashboard() {
         setColumns({ leftCol: left, rightCol: right })
       } catch {}
     }
-    setHidePaidMap(Object.fromEntries(HIDE_PAID_CARDS.map(c => [c.key, localStorage.getItem(c.key) === 'true'])))
     setCardVis(Object.fromEntries(DASH_CARDS.map(c => [c.key, (localStorage.getItem(c.key) ?? 'true') === 'true'])))
   }, [prefsLoaded])
 
@@ -289,6 +271,7 @@ export default function Dashboard() {
   function nextMonth() { setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)) }
 
   return (
+    <NotificationsProvider currentDate={currentDate}>
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={prevMonth} onNext={nextMonth} />
 
@@ -327,22 +310,6 @@ export default function Dashboard() {
                       </button>
                     </div>
                   ))}
-                  <div className="border-t border-white/8 pt-3 mt-1">
-                    <p className="text-[10px] uppercase tracking-widest text-muted font-medium mb-2">Hide paid</p>
-                    {HIDE_PAID_CARDS.map(({ key, label }) => (
-                      <div key={key} className="flex items-center justify-between gap-3 mb-2">
-                        <span className="text-xs text-white/60">{label}</span>
-                        <button
-                          type="button"
-                          onClick={() => toggleHidePaid(key)}
-                          className={`w-8 h-4 rounded-full transition-colors relative shrink-0 ${hidePaidMap[key] ? '' : 'bg-white/10'}`}
-                          style={hidePaidMap[key] ? { background: 'var(--color-accent)' } : undefined}
-                        >
-                          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${hidePaidMap[key] ? 'left-4' : 'left-0.5'}`} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
                   <div className="border-t border-white/8 pt-3">
                     <button
                       type="button"
@@ -453,12 +420,12 @@ export default function Dashboard() {
         {(() => {
           const WIDGET_MAP = {
             'my-cards':      { visKey: 'dash-showMyCards',       node: <MyCardsWidget currentDate={currentDate} /> },
-            'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} hidePaid={hidePaidMap['bills-hide-paid']} /> },
-            'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} hidePaid={hidePaidMap['planned-hide-paid']} /> },
-            'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} hidePaid={hidePaidMap['subs-hide-paid']} /> },
+            'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} /> },
+            'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} /> },
+            'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} /> },
             'savings-goals': { visKey: 'dash-showSavingsGoals',  node: <SavingsGoals /> },
             'budgets':       { visKey: 'dash-showBudgets',       node: <BudgetsWidget currentDate={currentDate} /> },
-            'pending':       { visKey: 'dash-showPending',       node: <PendingTransactions currentDate={currentDate} hidePaid={hidePaidMap['pending-hide-paid']} /> },
+            'pending':       { visKey: 'dash-showPending',       node: <PendingTransactions currentDate={currentDate} /> },
             'wishlist':      { visKey: 'dash-showWishlist',      node: <Wishlist currentDate={currentDate} /> },
             'projection':    { visKey: 'dash-showProjection',    node: <BalanceProjection currentDate={currentDate} /> },
             'recent':        { visKey: 'dash-showRecent',        node: <RecentTransactions currentDate={currentDate} /> },
@@ -529,5 +496,6 @@ export default function Dashboard() {
         />
       )}
     </div>
+    </NotificationsProvider>
   )
 }

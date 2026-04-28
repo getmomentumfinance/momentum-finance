@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo } from 'react'
 import { TrendingDown, TrendingUp, PiggyBank, Lightbulb } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useImportance } from '../../hooks/useImportance'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
+import { useSharedData } from '../../context/SharedDataContext'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { toLocalStr, calcBudgetSpend } from '../../utils/budgetPeriod'
 
@@ -24,68 +23,41 @@ function midColor(v) {
 }
 
 export default function FinancialInsights({ currentDate = new Date() }) {
-  const { user } = useAuth()
   const { fmt, fmtK, t } = usePreferences()
   const { importance: importanceLevels } = useImportance()
   const c = useCardCustomization('Financial Insights')
-  const [data, setData] = useState(null)
+  const { allTransactions, subscriptions, budgets, categoryMap, receiverMap } = useSharedData()
 
-  const load = useCallback(async () => {
-    if (!user?.id) return
+  const data = useMemo(() => {
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()
     const thisStart = toLocalStr(new Date(year, month,     1))
     const thisEnd   = toLocalStr(new Date(year, month + 1, 0))
     const lastStart = toLocalStr(new Date(year, month - 1, 1))
     const lastEnd   = toLocalStr(new Date(year, month,     0))
+    const yearStr   = `${year}-`
 
-    const [
-      { data: thisTxs },
-      { data: lastTxs },
-      { data: subs },
-      { data: budgets },
-      { data: allExpenses },
-      { data: categories },
-      { data: receivers },
-    ] = await Promise.all([
-      supabase.from('transactions').select('type, amount, is_split_parent, is_earned')
-        .eq('user_id', user.id).eq('is_deleted', false)
-        .gte('date', thisStart).lte('date', thisEnd),
-      supabase.from('transactions').select('type, amount, is_split_parent')
-        .eq('user_id', user.id).eq('is_deleted', false)
-        .gte('date', lastStart).lte('date', lastEnd),
-      supabase.from('subscriptions').select('amount')
-        .eq('user_id', user.id).eq('status', 'active'),
-      supabase.from('budgets').select('*')
-        .eq('user_id', user.id),
-      supabase.from('transactions').select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
-        .eq('user_id', user.id).eq('is_deleted', false)
-        .eq('type', 'expense').eq('is_split_parent', false)
-        .gte('date', `${year}-01-01`).lte('date', `${year}-12-31`),
-      supabase.from('categories').select('id, name, color')
-        .eq('user_id', user.id),
-      supabase.from('receivers').select('id, name')
-        .eq('user_id', user.id),
-    ])
+    const thisTxs    = allTransactions.filter(t => t.date >= thisStart && t.date <= thisEnd)
+    const lastTxs    = allTransactions.filter(t => t.date >= lastStart && t.date <= lastEnd)
+    const allExpenses = allTransactions.filter(t => t.type === 'expense' && t.date?.startsWith(yearStr))
 
-    const sum = (rows, type) =>
-      (rows ?? []).filter(t => t.type === type && !t.is_split_parent).reduce((s, t) => s + t.amount, 0)
+    const sum = (rows, type) => rows.filter(t => t.type === type).reduce((s, t) => s + t.amount, 0)
 
     const thisIncome   = sum(thisTxs, 'income')
     const thisExpenses = sum(thisTxs, 'expense')
     const lastExpenses = sum(lastTxs, 'expense')
 
-    const hasSavingsTx = (thisTxs ?? []).some(t => t.type === 'savings' && !t.is_split_parent)
-    const earnedIncome = (thisTxs ?? [])
-      .filter(t => t.type === 'income' && t.is_earned && !t.is_split_parent)
+    const hasSavingsTx = thisTxs.some(t => t.type === 'savings')
+    const earnedIncome = thisTxs
+      .filter(t => t.type === 'income' && t.is_earned)
       .reduce((s, t) => s + t.amount, 0)
 
     const savingsRate  = (thisIncome > 0 && hasSavingsTx) ? Math.max(0, ((thisIncome - thisExpenses) / thisIncome) * 100) : null
     const vsLastMonth  = lastExpenses >= 50 ? ((thisExpenses - lastExpenses) / lastExpenses) * 100 : null
-    const totalSubCost = (subs ?? []).reduce((s, sub) => s + Number(sub.amount), 0)
+    const totalSubCost = subscriptions.reduce((s, sub) => s + Number(sub.amount), 0)
 
-    const catMap     = Object.fromEntries((categories ?? []).map(c => [c.id, c]))
-    const receiverMap = Object.fromEntries((receivers ?? []).map(r => [r.id, r]))
+    const catMap = categoryMap
+    const recMap = receiverMap
 
     const getBudgetMeta = b => {
       if (b.category_ids?.length) {
@@ -101,20 +73,20 @@ export default function FinancialInsights({ currentDate = new Date() }) {
         return { name: b.name || imps.map(i => i.label).join(' · ') || 'Budget', color: imps[0]?.color ?? 'var(--color-progress-bar)' }
       }
       if (b.receiver_ids?.length) {
-        const recs = b.receiver_ids.map(id => receiverMap[id]).filter(Boolean)
+        const recs = b.receiver_ids.map(id => recMap[id]).filter(Boolean)
         return { name: b.name || recs.map(r => r.name).join(' · ') || 'Budget', color: 'var(--color-progress-bar)' }
       }
       if (b.category_id)    return { name: b.name || catMap[b.category_id]?.name    || 'Budget', color: midColor(catMap[b.category_id]?.color)    ?? 'var(--color-progress-bar)' }
       if (b.subcategory_id) return { name: b.name || catMap[b.subcategory_id]?.name || 'Budget', color: midColor(catMap[b.subcategory_id]?.color) ?? 'var(--color-progress-bar)' }
       if (b.importance)     { const imp = importanceLevels.find(i => i.value === b.importance); return { name: b.name || imp?.label || 'Budget', color: imp?.color ?? 'var(--color-progress-bar)' } }
-      if (b.receiver_id)    return { name: b.name || receiverMap[b.receiver_id]?.name || 'Budget', color: 'var(--color-progress-bar)' }
+      if (b.receiver_id)    return { name: b.name || recMap[b.receiver_id]?.name || 'Budget', color: 'var(--color-progress-bar)' }
       return { name: b.name || 'Total', color: 'var(--color-progress-bar)' }
     }
 
-    const budgetRows = (budgets ?? [])
+    const budgetRows = budgets
       .filter(b => b.monthly_limit > 0)
       .map(b => {
-        const spent = calcBudgetSpend(b, allExpenses ?? [], currentDate)
+        const spent = calcBudgetSpend(b, allExpenses, currentDate)
         const { name, color } = getBudgetMeta(b)
         const periodLabel = { weekly: 'wk', monthly: 'mo', quarterly: 'qtr', yearly: 'yr' }[b.period ?? 'monthly'] ?? 'mo'
         const pct  = Math.min((spent / b.monthly_limit) * 100, 100)
@@ -125,14 +97,8 @@ export default function FinancialInsights({ currentDate = new Date() }) {
 
     const overBudgetCount = budgetRows.filter(b => b.over).length
 
-    setData({ savingsRate, vsLastMonth, totalSubCost, overBudgetCount, thisIncome, thisExpenses, budgetRows, earnedIncome })
-  }, [user?.id, currentDate, importanceLevels])
-
-  useEffect(() => {
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [load])
+    return { savingsRate, vsLastMonth, totalSubCost, overBudgetCount, thisIncome, thisExpenses, budgetRows, earnedIncome }
+  }, [allTransactions, subscriptions, budgets, categoryMap, receiverMap, currentDate, importanceLevels])
 
   if (!data) return null
 

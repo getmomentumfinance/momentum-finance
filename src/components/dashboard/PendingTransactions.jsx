@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
+import { useUIPrefs } from '../../context/UIPrefContext'
 import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { CategoryPill } from '../shared/CategoryPill'
 import { CATEGORY_ICONS } from '../shared/CategoryPill'
@@ -68,11 +69,15 @@ function ItemIcon({ item, receiver }) {
   )
 }
 
-export default function PendingTransactions({ currentDate = new Date(), hidePaid = false }) {
+export default function PendingTransactions({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { categoryMap, receiverMap } = useSharedData()
   const c = useCardCustomization('Pending Transactions')
+  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
+  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('pending-hide-paid') === 'true')
+  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['pending-hide-paid'] === true || prefs['pending-hide-paid'] === 'true') }, [prefsLoaded])
+  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('pending-hide-paid', String(next)); return next }) }
 
   const [items,          setItems]          = useState([])
   const [showModal,      setShowModal]      = useState(false)
@@ -389,6 +394,15 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
           opacity={c.opacity}           setOpacity={c.setOpacity}
           darkOverlay={c.darkOverlay}   setDarkOverlay={c.setDarkOverlay}
           colors={c.colors}
+          extras={
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Hide paid</span>
+              <button type="button" onClick={toggleHidePaid}
+                className={`relative inline-flex w-9 h-5 rounded-full transition-colors shrink-0 ${hidePaid ? 'bg-accent' : 'bg-white/20'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${hidePaid ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+          }
         />
       )}
 

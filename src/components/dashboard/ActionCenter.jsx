@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, Clock, Bell, Zap, Trash2, TrendingUp, TrendingDown } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNotifications } from '../../hooks/useNotifications'
+import { useNotificationsContext } from '../../context/NotificationsContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { supabase } from '../../lib/supabase'
 import PaymentModal from './PaymentModal'
@@ -15,7 +16,9 @@ const SEVERITY_COLOR = {
 export default function ActionCenter({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { t } = usePreferences()
-  const { items, loading } = useNotifications(user?.id, currentDate)
+  const ctx = useNotificationsContext()
+  const ownHook = useNotifications(ctx ? null : user?.id, ctx ? new Date(0) : currentDate)
+  const { items, loading } = ctx ?? ownHook
   const [selected,   setSelected]  = useState(null)
   const [dismissed,  setDismissed] = useState(new Set())
   const [resolving,  setResolving] = useState(new Set())

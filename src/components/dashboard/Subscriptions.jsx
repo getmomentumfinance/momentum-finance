@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
+import { useUIPrefs } from '../../context/UIPrefContext'
 import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import AddSubscriptionModal from './AddSubscriptionModal'
@@ -58,10 +59,14 @@ function SubIcon({ iconId, receiver, name }) {
   )
 }
 
-export default function Subscriptions({ currentDate = new Date(), hidePaid = false }) {
+export default function Subscriptions({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const c = useCardCustomization('Subscriptions')
+  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
+  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('subs-hide-paid') === 'true')
+  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['subs-hide-paid'] === true || prefs['subs-hide-paid'] === 'true') }, [prefsLoaded])
+  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('subs-hide-paid', String(next)); return next }) }
 
   const { categoryMap: catMap, receiverMap } = useSharedData()
   const [subs,     setSubs]     = useState([])
@@ -381,6 +386,15 @@ export default function Subscriptions({ currentDate = new Date(), hidePaid = fal
           opacity={c.opacity}           setOpacity={c.setOpacity}
           darkOverlay={c.darkOverlay}   setDarkOverlay={c.setDarkOverlay}
           colors={c.colors}
+          extras={
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/60">Hide paid</span>
+              <button type="button" onClick={toggleHidePaid}
+                className={`relative inline-flex w-9 h-5 rounded-full transition-colors shrink-0 ${hidePaid ? 'bg-accent' : 'bg-white/20'}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${hidePaid ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+          }
         />
       )}
 

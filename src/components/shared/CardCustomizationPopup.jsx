@@ -25,6 +25,7 @@ export default function CardCustomizationPopup({
   opacity, setOpacity,
   darkOverlay, setDarkOverlay,
   colors,
+  extras,
 }) {
   return createPortal(
     <div
@@ -93,6 +94,12 @@ export default function CardCustomizationPopup({
           <input type="range" min={0} max={100} value={opacity}
             onChange={(e) => setOpacity(+e.target.value)} className="w-full" style={{ accentColor: 'var(--color-progress-bar)' }} />
         </div>
+
+        {extras && (
+          <div className="border-t border-white/8 pt-3 -mt-1">
+            {extras}
+          </div>
+        )}
 
         {/* Reset */}
         <button

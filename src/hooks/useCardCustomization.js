@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useCardPreferences } from '../context/CardPreferencesContext'
 import { usePalette } from '../context/PaletteContext'
 import { GRADIENTS, SOLIDS } from '../constants/gradients'
@@ -94,15 +94,22 @@ export function useCardCustomization(label) {
 
   function toggleOpen() {
     if (open) { setOpen(false); return }
-    const rect        = btnRef.current.getBoundingClientRect()
-    const popupHeight = 340
-    const spaceBelow  = window.innerHeight - rect.bottom
-    const top = spaceBelow < popupHeight + 16
-      ? Math.max(8, rect.top - popupHeight - 8)
+    const rect       = btnRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const top = spaceBelow < 356  // 340 is the base estimate; flip if tight
+      ? Math.max(8, rect.top - 340 - 8)
       : rect.bottom + 8
     setPos({ top, left: Math.max(8, rect.right - 288) })
     setOpen(true)
   }
+
+  // After the popup renders, measure its actual height and clamp to viewport
+  useLayoutEffect(() => {
+    if (!open || !popupRef.current) return
+    const popupRect = popupRef.current.getBoundingClientRect()
+    const overflow  = popupRect.bottom - (window.innerHeight - 8)
+    if (overflow > 0) setPos(prev => ({ ...prev, top: Math.max(8, prev.top - overflow) }))
+  }, [open])
 
   const colors      = tab === 'gradient' ? activeGradients : activeSolids
   const bgGradient  = enableColor ? selectedColor : null

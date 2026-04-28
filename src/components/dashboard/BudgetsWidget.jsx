@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Wallet2, GripHorizontal } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
 import { useImportance } from '../../hooks/useImportance'
+import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { calcAllBudgetSpends } from '../../utils/budgetPeriod'
@@ -140,16 +139,11 @@ function SortableBudgetCard({ id, ...props }) {
 
 // ── Main widget ────────────────────────────────────────────────────
 export default function BudgetsWidget({ currentDate = new Date() }) {
-  const { user }                         = useAuth()
   const { t }                            = usePreferences()
   const { importance: importanceLevels } = useImportance()
   const { setPref, loaded: prefsLoaded } = useUIPrefs()
+  const { budgets, targets, allTransactions, categoryMap, receiverMap } = useSharedData()
 
-  const [budgets,      setBudgets]      = useState([])
-  const [targets,      setTargets]      = useState([])
-  const [yearExpenses, setYearExpenses] = useState([])
-  const [categories,   setCategories]   = useState([])
-  const [receivers,    setReceivers]    = useState([])
   const [cardOrder,    setCardOrder]    = useState(() => {
     try { return JSON.parse(localStorage.getItem('budgets-card-order') ?? 'null') } catch { return null }
   })
@@ -161,36 +155,12 @@ export default function BudgetsWidget({ currentDate = new Date() }) {
   }, [prefsLoaded])
   const [activeId, setActiveId] = useState(null)
 
-  useEffect(() => {
-    if (!user?.id) return
-    load()
-    window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, currentDate])
+  const yearExpenses = useMemo(() => {
+    const yearStr = `${currentDate.getFullYear()}-`
+    return allTransactions.filter(t => t.type === 'expense' && t.date?.startsWith(yearStr))
+  }, [allTransactions, currentDate])
 
-  async function load() {
-    const year  = currentDate.getFullYear()
-    const start = `${year}-01-01`
-    const end   = `${year}-12-31`
-    const [{ data: bData }, { data: tgtData }, { data: txData }, { data: catData }, { data: recData }] = await Promise.all([
-      supabase.from('budgets').select('*').eq('user_id', user.id),
-      supabase.from('targets').select('*').eq('user_id', user.id),
-      supabase.from('transactions')
-        .select('category_id, subcategory_id, receiver_id, card_id, amount, date, importance')
-        .eq('user_id', user.id).eq('is_deleted', false).eq('type', 'expense')
-        .eq('is_split_parent', false).gte('date', start).lte('date', end),
-      supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
-      supabase.from('receivers').select('id, name').eq('user_id', user.id),
-    ])
-    setBudgets(bData ?? [])
-    setTargets(tgtData ?? [])
-    setYearExpenses(txData ?? [])
-    setCategories(catData ?? [])
-    setReceivers(recData ?? [])
-  }
-
-  const catMap      = useMemo(() => Object.fromEntries(categories.map(c => [c.id, c])), [categories])
-  const receiverMap = useMemo(() => Object.fromEntries(receivers.map(r => [r.id, r])), [receivers])
+  const catMap = categoryMap
 
   const budgetSpends = useMemo(() => calcAllBudgetSpends(budgets, yearExpenses, currentDate), [budgets, yearExpenses, currentDate])
   const targetSpends = useMemo(() => calcAllBudgetSpends(targets, yearExpenses, currentDate), [targets, yearExpenses, currentDate])
