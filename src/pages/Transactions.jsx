@@ -139,9 +139,17 @@ export default function Transactions() {
   const [filterDateTo, setFilterDateTo] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterImportance, setFilterImportance] = useState(new Set())
-  const [filterCard,      setFilterCard]      = useState('')
-  const [allCards,        setAllCards]        = useState([])
-  const [hideChildren,    setHideChildren]    = useState(false)
+  const [filterCard,       setFilterCard]       = useState('')
+  const [allCards,         setAllCards]         = useState([])
+  const [collapsedParents, setCollapsedParents] = useState(new Set())
+
+  function toggleParent(id) {
+    setCollapsedParents(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     if (!user?.id) return
@@ -251,18 +259,19 @@ export default function Transactions() {
     const result = []
     for (const row of filteredRows) {
       if (row.split_parent_id) {
-        if (hideChildren) continue // collapsed — skip children entirely
+        // Skip if parent is collapsed
+        if (collapsedParents.has(row.split_parent_id)) continue
         // Orphan child: parent not visible in current filter — show standalone
         if (!parentIdsInFilter.has(row.split_parent_id)) result.push(row)
         continue
       }
       result.push(row)
-      if (!hideChildren && row.is_split_parent) {
+      if (row.is_split_parent && !collapsedParents.has(row.id)) {
         ;(childMap[row.id] ?? []).forEach(c => result.push(c))
       }
     }
     return result
-  }, [filteredRows, hideChildren])
+  }, [filteredRows, collapsedParents])
 
   // Track orphan children (shown without their parent in filtered results)
   const orphanChildIds = useMemo(() => {
@@ -388,20 +397,6 @@ export default function Transactions() {
               onChange={e => setFilterDateTo(e.target.value)}
               className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
             />
-
-            {/* Hide split children toggle */}
-            <button
-              type="button"
-              onClick={() => setHideChildren(v => !v)}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors border ${
-                hideChildren
-                  ? 'bg-white/10 border-white/20 text-white'
-                  : 'border-white/[0.06] text-white/40 hover:text-white/70 hover:border-white/15'
-              }`}
-            >
-              <Scissors size={11} />
-              {hideChildren ? 'Splits hidden' : 'Show splits'}
-            </button>
 
             {/* Clear */}
             {hasFilters && (
@@ -582,6 +577,16 @@ export default function Transactions() {
                       {/* Receiver */}
                       <td className="px-3 py-3 overflow-hidden" style={{ width: widths.description, maxWidth: widths.description }}>
                         <div className="flex items-center gap-2.5 min-w-0">
+                          {isParent && (
+                            <button
+                              type="button"
+                              onClick={() => toggleParent(row.id)}
+                              className="shrink-0 text-white/30 hover:text-white/70 transition-colors"
+                              title={collapsedParents.has(row.id) ? 'Expand' : 'Collapse'}
+                            >
+                              <ChevronDown size={13} className="transition-transform" style={{ transform: collapsedParents.has(row.id) ? 'rotate(-90deg)' : 'rotate(0deg)' }} />
+                            </button>
+                          )}
                           {isChild && !isOrphan && (
                             <span className="text-white/20 text-xs shrink-0 ml-1">↳</span>
                           )}
