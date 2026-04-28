@@ -93,22 +93,23 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
   async function load() {
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10)
     const end   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10)
-    const cols = 'id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at, updated_at'
+    const cols = 'id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at'
     const [{ data: pendingData }, { data: paidData }, { data: returnedData }] = await Promise.all([
+      // Pending: always visible regardless of month
       supabase.from('pending_items').select(cols).eq('user_id', user.id).eq('status', 'pending').order('pay_before'),
+      // Paid: visible only in the month of pay_before
       supabase.from('pending_items').select(cols).eq('user_id', user.id).eq('status', 'paid').gte('pay_before', start).lte('pay_before', end).order('pay_before'),
+      // Returned: fetch all, filter client-side by created_at month
       supabase.from('pending_items').select(cols).eq('user_id', user.id).eq('status', 'returned').order('pay_before'),
     ])
-    // Filter returned items by the month they were actually returned (updated_at)
     const returnedThisMonth = (returnedData ?? []).filter(i => {
-      const d = new Date(i.updated_at ?? i.created_at)
+      const d = new Date(i.created_at)
       return d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth()
     })
-    const activeData = pendingData
-    setItems([...(activeData ?? []), ...(paidData ?? []), ...returnedThisMonth].sort((a, b) => {
+    setItems([...(pendingData ?? []), ...(paidData ?? []), ...returnedThisMonth].sort((a, b) => {
       const aDone = a.status !== 'pending', bDone = b.status !== 'pending'
       if (aDone !== bDone) return aDone ? 1 : -1
-      return a.pay_before.localeCompare(b.pay_before)
+      return (a.pay_before ?? '').localeCompare(b.pay_before ?? '')
     }))
   }
 
@@ -200,7 +201,7 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
     setLoading(true)
 
     if (returnType === 'full') {
-      await supabase.from('pending_items').update({ status: 'returned', updated_at: new Date().toISOString() }).eq('id', item.id)
+      await supabase.from('pending_items').update({ status: 'returned' }).eq('id', item.id)
       setSavedFlash({ id: item.id, amount: item.amount })
       setTimeout(() => setSavedFlash(null), 2800)
     } else {
