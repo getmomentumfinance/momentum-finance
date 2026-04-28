@@ -93,10 +93,13 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
   async function load() {
     const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10)
     const end   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10)
-    const [{ data: activeData }, { data: paidData }] = await Promise.all([
-      supabase.from('pending_items').select('id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at').eq('user_id', user.id).in('status', ['pending', 'returned']).order('pay_before'),
-      supabase.from('pending_items').select('id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at').eq('user_id', user.id).eq('status', 'paid').gte('pay_before', start).lte('pay_before', end).order('pay_before'),
+    const cols = 'id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at'
+    const [{ data: pendingData }, { data: doneData }] = await Promise.all([
+      supabase.from('pending_items').select(cols).eq('user_id', user.id).eq('status', 'pending').order('pay_before'),
+      supabase.from('pending_items').select(cols).eq('user_id', user.id).in('status', ['paid', 'returned']).gte('pay_before', start).lte('pay_before', end).order('pay_before'),
     ])
+    const activeData = pendingData
+    const paidData   = doneData
     setItems([...(activeData ?? []), ...(paidData ?? [])].sort((a, b) => {
       const aDone = a.status !== 'pending', bDone = b.status !== 'pending'
       if (aDone !== bDone) return aDone ? 1 : -1

@@ -154,7 +154,11 @@ export default function Wishlist({ currentDate = new Date() }) {
   })
 
   const activeItems    = sorted(items.filter(i => i.status === 'active'))
-  const cancelledItems = items.filter(i => i.status === 'cancelled')
+  const cancelledItems = items.filter(i => {
+    if (i.status !== 'cancelled') return false
+    const d = new Date(i.updated_at ?? i.created_at)
+    return d.getFullYear() === currentDate.getFullYear() && d.getMonth() === currentDate.getMonth()
+  })
   const boughtItems    = items.filter(i => {
     if (i.status !== 'bought') return false
     if (!i.bought_at) return true
