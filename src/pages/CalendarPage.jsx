@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
@@ -9,6 +9,7 @@ import { TYPES_MAP } from '../constants/transactionTypes'
 import { PiggyBank, Banknote, RefreshCw } from 'lucide-react'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { getPeriodBounds } from '../utils/budgetPeriod'
+import { txMatchesBudget } from '../utils/budgetMatch'
 
 function ReceiverAvatar({ receiver }) {
   const [src, setSrc] = useState(() => {
@@ -72,6 +73,8 @@ export default function CalendarPage() {
   const { fmt, symbol, locale }      = usePreferences()
   const fmtShort = n => `${n < 0 ? '−' : ''}${symbol}${Math.abs(n).toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
   const { categoryMap, receiverMap } = useSharedData()
+  const mapsRef = useRef({})
+  mapsRef.current = { categoryMap, receiverMap }
   const { openTransactionModal }     = useTransactionModal()
 
   const [view,            setView]            = useState('month')
@@ -81,7 +84,7 @@ export default function CalendarPage() {
   const [selectedDateStr, setSelectedDateStr] = useState(null)
   const [subReceiverIds,  setSubReceiverIds]  = useState(new Set())
   const [periodBudgets,   setPeriodBudgets]   = useState([])
-  const [budgetSpent,     setBudgetSpent]     = useState(null)
+  const [budgetSpentMap,  setBudgetSpentMap]  = useState({})
   const [cardMap,         setCardMap]         = useState({})
 
   const year  = currentDate.getFullYear()
@@ -109,42 +112,39 @@ export default function CalendarPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    async function loadBudgets() {
-      const { data } = await supabase
-        .from('budgets')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('category_id', null)
-        .is('subcategory_id', null)
-        .is('importance', null)
-      setPeriodBudgets(data ?? [])
-    }
-    loadBudgets()
+    supabase.from('budgets').select('*').eq('user_id', user.id)
+      .then(({ data }) => setPeriodBudgets(data ?? []))
   }, [user?.id])
 
-  // Load the budget's actual period spending using the same period bounds as Budgets.jsx
+  // Load spend for all matching budgets using the same logic as Budgets.jsx
   useEffect(() => {
-    if (!user?.id || periodBudgets.length === 0) { setBudgetSpent(null); return }
+    if (!user?.id || periodBudgets.length === 0) { setBudgetSpentMap({}); return }
     const targetPeriod = view === 'week' ? 'weekly' : 'monthly'
-    const budget = periodBudgets.find(b => b.period === targetPeriod && b.monthly_limit > 0)
-    if (!budget) { setBudgetSpent(null); return }
-
-    const { startStr, endStr } = getPeriodBounds(budget.period, currentDate, budget.reset_day)
+    const matching = periodBudgets.filter(b => b.period === targetPeriod && b.monthly_limit > 0)
+    if (matching.length === 0) { setBudgetSpentMap({}); return }
 
     async function loadSpent() {
-      let q = supabase
-        .from('transactions')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('is_deleted', false)
-        .eq('type', 'expense')
-        .eq('is_split_parent', false)
-        .gte('date', startStr)
-        .lte('date', endStr)
-      if (budget.card_id) q = q.eq('card_id', budget.card_id)
-      const { data } = await q
-      setBudgetSpent((data ?? []).reduce((s, t) => s + t.amount, 0))
+      const result = {}
+      await Promise.all(matching.map(async budget => {
+        const { startStr, endStr } = getPeriodBounds(budget.period, currentDate, budget.reset_day)
+        let q = supabase
+          .from('transactions')
+          .select('amount, category_id, subcategory_id, importance, receiver_id, card_id')
+          .eq('user_id', user.id)
+          .eq('is_deleted', false)
+          .eq('type', 'expense')
+          .eq('is_split_parent', false)
+          .gte('date', startStr)
+          .lte('date', endStr)
+        if (budget.card_id) q = q.eq('card_id', budget.card_id)
+        const { data } = await q
+        result[budget.id] = (data ?? [])
+          .filter(t => txMatchesBudget(t, budget))
+          .reduce((s, t) => s + t.amount, 0)
+      }))
+      setBudgetSpentMap(result)
     }
+
     loadSpent()
     window.addEventListener('transaction-saved', loadSpent)
     return () => window.removeEventListener('transaction-saved', loadSpent)
@@ -187,8 +187,8 @@ export default function CalendarPage() {
         .filter(t => (t.type === 'transfer' || t.type === 'savings' || t.type === 'cash_out') ? t.amount > 0 : true)
         .map(t => ({
           ...t,
-          category: categoryMap[t.category_id] ?? null,
-          receiver: receiverMap[t.receiver_id]  ?? null,
+          category: mapsRef.current.categoryMap[t.category_id] ?? null,
+          receiver: mapsRef.current.receiverMap[t.receiver_id]  ?? null,
         }))
 
       const dayMap = {}
@@ -207,7 +207,7 @@ export default function CalendarPage() {
     load()
     window.addEventListener('transaction-saved', load)
     return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, year, month, view, wStartStr, categoryMap, receiverMap])
+  }, [user?.id, year, month, view, wStartStr])
 
   function prevPeriod() {
     setSelectedDateStr(null)
@@ -372,12 +372,9 @@ export default function CalendarPage() {
     return 'var(--color-progress-bar, var(--color-accent))'
   }
 
-  const matchingBudget = periodBudgets.find(b =>
+  const matchingBudgets = periodBudgets.filter(b =>
     b.period === (view === 'week' ? 'weekly' : 'monthly') && b.monthly_limit > 0
   )
-  const budgetPct = (matchingBudget && budgetSpent !== null)
-    ? Math.min((budgetSpent / matchingBudget.monthly_limit) * 100, 100)
-    : 0
 
   const periodLabel = view === 'week'
     ? (() => {
@@ -448,24 +445,35 @@ export default function CalendarPage() {
           {/* Main view */}
           <div className="flex-1 min-w-0 flex flex-col md:overflow-hidden">
 
-            {/* Period budget bar */}
-            {matchingBudget && budgetSpent !== null && (
-              <div className="shrink-0 mb-3 glass-card rounded-xl px-4 py-2.5 flex items-center gap-3">
-                <span className="text-[11px] text-white/40 shrink-0 uppercase tracking-widest">Budget</span>
-                <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-300"
-                    style={{ width: `${budgetPct}%`, background: barColor(budgetPct) }} />
-                </div>
-                <span className="text-xs tabular-nums shrink-0">
-                  <span style={{ color: barColor(budgetPct) }}>{fmt(budgetSpent)}</span>
-                  <span className="text-white/30"> / {fmt(matchingBudget.monthly_limit)}</span>
-                </span>
-                {budgetSpent > matchingBudget.monthly_limit && (
-                  <span className="text-[10px] shrink-0 px-1.5 py-0.5 rounded-md"
-                    style={{ background: 'color-mix(in srgb, var(--color-alert, #ef4444) 15%, transparent)', color: 'var(--color-alert, #ef4444)' }}>
-                    Over by {fmt(budgetSpent - matchingBudget.monthly_limit)}
-                  </span>
-                )}
+            {/* Period budget bars — one per budget, same values as Budgets page */}
+            {matchingBudgets.length > 0 && Object.keys(budgetSpentMap).length > 0 && (
+              <div className="shrink-0 mb-3 flex flex-col gap-1.5">
+                {matchingBudgets.map(b => {
+                  const spent = budgetSpentMap[b.id] ?? 0
+                  const pct   = Math.min((spent / b.monthly_limit) * 100, 100)
+                  const color = barColor(pct)
+                  return (
+                    <div key={b.id} className="glass-card rounded-xl px-4 py-2.5 flex items-center gap-3">
+                      <span className="text-[11px] text-white/40 shrink-0 uppercase tracking-widest truncate max-w-[100px]">
+                        {b.name || 'Budget'}
+                      </span>
+                      <div className="flex-1 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${pct}%`, background: color }} />
+                      </div>
+                      <span className="text-xs tabular-nums shrink-0">
+                        <span style={{ color }}>{fmt(spent)}</span>
+                        <span className="text-white/30"> / {fmt(b.monthly_limit)}</span>
+                      </span>
+                      {spent > b.monthly_limit && (
+                        <span className="text-[10px] shrink-0 px-1.5 py-0.5 rounded-md"
+                          style={{ background: 'color-mix(in srgb, var(--color-alert, #ef4444) 15%, transparent)', color: 'var(--color-alert, #ef4444)' }}>
+                          Over by {fmt(spent - b.monthly_limit)}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
 

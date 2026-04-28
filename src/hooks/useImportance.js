@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { DEFAULT_IMPORTANCE } from '../constants/importance'
@@ -19,10 +19,10 @@ export function useImportance() {
       })
   }, [user?.id])
 
-  const importance = DEFAULT_IMPORTANCE.map(imp => ({
+  const importance = useMemo(() => DEFAULT_IMPORTANCE.map(imp => ({
     ...imp,
     color: colorOverrides[imp.value] ?? imp.color,
-  }))
+  })), [colorOverrides])
 
   async function updateColor(value, color) {
     const next = { ...colorOverrides, [value]: color }
