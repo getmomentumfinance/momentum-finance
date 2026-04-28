@@ -336,6 +336,12 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
                       {item.name && receiver && (
                         <p className="text-[10px] text-white/35 truncate leading-tight mt-0.5">{item.name}</p>
                       )}
+                      {item.status === 'paid' && (
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 mt-0.5 inline-block">Paid</span>
+                      )}
+                      {item.status === 'returned' && (
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-white/10 text-white/50 mt-0.5 inline-block">Returned</span>
+                      )}
                       {(cat || sub) && item.status === 'pending' && (
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {cat && <CategoryPill name={cat.name} color={cat.color} icon={cat.icon} />}
