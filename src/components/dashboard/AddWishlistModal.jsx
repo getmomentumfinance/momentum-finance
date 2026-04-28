@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom'
 import { X, ChevronDown, Trash2, Building2, UserRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
+import { useSharedData } from '../../context/SharedDataContext'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
-import { ReceiverAvatar, useAddReceiver } from '../shared/ReceiverCombobox'
-import { useCards } from '../../hooks/useCards'
+import { ReceiverAvatar } from '../shared/ReceiverCombobox'
+import { useImportance } from '../../hooks/useImportance'
+import ImportancePicker from '../shared/ImportancePicker'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 
@@ -93,18 +95,15 @@ function CategorySelect({ value, onChange, options, placeholder = 'None', disabl
   )
 }
 
-function DescriptionCombobox({ value, onChange, receiverId, onReceiverSelect, onAddReceiver, receivers }) {
+function ReceiverCombobox({ value, onChange, receiverId, onReceiverSelect, onAddReceiver, receivers }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
-
   const q = value.trim().toLowerCase()
   const filtered = q.length > 0 ? receivers.filter(r => r.name.toLowerCase().includes(q)).slice(0, 6) : []
   const exactMatch = receivers.find(r => r.name.toLowerCase() === q)
   const showAdd = q.length > 0 && !exactMatch
   const showDropdown = open && (filtered.length > 0 || showAdd)
-
   function select(r) { onChange(r.name); onReceiverSelect(r.id); setOpen(false) }
-
   return (
     <div ref={ref} className="relative"
       onBlur={e => { if (!ref.current?.contains(e.relatedTarget)) setOpen(false) }}>
@@ -115,7 +114,6 @@ function DescriptionCombobox({ value, onChange, receiverId, onReceiverSelect, on
         placeholder="Where will you buy it?"
         className={inp}
       />
-
       {receiverId && (
         <div className="mt-1.5 flex items-center gap-1.5">
           {(() => {
@@ -133,7 +131,6 @@ function DescriptionCombobox({ value, onChange, receiverId, onReceiverSelect, on
           })()}
         </div>
       )}
-
       {showDropdown && (
         <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
           {filtered.map(r => (
@@ -175,9 +172,8 @@ function DescriptionCombobox({ value, onChange, receiverId, onReceiverSelect, on
 export default function AddWishlistModal({ onClose, onSaved, item = null }) {
   const isEdit = !!item
   const { user } = useAuth()
-  const { cards } = useCards()
-
-  const today = new Date().toISOString().slice(0, 10)
+  const { categories: sharedCategories, receivers: sharedReceivers } = useSharedData()
+  const { importance: importanceOptions } = useImportance()
 
   const [name,        setName]        = useState(item?.name           ?? '')
   const [icon,        setIcon]        = useState(item?.icon           ?? '')
@@ -185,33 +181,28 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
   const [amount,      setAmount]      = useState(item?.amount         ?? '')
   const [description, setDescription] = useState(item?.description    ?? '')
   const [receiverId,  setReceiverId]  = useState(item?.receiver_id    ?? null)
-  const [date,        setDate]        = useState(item?.planned_date   ?? today)
-  const [cardId,      setCardId]      = useState(item?.card_id        ?? null)
-  const [isCash,      setIsCash]      = useState(item?.is_cash        ?? false)
+  const [date,        setDate]        = useState(item?.planned_date   ?? '')
   const [categoryId,  setCategoryId]  = useState(item?.category_id    ?? '')
   const [subId,       setSubId]       = useState(item?.subcategory_id ?? '')
   const [comment,     setComment]     = useState(item?.comment        ?? '')
+  const [importance,  setImportance]  = useState(item?.importance     ?? '')
   const [saving,      setSaving]      = useState(false)
   const [deleting,    setDeleting]    = useState(false)
-  const [categories,  setCategories]  = useState([])
-  const [receivers,   setReceivers]   = useState([])
-  const [cardOpen,    setCardOpen]    = useState(false)
-  const addReceiver = useAddReceiver(user?.id, setReceivers)
-
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('categories').select('*').eq('user_id', user.id)
-      .then(({ data }) => setCategories(data ?? []))
-    supabase.from('receivers').select('*').eq('user_id', user.id).order('name')
-      .then(({ data }) => setReceivers(data ?? []))
-  }, [user?.id])
+  const [extraReceivers, setExtraReceivers] = useState([])
 
   useEffect(() => { if (!isEdit) setSubId('') }, [categoryId])
 
-  const debitCards = cards.filter(c => c.type === 'debit')
-  const selectedCard = debitCards.find(c => c.id === cardId)
+  const categories = sharedCategories
+  const receivers  = [...sharedReceivers, ...extraReceivers]
   const topCategories = categories.filter(c => !c.parent_id)
   const subcategories = categories.filter(c => c.parent_id === categoryId)
+
+  async function handleAddReceiver(name, type) {
+    const { data } = await supabase.from('receivers').insert({
+      user_id: user.id, name, type, domain: null, logo_url: null,
+    }).select().single()
+    if (data) setExtraReceivers(prev => [...prev, data])
+  }
 
   async function handleSave() {
     if (!name.trim()) return
@@ -224,11 +215,10 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
       description:    description.trim() || null,
       receiver_id:    receiverId      || null,
       planned_date:   date            || null,
-      card_id:        isCash ? null   : (cardId || null),
-      is_cash:        isCash,
       category_id:    categoryId      || null,
       subcategory_id: subId           || null,
       comment:        comment.trim()  || null,
+      importance:     importance      || null,
     }
     const { error } = isEdit
       ? await supabase.from('wishlist').update(payload).eq('id', item.id)
@@ -293,59 +283,26 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-xs text-muted uppercase tracking-widest">Planned Date</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
+              <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                Planned Date <span className="text-white/30 normal-case font-normal">(optional)</span>
+              </label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                className={inp + ' [color-scheme:dark]'} />
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-              Description <span className="text-white/30 normal-case font-normal">(optional)</span>
+              Receiver <span className="text-white/30 normal-case font-normal">(optional)</span>
             </label>
-            <DescriptionCombobox
+            <ReceiverCombobox
               value={description}
               onChange={setDescription}
               receiverId={receiverId}
               onReceiverSelect={setReceiverId}
-              onAddReceiver={addReceiver}
+              onAddReceiver={handleAddReceiver}
               receivers={receivers}
             />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-              Pay with <span className="text-white/30 normal-case font-normal">(optional)</span>
-            </label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <button type="button"
-                  onClick={() => { setIsCash(false); setCardOpen(v => !v) }}
-                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border text-sm transition-colors ${!isCash ? 'border-white/20 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
-                  <span className="truncate">{selectedCard ? selectedCard.name : 'Card…'}</span>
-                  <ChevronDown size={13} className="text-white/30 shrink-0 ml-1" />
-                </button>
-                {cardOpen && !isCash && (
-                  <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
-                    <button type="button" onClick={() => { setCardId(null); setCardOpen(false) }}
-                      className="w-full px-3 py-2.5 text-left text-sm text-white/25 hover:bg-white/5 transition-colors">
-                      None
-                    </button>
-                    {debitCards.map(c => (
-                      <button key={c.id} type="button"
-                        onClick={() => { setCardId(c.id); setCardOpen(false) }}
-                        className={`w-full px-3 py-2.5 text-left text-sm hover:bg-white/5 transition-colors ${cardId === c.id ? 'text-white' : 'text-white/60'}`}>
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button type="button"
-                onClick={() => { setIsCash(v => !v); setCardId(null); setCardOpen(false) }}
-                className={`px-4 py-2.5 rounded-xl border text-sm transition-colors ${isCash ? 'border-white/20 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
-                Cash
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -367,6 +324,11 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
               placeholder="Add any notes…" rows={3} className={inp + ' resize-none'} />
           </div>
 
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+            <ImportancePicker value={importance} onChange={setImportance} options={importanceOptions} />
+          </div>
+
           <div className="flex gap-3 pt-1">
             {isEdit && (
               <button type="button" onClick={handleDelete} disabled={deleting}
@@ -374,12 +336,8 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
                 <Trash2 size={15} />
               </button>
             )}
-            <button type="button" onClick={onClose}
-              className="btn-modal-cancel">
-              Cancel
-            </button>
-            <button type="button" onClick={handleSave} disabled={saving || !name.trim()}
-              className="btn-modal-primary">
+            <button type="button" onClick={onClose} className="btn-modal-cancel">Cancel</button>
+            <button type="button" onClick={handleSave} disabled={saving || !name.trim()} className="btn-modal-primary">
               {saving ? 'Saving…' : isEdit ? 'Update' : 'Save'}
             </button>
           </div>

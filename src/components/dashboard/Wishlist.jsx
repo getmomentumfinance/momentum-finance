@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Heart, Plus, Undo2, ExternalLink, ShoppingCart } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Heart, Plus, Undo2, ExternalLink, ShoppingCart, X } from 'lucide-react'
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import { useImportance } from '../../hooks/useImportance'
+import { useCards } from '../../hooks/useCards'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CATEGORY_ICONS } from '../shared/CategoryPill'
 import AddWishlistModal from './AddWishlistModal'
@@ -53,6 +55,7 @@ function ItemIcon({ item }) {
 export default function Wishlist({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { categoryMap: catMap } = useSharedData()
+  const { cards } = useCards()
   const c = useCardCustomization('Wishlist')
   const { importance } = useImportance()
 
@@ -61,9 +64,14 @@ export default function Wishlist({ currentDate = new Date() }) {
   const [editItem,  setEditItem]  = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [toggling,   setToggling]   = useState(new Set())
-  const [skipFlash,  setSkipFlash]  = useState(null) // { id, amount }
+  const [skipFlash,  setSkipFlash]  = useState(null)
   const [showAll,    setShowAll]    = useState(false)
   const [collapsed, setCollapsed] = useCollapsed('Wishlist')
+  const [buyItem,   setBuyItem]   = useState(null)
+  const [buyCardId, setBuyCardId] = useState(null)
+  const [buyIsCash, setBuyIsCash] = useState(false)
+
+  const availableCards = (cards ?? []).filter(c => c.type !== 'savings' && c.type !== 'cash')
 
   useEffect(() => { if (user?.id) load() }, [user?.id])
 
@@ -88,12 +96,23 @@ export default function Wishlist({ currentDate = new Date() }) {
     load()
   }
 
-  async function handleMarkBought(item) {
+  function openBuyPopup(item) {
+    setBuyItem(item)
+    setBuyCardId(null)
+    setBuyIsCash(false)
+  }
+
+  async function confirmBuy() {
+    if (!buyItem) return
+    const item = buyItem
+    setBuyItem(null)
+
     if (!item.amount) {
       setEditItem(item)
       setShowModal(true)
       return
     }
+
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: 'bought' } : i))
     const _d = new Date()
     const today = `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}`
@@ -106,13 +125,12 @@ export default function Wishlist({ currentDate = new Date() }) {
       category_id:     item.category_id    || null,
       subcategory_id:  item.subcategory_id || null,
       receiver_id:     item.receiver_id    || null,
-      card_id:         item.is_cash ? null : (item.card_id || null),
-      is_cash:         item.is_cash ?? false,
+      card_id:         buyIsCash ? null : (buyCardId || null),
+      is_cash:         buyIsCash,
       is_deleted:      false,
       is_split_parent: false,
       status:          'completed',
     }).select('id').single()
-    // Use today as bought_at (not planned_date) so it always shows in the current month
     await supabase.from('wishlist').update({ status: 'bought', transaction_id: tx?.id ?? null, bought_at: today }).eq('id', item.id)
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     load()
@@ -222,9 +240,8 @@ export default function Wishlist({ currentDate = new Date() }) {
                         : <span className="text-xs text-white/25">—</span>
                       }
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleMarkBought(item)}
+                        <button onClick={() => openBuyPopup(item)}
                           className="flex items-center gap-1 text-[10px] text-white/25 transition-colors"
-                          style={{ '--hover-color': 'var(--color-accent)' }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--color-accent)'}
                           onMouseLeave={e => e.currentTarget.style.color = ''}>
                           <ShoppingCart size={11} />
@@ -326,6 +343,74 @@ export default function Wishlist({ currentDate = new Date() }) {
           onClose={() => { setShowModal(false); setEditItem(null) }}
           onSaved={load}
         />
+      )}
+
+      {/* Buy popup */}
+      {buyItem && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={e => { if (e.target === e.currentTarget) setBuyItem(null) }}>
+          <div className="glass-popup border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col gap-5 shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)' }}>
+                  <ShoppingCart size={16} style={{ color: 'var(--color-accent)' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Mark as bought</p>
+                  <p className="text-[11px] text-white/40 truncate max-w-[180px]">{buyItem.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setBuyItem(null)}
+                className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Amount */}
+            {buyItem.amount && (
+              <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+                <span className="text-sm text-white/50">Amount</span>
+                <span className="text-sm font-semibold text-white">{fmt(buyItem.amount)}</span>
+              </div>
+            )}
+
+            {/* Pay with */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs text-white/50 uppercase tracking-widest">Pay with</label>
+              <div className="flex gap-2 flex-wrap">
+                {availableCards.map(card => (
+                  <button key={card.id} type="button"
+                    onClick={() => { setBuyCardId(card.id); setBuyIsCash(false) }}
+                    className={`flex-1 py-2 px-3 rounded-xl border text-sm transition-all min-w-[80px] ${!buyIsCash && buyCardId === card.id ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                    {card.name}
+                  </button>
+                ))}
+                <button type="button"
+                  onClick={() => { setBuyIsCash(true); setBuyCardId(null) }}
+                  className={`flex-1 py-2 px-3 rounded-xl border text-sm transition-all min-w-[80px] ${buyIsCash ? 'border-white/30 bg-white/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}>
+                  Cash
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <button onClick={() => setBuyItem(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmBuy}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
+                style={{ background: 'var(--color-accent)' }}>
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </>
   )
