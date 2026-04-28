@@ -200,7 +200,7 @@ export default function PendingTransactions({ currentDate = new Date(), hidePaid
     setLoading(true)
 
     if (returnType === 'full') {
-      await supabase.from('pending_items').update({ status: 'returned' }).eq('id', item.id)
+      await supabase.from('pending_items').update({ status: 'returned', updated_at: new Date().toISOString() }).eq('id', item.id)
       setSavedFlash({ id: item.id, amount: item.amount })
       setTimeout(() => setSavedFlash(null), 2800)
     } else {
