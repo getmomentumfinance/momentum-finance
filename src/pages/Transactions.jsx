@@ -139,6 +139,8 @@ export default function Transactions() {
   const [filterDateTo, setFilterDateTo] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterImportance, setFilterImportance] = useState(new Set())
+  const [filterCard,      setFilterCard]      = useState('')
+  const [allCards,        setAllCards]        = useState([])
 
   useEffect(() => {
     if (!user?.id) return
@@ -177,6 +179,7 @@ export default function Transactions() {
       const receiverMap = Object.fromEntries((receivers ?? []).map(r => [r.id, r]))
       setAllCategories(categories ?? [])
       setAllReceivers(receivers ?? [])
+      setAllCards(cards ?? [])
 
       setRows(txs
         .filter(t => (t.type === 'transfer' || t.type === 'savings' || t.type === 'cash_out') ? t.amount > 0 : true)
@@ -223,12 +226,13 @@ export default function Transactions() {
     if (filterDateTo)              result = result.filter(r => r.date <= filterDateTo)
     if (filterType)                result = result.filter(r => r.type === filterType)
     if (filterImportance.size > 0) result = result.filter(r => filterImportance.has(r.importance ?? ''))
+    if (filterCard)                result = result.filter(r => r.card_id === filterCard)
     return result
-  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance])
+  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance, filterCard])
 
   const topCategories = allCategories.filter(c => !c.parent_id)
   const subCategories = allCategories.filter(c => c.parent_id === filterCat)
-  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0
+  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0 || filterCard
 
   // ── Totals (filtered, exclude split parents to avoid double-count) ──
   const totalIncome   = filteredRows.filter(r => r.type === 'income'  && !r.is_split_parent).reduce((s, r) => s + r.amount, 0)
@@ -271,7 +275,7 @@ export default function Transactions() {
   function clearFilters() {
     setSearch(''); setFilterCat(''); setFilterSub('')
     setFilterReceiver(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterType('')
-    setFilterImportance(new Set())
+    setFilterImportance(new Set()); setFilterCard('')
   }
 
   async function handleDelete(id) {
@@ -356,6 +360,16 @@ export default function Transactions() {
             >
               <option value="">{t('tx.allReceivers')}</option>
               {allReceivers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+
+            {/* Card */}
+            <select
+              value={filterCard}
+              onChange={e => setFilterCard(e.target.value)}
+              className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
+            >
+              <option value="">All cards</option>
+              {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
 
             {/* Date range */}
