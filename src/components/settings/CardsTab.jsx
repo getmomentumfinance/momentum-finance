@@ -553,7 +553,7 @@ function TickersSection({ userId }) {
 const CREDIT_TYPES = new Set(['income'])
 function computeBalance(card, transactions) {
   const delta = transactions
-    .filter(t => t.card_id === card.id && !t.split_parent_id)
+    .filter(t => t.card_id === card.id)
     .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
   return Number(card.initial_balance) + delta
 }

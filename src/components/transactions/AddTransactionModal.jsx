@@ -409,7 +409,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const CREDIT_TYPES = new Set(['income'])
   function cardBalance(card) {
     const delta = cardTxs
-      .filter(t => t.card_id === card.id && !t.is_cash && !t.split_parent_id)
+      .filter(t => t.card_id === card.id && !t.is_cash)
       .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
     return Number(card.initial_balance) + delta
   }
