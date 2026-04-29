@@ -30,15 +30,23 @@ import MoneyFlowTab from '../components/analytics/MoneyFlowTab'
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
 
-// Compute Y-axis ticks with a step size that fits the data (~7 ticks, nice round numbers)
-function niceYTicks(data, keys) {
-  const max = Math.max(0, ...data.flatMap(d => keys.map(k => Number(d[k]) || 0)))
-  if (max === 0) return [0]
-  const raw = max / 7
-  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
-  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => max / s <= 8) ?? mag * 10
-  const top  = Math.ceil(max / step) * step
-  return Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step)
+// Compute Y-axis ticks + domain. Caps outlier spikes at 90th-percentile × 1.6
+// so one big income day doesn't flatten the rest of the chart.
+function niceYAxis(data, keys) {
+  const vals = data.flatMap(d => keys.map(k => Number(d[k]) || 0)).filter(v => v > 0).sort((a, b) => a - b)
+  if (!vals.length) return { ticks: [0], domain: [0, 100] }
+
+  const realMax = vals[vals.length - 1]
+  const p90     = vals[Math.floor(vals.length * 0.9)] ?? realMax
+  const cap     = p90 * 1.6
+  const top     = realMax > cap ? cap : realMax   // clamp outliers
+
+  const raw  = top / 7
+  const mag  = Math.pow(10, Math.floor(Math.log10(raw || 1)))
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => top / s <= 8) ?? mag * 10
+  const ceil = Math.ceil(top / step) * step
+  const ticks = Array.from({ length: Math.round(ceil / step) + 1 }, (_, i) => i * step)
+  return { ticks, domain: [0, ceil] }
 }
 
 const tooltipStyle = {
@@ -2235,7 +2243,7 @@ export default function Analytics() {
                       </defs>
                       <CartesianGrid vertical={false} stroke={GRID} />
                       <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis ticks={niceYTicks(periodData, ['income', 'expense'])} tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                      {(() => { const ya = niceYAxis(periodData, ['income','expense']); return <YAxis ticks={ya.ticks} domain={ya.domain} tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} allowDataOverflow /> })()}
                       <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'income' ? 'Income' : 'Expenses'} />} cursor={false} />
                       <Area type="monotone" dataKey="income"  stroke={colors.income}  fill="url(#incomeGrad)"  strokeWidth={1.5} dot={false} />
                       <Area type="monotone" dataKey="expense" stroke={colors.expense} fill="url(#expenseGrad)" strokeWidth={2}   dot={false} />
