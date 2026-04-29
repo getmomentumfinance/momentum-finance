@@ -2863,7 +2863,7 @@ export default function Analytics() {
         <div className="flex flex-col md:flex-row gap-5 items-stretch">
 
           {/* Bottom left sidebar */}
-          <div className="w-full md:w-80 md:shrink-0 flex flex-col gap-4">
+          <div className="w-full md:w-[368px] md:shrink-0 flex flex-col gap-4">
 
 
 
