@@ -184,11 +184,15 @@ export default function MoneyFlowTab({ range, currentDate }) {
     { key: 'income',  label: 'Income',        Icon: TrendingUp,    color: DEFAULT_COLORS.income  },
   ], [DEFAULT_COLORS])
 
+  // Only show individual card chips for debit/credit — cash/savings/invest
+  // are already represented by the summary metric chips above.
   const cardDefs = useMemo(() =>
-    cards.map((c, i) => ({
-      key: `card_${c.id}`, label: c.name, Icon: CreditCard,
-      color: CARD_PALETTE[i % CARD_PALETTE.length], card: c,
-    }))
+    cards
+      .filter(c => DEBIT_CREDIT.has(c.type))
+      .map((c, i) => ({
+        key: `card_${c.id}`, label: c.name, Icon: CreditCard,
+        color: CARD_PALETTE[i % CARD_PALETTE.length], card: c,
+      }))
   , [cards])
 
   const allDefs = useMemo(() => [...METRICS, ...cardDefs], [METRICS, cardDefs])
