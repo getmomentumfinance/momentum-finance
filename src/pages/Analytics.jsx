@@ -2224,7 +2224,7 @@ export default function Analytics() {
                       </defs>
                       <CartesianGrid vertical={false} stroke={GRID} />
                       <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                      <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} tickCount={8} />
                       <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'income' ? 'Income' : 'Expenses'} />} cursor={false} />
                       <Area type="monotone" dataKey="income"  stroke={colors.income}  fill="url(#incomeGrad)"  strokeWidth={1.5} dot={false} />
                       <Area type="monotone" dataKey="expense" stroke={colors.expense} fill="url(#expenseGrad)" strokeWidth={2}   dot={false} />
