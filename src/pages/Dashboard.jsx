@@ -80,7 +80,7 @@ export default function Dashboard() {
   const [cashBalance,       setCashBalance]       = useState(0)
   const [totalIncome,       setTotalIncome]       = useState(0)
   const [totalExpenses,     setTotalExpenses]     = useState(0)
-  const portfolioValue      = usePortfolioValue(user)
+  const portfolioValue      = usePortfolioValue()
   const { t }               = usePreferences()
   const [totalSavingsMonth, setTotalSavingsMonth] = useState(0)
   const [totalSavings,      setTotalSavings]      = useState(0)

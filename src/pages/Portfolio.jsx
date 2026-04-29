@@ -1,13 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { useState, useMemo } from 'react'
+import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { useSharedData } from '../context/SharedDataContext'
+import { useUIPrefs } from '../context/UIPrefContext'
+import { useTransactionModal } from '../context/TransactionModalContext'
+import { fetchLivePrice } from '../lib/yahooFinance'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
-
-import { fetchLivePrice, fetchHistoricalPrice } from '../lib/yahooFinance'
 
 function StatCard({ label, value, sub, positive }) {
   const color = positive === true ? 'var(--type-income)' : positive === false ? 'var(--type-expense)' : 'white'
@@ -20,170 +21,114 @@ function StatCard({ label, value, sub, positive }) {
   )
 }
 
+function timeAgo(isoStr) {
+  if (!isoStr) return null
+  const diff = Date.now() - new Date(isoStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1)  return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24)  return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
+
 export default function Portfolio() {
-  const { user } = useAuth()
-  const { fmt, t } = usePreferences()
+  const { user }                    = useAuth()
+  const { fmt, t }                  = usePreferences()
+  const { allTransactions }         = useSharedData()
+  const { prefs, setPref }          = useUIPrefs()
+  const { openTransactionModal }    = useTransactionModal()
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [positions,   setPositions]   = useState([])
-  const [loading,     setLoading]     = useState(true)
   const [refreshing,  setRefreshing]  = useState(false)
   const [priceError,  setPriceError]  = useState(false)
-  const [lastUpdated, setLastUpdated] = useState(null)
   const [expanded,    setExpanded]    = useState({})
 
-  const load = useCallback(async (silent = false) => {
-    if (!user?.id) return
-    if (!silent) setLoading(true)
+  const cachedPrices = prefs.portfolio_prices ?? {}
 
-    const { data: txs } = await supabase
-      .from('transactions')
-      .select('id, ticker, quantity, amount, price_per_unit, date')
-      .eq('user_id', user.id)
-      .eq('type', 'invest')
-      .eq('is_deleted', false)
-      .not('ticker', 'is', null)
+  // ── Positions derived from SharedDataContext allTransactions ─────────────
+  const positions = useMemo(() => {
+    const investTxs = allTransactions.filter(t => t.type === 'invest' && t.ticker)
+    if (!investTxs.length) return []
 
-    const rawBalances = user?.user_metadata?.portfolio_ticker_balances ?? {}
-    // Normalise: support both old format (number) and new format ({ amount, date })
-    const tickerBalances = Object.fromEntries(
-      Object.entries(rawBalances).map(([sym, val]) =>
-        [sym, typeof val === 'object' ? val : { amount: val, date: null }]
-      )
-    )
-
-    if (!txs?.length) {
-      // Build positions for tickers that have an initial balance but no transactions
-      const initialOnlyPositions = await Promise.all(
-        Object.entries(tickerBalances)
-          .filter(([, b]) => b.amount > 0)
-          .map(async ([ticker, b]) => {
-            const liveResult = await fetchLivePrice(ticker)
-            const livePrice = liveResult?.price ?? null
-            let qty = 0
-            if (livePrice && b.date) {
-              const hist = await fetchHistoricalPrice(ticker, b.date)
-              if (hist?.price) qty = b.amount / hist.price
-            }
-            const currentVal = livePrice && qty > 0 ? livePrice * qty : b.amount
-            return {
-              ticker, resolvedTicker: liveResult?.resolvedTicker ?? ticker, name: liveResult?.name ?? null,
-              totalCost: b.amount, totalFees: 0, totalQty: qty,
-              avgBuy: qty > 0 ? b.amount / qty : 0,
-              livePrice, currentVal,
-              gainLoss: livePrice && qty > 0 ? currentVal - b.amount : null,
-              gainPct:  livePrice && qty > 0 ? ((currentVal - b.amount) / b.amount) * 100 : null,
-              initialBalance: b.amount, initialDate: b.date, transactions: [],
-            }
-          })
-      )
-      setPositions(initialOnlyPositions)
-      setLoading(false)
-      setRefreshing(false)
-      return
+    const grouped = {}
+    for (const tx of investTxs) {
+      const sym = tx.ticker.toUpperCase()
+      if (!grouped[sym]) grouped[sym] = { qty: 0, cost: 0, fees: 0, txs: [] }
+      const qty  = Number(tx.quantity ?? 0)
+      const ppu  = Number(tx.price_per_unit ?? 0)
+      const pure = qty * ppu
+      const fees = Number(tx.amount) - pure
+      grouped[sym].qty  += qty
+      grouped[sym].cost += pure > 0 ? pure : Number(tx.amount)
+      grouped[sym].fees += fees > 0 ? fees : 0
+      grouped[sym].txs.push(tx)
     }
 
-    // Group by ticker
-    const grouped = {}
-    txs.forEach(t => {
-      const ticker = t.ticker.toUpperCase()
-      if (!grouped[ticker]) grouped[ticker] = { ticker, totalCost: 0, totalQty: 0, totalFees: 0, transactions: [] }
-      const qty  = Number(t.quantity ?? 0)
-      const ppu  = Number(t.price_per_unit ?? 0)
-      const pure = qty * ppu  // cost without fees
-      const fees = Number(t.amount) - pure
-      grouped[ticker].totalCost += pure > 0 ? pure : Number(t.amount) // fall back to amount if no ppu stored
-      grouped[ticker].totalQty  += qty
-      grouped[ticker].totalFees += fees > 0 ? fees : 0
-      grouped[ticker].transactions.push(t)
+    return Object.entries(grouped).map(([ticker, g]) => {
+      const cached     = cachedPrices[ticker]
+      const livePrice  = cached?.price ?? null
+      const currentVal = livePrice != null && g.qty > 0 ? livePrice * g.qty : null
+      const gainLoss   = currentVal != null ? currentVal - g.cost : null
+      const gainPct    = gainLoss != null && g.cost > 0 ? (gainLoss / g.cost) * 100 : null
+      return {
+        ticker,
+        name:       cached?.name       ?? null,
+        updatedAt:  cached?.updatedAt  ?? null,
+        totalCost:  g.cost,
+        totalQty:   g.qty,
+        totalFees:  g.fees,
+        avgBuy:     g.qty > 0 ? g.cost / g.qty : 0,
+        livePrice,
+        currentVal,
+        gainLoss,
+        gainPct,
+        transactions: g.txs.sort((a, b) => b.date.localeCompare(a.date)),
+      }
     })
+  }, [allTransactions, cachedPrices])
 
-    // Fetch live prices (with auto exchange suffix resolution)
-    const tickers = Object.keys(grouped)
+  // ── Refresh — fetch live prices and cache them in prefs ───────────────────
+  async function refresh() {
+    if (!user?.id) return
+    setRefreshing(true)
+    setPriceError(false)
+
+    const tickers = [...new Set(
+      allTransactions.filter(t => t.type === 'invest' && t.ticker).map(t => t.ticker.toUpperCase())
+    )]
+    if (!tickers.length) { setRefreshing(false); return }
+
     let anyError = false
-    const prices = await Promise.all(tickers.map(async t => {
-      const result = await fetchLivePrice(t)
-      if (!result) { anyError = true; return { ticker: t, price: null, resolvedTicker: t, name: null } }
-      return { ticker: t, price: result.price, resolvedTicker: result.resolvedTicker, name: result.name }
+    const results = await Promise.all(tickers.map(async ticker => {
+      const r = await fetchLivePrice(ticker)
+      if (!r) { anyError = true; return { ticker, price: null, name: null } }
+      return { ticker, price: r.price, name: r.name }
     }))
     setPriceError(anyError)
 
-    const priceMap    = Object.fromEntries(prices.map(p => [p.ticker, p.price]))
-    const resolvedMap = Object.fromEntries(prices.map(p => [p.ticker, p.resolvedTicker]))
-    const nameMap     = Object.fromEntries(prices.map(p => [p.ticker, p.name]))
-
-    // For tickers with an initial balance + a date, compute live initial value
-    const initialQtyMap = {}
-    await Promise.all(tickers.map(async ticker => {
-      const b = tickerBalances[ticker]
-      if (!b || !b.amount || !b.date) return
-      const hist = await fetchHistoricalPrice(ticker, b.date)
-      if (hist?.price && hist.price > 0) initialQtyMap[ticker] = b.amount / hist.price
-    }))
-
-    const built = tickers.map(ticker => {
-      const g              = grouped[ticker]
-      const b              = tickerBalances[ticker]
-      const initialAmount  = b?.amount ?? 0
-      const initialQty     = initialQtyMap[ticker] ?? 0
-      const livePrice      = priceMap[ticker]
-      const txQty          = g.totalQty
-      const totalQty       = txQty + initialQty
-      const avgBuy         = totalQty > 0 ? (g.totalCost + initialAmount) / totalQty : 0
-      const trackedVal     = livePrice != null ? livePrice * totalQty : null
-      const currentVal     = trackedVal ?? (initialAmount > 0 ? initialAmount : null)
-      const totalCost      = g.totalCost + initialAmount
-      const gainLoss       = currentVal != null ? currentVal - totalCost : null
-      const gainPct        = gainLoss != null && totalCost > 0 ? (gainLoss / totalCost) * 100 : null
-      const resolvedTicker = resolvedMap[ticker] ?? ticker
-      const name           = nameMap[ticker] ?? null
-      return { ticker, resolvedTicker, name, totalCost, totalFees: g.totalFees, totalQty, avgBuy, livePrice, currentVal, gainLoss, gainPct, initialBalance: initialAmount, initialDate: b?.date ?? null, transactions: g.transactions }
-    })
-
-    // Also add tickers that have an initial balance but zero transactions
-    const trackedSymbols = new Set(tickers)
-    for (const [ticker, b] of Object.entries(tickerBalances)) {
-      if (!trackedSymbols.has(ticker) && b.amount > 0) {
-        const livePrice = priceMap[ticker] ?? null
-        const initialQty = initialQtyMap[ticker] ?? 0
-        const currentVal = livePrice && initialQty > 0 ? livePrice * initialQty : b.amount
-        built.push({
-          ticker, resolvedTicker: resolvedMap[ticker] ?? ticker, name: nameMap[ticker] ?? null,
-          totalCost: b.amount, totalFees: 0, totalQty: initialQty,
-          avgBuy: initialQty > 0 ? b.amount / initialQty : 0,
-          livePrice, currentVal,
-          gainLoss: livePrice && initialQty > 0 ? currentVal - b.amount : null,
-          gainPct:  livePrice && initialQty > 0 ? ((currentVal - b.amount) / b.amount) * 100 : null,
-          initialBalance: b.amount, initialDate: b.date ?? null, transactions: [],
-        })
-      }
+    const next = { ...cachedPrices }
+    const now  = new Date().toISOString()
+    for (const { ticker, price, name } of results) {
+      if (price != null) next[ticker] = { price, name, updatedAt: now }
     }
-
-    setPositions(built)
-    setLastUpdated(new Date())
-    setLoading(false)
+    setPref('portfolio_prices', next)
     setRefreshing(false)
-  }, [user?.id])
-
-  useEffect(() => {
-    load()
-    const interval = setInterval(() => load(true), 60_000)
-    window.addEventListener('transaction-saved', load)
-    return () => {
-      clearInterval(interval)
-      window.removeEventListener('transaction-saved', load)
-    }
-  }, [load])
-
-  async function refresh() {
-    setRefreshing(true)
-    await load(true)
   }
 
-  const totalInvested    = positions.reduce((s, p) => s + p.totalCost, 0)
-  const totalCurrentVal  = positions.filter(p => p.currentVal != null).reduce((s, p) => s + p.currentVal, 0)
-  const hasLive          = positions.some(p => p.currentVal != null)
-  const totalGainLoss    = hasLive ? totalCurrentVal - totalInvested : null
-  const totalGainPct     = totalGainLoss != null && totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : null
+  // ── Derived totals ────────────────────────────────────────────────────────
+  const totalInvested   = positions.reduce((s, p) => s + p.totalCost, 0)
+  const hasLive         = positions.some(p => p.currentVal != null)
+  const totalCurrentVal = positions.filter(p => p.currentVal != null).reduce((s, p) => s + p.currentVal, 0)
+  const totalGainLoss   = hasLive ? totalCurrentVal - totalInvested : null
+  const totalGainPct    = totalGainLoss != null && totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : null
+
+  const lastUpdated = useMemo(() => {
+    const times = Object.values(cachedPrices).map(p => p.updatedAt).filter(Boolean)
+    if (!times.length) return null
+    return times.reduce((a, b) => a > b ? a : b)
+  }, [cachedPrices])
+
+  const hasCachedPrices = Object.keys(cachedPrices).length > 0
 
   return (
     <div className="min-h-screen bg-dash-bg text-white">
@@ -194,18 +139,27 @@ export default function Portfolio() {
       />
 
       <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold">{t('port.title')}</h1>
             <p className="text-muted text-sm mt-1">{t('port.subtitle')}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {lastUpdated && !refreshing && (
-              <span className="text-xs text-muted">
-                {t('port.updated', { time: lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) })}
+              <span className="flex items-center gap-1 text-xs text-muted">
+                <Clock size={11} />
+                {timeAgo(lastUpdated)}
               </span>
             )}
+            <button
+              onClick={() => openTransactionModal({ type: 'invest' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/15 border border-accent/30 text-accent text-sm hover:bg-accent/25 transition-colors"
+            >
+              <Plus size={13} />
+              Add
+            </button>
             <button
               onClick={refresh}
               disabled={refreshing}
@@ -224,153 +178,168 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <StatCard label={t('port.totalInvested')} value={fmt(totalInvested)} />
-          <StatCard
-            label={t('port.currentValue')}
-            value={hasLive ? fmt(totalCurrentVal) : '—'}
-            sub={!hasLive ? t('port.noPrices') : undefined}
-          />
-          <StatCard
-            label={t('port.totalGainLoss')}
-            value={totalGainLoss != null ? fmt(totalGainLoss) : '—'}
-            positive={totalGainLoss != null ? totalGainLoss >= 0 : undefined}
-          />
-          <StatCard
-            label={t('port.return')}
-            value={totalGainPct != null ? fmtPct(totalGainPct) : '—'}
-            positive={totalGainPct != null ? totalGainPct >= 0 : undefined}
-          />
-        </div>
+        {positions.length === 0 && !hasCachedPrices && (
+          <div className="glass-card rounded-2xl flex flex-col items-center justify-center gap-4 py-20 text-center">
+            <TrendingUp size={36} className="text-white/15" />
+            <div>
+              <p className="text-white/50 text-sm">No investments yet.</p>
+              <p className="text-white/30 text-xs mt-1">Click <strong className="text-white/50">Add</strong> to log your first investment.</p>
+            </div>
+            <button
+              onClick={() => openTransactionModal({ type: 'invest' })}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent/15 border border-accent/30 text-accent text-sm hover:bg-accent/25 transition-colors"
+            >
+              <Plus size={13} />
+              Add Investment
+            </button>
+          </div>
+        )}
 
-        {/* Positions table */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-white/[0.04] text-[11px] uppercase tracking-widest text-muted">
-                <th className="text-left px-5 py-3 font-medium">{t('port.ticker')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.quantity')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.avgBuy')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.currentPrice')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.costBasis')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.fees')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.currentValue')}</th>
-                <th className="text-right px-4 py-3 font-medium">{t('port.gainLoss')}</th>
-                <th className="text-right px-5 py-3 font-medium">{t('port.return')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={9} className="text-center py-16 text-muted text-xs">{t('common.loading')}</td></tr>
-              ) : positions.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-16 text-muted text-xs">{t('port.noTx')}</td></tr>
-              ) : positions.map(p => {
-                const gain = p.gainLoss
-                const gainColor = gain == null ? '#9ca3af' : gain >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
-                const alloc = totalInvested > 0 ? (p.totalCost / totalInvested) * 100 : 0
-                const isOpen = !!expanded[p.ticker]
-                const hasMultiple = p.transactions.length > 1
-                return (
-                  <>
-                    <tr
-                      key={p.ticker}
-                      className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer"
-                      onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}
-                    >
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-start gap-2">
-                          <span className="text-white/30 mt-1 shrink-0">
-                            {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                          </span>
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-white">{p.ticker}</span>
-                              {p.resolvedTicker !== p.ticker && (
-                                <span className="text-[10px] text-white/25">{p.resolvedTicker}</span>
-                              )}
-                            </div>
-                            {p.name && <span className="text-[11px] text-white/50 truncate max-w-[200px]">{p.name}</span>}
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-muted">{t('port.lots', { alloc: alloc.toFixed(1), n: p.transactions.length })}</span>
-                              {p.initialBalance > 0 && <span className="text-[10px] text-white/30">{t('port.initialBalance', { amount: fmt(p.initialBalance) })}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
-                        {p.totalQty > 0 ? p.totalQty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
-                        {p.avgBuy > 0 ? fmt(p.avgBuy) : '—'}
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums">
-                        {p.livePrice != null
-                          ? <span className="text-white">{fmt(p.livePrice)}</span>
-                          : <span className="text-white/25">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums text-white/70">{fmt(p.totalCost)}</td>
-                      <td className="px-4 py-3.5 text-right tabular-nums text-white/40 text-xs">
-                        {p.totalFees > 0.005 ? fmt(p.totalFees) : <span className="text-white/20">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums">
-                        {p.currentVal != null
-                          ? <span className="text-white font-medium">{fmt(p.currentVal)}</span>
-                          : <span className="text-white/25">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5 text-right tabular-nums font-medium" style={{ color: gainColor }}>
-                        {gain != null ? (gain >= 0 ? '+' : '') + fmt(gain) : '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-right tabular-nums">
-                        {p.gainPct != null ? (
-                          <span className="inline-flex items-center gap-1 font-medium" style={{ color: gainColor }}>
-                            {p.gainPct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                            {fmtPct(p.gainPct)}
-                          </span>
-                        ) : '—'}
-                      </td>
-                    </tr>
+        {positions.length > 0 && <>
 
-                    {isOpen && p.transactions.map(t => {
-                      const buyPrice  = Number(t.price_per_unit ?? 0)
-                      const qty       = Number(t.quantity ?? 0)
-                      const lotGainPu = p.livePrice != null && buyPrice > 0 ? p.livePrice - buyPrice : null
-                      const lotGain   = lotGainPu != null ? lotGainPu * qty : null
-                      const lotGainPct = lotGainPu != null && buyPrice > 0 ? (lotGainPu / buyPrice) * 100 : null
-                      const lotColor  = lotGain == null ? '#9ca3af' : lotGain >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
-                      const dateStr   = new Date(t.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      return (
-                        <tr key={t.id} className="border-b border-white/[0.02] bg-white/[0.015]">
-                          <td className="pl-12 pr-4 py-2.5">
-                            <span className="text-xs text-white/40">{dateStr}</span>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <StatCard label={t('port.totalInvested')} value={fmt(totalInvested)} />
+            <StatCard
+              label={t('port.currentValue')}
+              value={hasLive ? fmt(totalCurrentVal) : '—'}
+              sub={!hasLive ? (hasCachedPrices ? undefined : 'Refresh to load prices') : undefined}
+            />
+            <StatCard
+              label={t('port.totalGainLoss')}
+              value={totalGainLoss != null ? fmt(totalGainLoss) : '—'}
+              positive={totalGainLoss != null ? totalGainLoss >= 0 : undefined}
+            />
+            <StatCard
+              label={t('port.return')}
+              value={totalGainPct != null ? fmtPct(totalGainPct) : '—'}
+              positive={totalGainPct != null ? totalGainPct >= 0 : undefined}
+            />
+          </div>
+
+          {/* Positions table */}
+          <div className="glass-card rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-white/[0.04] text-[11px] uppercase tracking-widest text-muted">
+                    <th className="text-left px-5 py-3 font-medium">{t('port.ticker')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.quantity')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.avgBuy')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.currentPrice')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.costBasis')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.fees')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.currentValue')}</th>
+                    <th className="text-right px-4 py-3 font-medium">{t('port.gainLoss')}</th>
+                    <th className="text-right px-5 py-3 font-medium">{t('port.return')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {positions.map(p => {
+                    const gainColor  = p.gainLoss == null ? '#9ca3af' : p.gainLoss >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+                    const alloc      = totalInvested > 0 ? (p.totalCost / totalInvested) * 100 : 0
+                    const isOpen     = !!expanded[p.ticker]
+                    return (
+                      <>
+                        <tr
+                          key={p.ticker}
+                          className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer"
+                          onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}
+                        >
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-start gap-2">
+                              <span className="text-white/30 mt-1 shrink-0">
+                                {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                              </span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-semibold text-white">{p.ticker}</span>
+                                {p.name && <span className="text-[11px] text-white/50 truncate max-w-[200px]">{p.name}</span>}
+                                <span className="text-[10px] text-muted">
+                                  {alloc.toFixed(1)}% · {p.transactions.length} lot{p.transactions.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
-                            {qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
+                          <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
+                            {p.totalQty > 0 ? p.totalQty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
-                            {buyPrice > 0 ? fmt(buyPrice) : '—'}
+                          <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
+                            {p.avgBuy > 0 ? fmt(p.avgBuy) : '—'}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-xs">
-                            {p.livePrice != null ? <span className="text-white/60">{fmt(p.livePrice)}</span> : <span className="text-white/20">—</span>}
+                          <td className="px-4 py-3.5 text-right tabular-nums">
+                            {p.livePrice != null
+                              ? <span className="text-white">{fmt(p.livePrice)}</span>
+                              : <button onClick={e => { e.stopPropagation(); refresh() }} className="text-white/20 hover:text-accent text-xs transition-colors">Refresh</button>}
                           </td>
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5" />
-                          <td className="px-4 py-2.5" />
-                          <td className="px-5 py-2.5" />
+                          <td className="px-4 py-3.5 text-right tabular-nums text-white/70">{fmt(p.totalCost)}</td>
+                          <td className="px-4 py-3.5 text-right tabular-nums text-white/40 text-xs">
+                            {p.totalFees > 0.005 ? fmt(p.totalFees) : <span className="text-white/20">—</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-right tabular-nums">
+                            {p.currentVal != null
+                              ? <span className="text-white font-medium">{fmt(p.currentVal)}</span>
+                              : <span className="text-white/25">—</span>}
+                          </td>
+                          <td className="px-4 py-3.5 text-right tabular-nums font-medium" style={{ color: gainColor }}>
+                            {p.gainLoss != null ? (p.gainLoss >= 0 ? '+' : '') + fmt(p.gainLoss) : '—'}
+                          </td>
+                          <td className="px-5 py-3.5 text-right tabular-nums">
+                            {p.gainPct != null ? (
+                              <span className="inline-flex items-center gap-1 font-medium" style={{ color: gainColor }}>
+                                {p.gainPct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                                {fmtPct(p.gainPct)}
+                              </span>
+                            ) : '—'}
+                          </td>
                         </tr>
-                      )
-                    })}
-                  </>
-                )
-              })}
-            </tbody>
-          </table>
-          </div>{/* end overflow-x-auto */}
 
-          {/* Footer */}
-          {positions.length > 0 && (
+                        {/* Lot rows */}
+                        {isOpen && p.transactions.map(tx => {
+                          const buyPrice   = Number(tx.price_per_unit ?? 0)
+                          const qty        = Number(tx.quantity ?? 0)
+                          const lotGainPu  = p.livePrice != null && buyPrice > 0 ? p.livePrice - buyPrice : null
+                          const lotGain    = lotGainPu != null ? lotGainPu * qty : null
+                          const lotGainPct = lotGainPu != null && buyPrice > 0 ? (lotGainPu / buyPrice) * 100 : null
+                          const lotColor   = lotGain == null ? '#9ca3af' : lotGain >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+                          const dateStr    = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                          return (
+                            <tr key={tx.id} className="border-b border-white/[0.02] bg-white/[0.015]">
+                              <td className="pl-12 pr-4 py-2.5">
+                                <span className="text-xs text-white/40">{dateStr}</span>
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
+                                {qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
+                                {buyPrice > 0 ? fmt(buyPrice) : '—'}
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                                {p.livePrice != null ? <span className="text-white/60">{fmt(p.livePrice)}</span> : <span className="text-white/20">—</span>}
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
+                                {fmt(qty * (buyPrice || 0))}
+                              </td>
+                              <td className="px-4 py-2.5" />
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs">
+                                {p.livePrice != null && qty > 0 ? <span className="text-white/60">{fmt(p.livePrice * qty)}</span> : <span className="text-white/20">—</span>}
+                              </td>
+                              <td className="px-4 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: lotColor }}>
+                                {lotGain != null ? (lotGain >= 0 ? '+' : '') + fmt(lotGain) : '—'}
+                              </td>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: lotColor }}>
+                                {lotGainPct != null ? fmtPct(lotGainPct) : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04] bg-white/[0.015] text-sm">
               <span className="text-muted text-xs">{t('port.positions', { n: positions.length })}</span>
               <div className="flex items-center gap-6">
@@ -383,12 +352,11 @@ export default function Portfolio() {
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        <p className="text-center text-white/20 text-[10px] mt-4">
-          {t('port.footer')}
-        </p>
+          <p className="text-center text-white/20 text-[10px] mt-4">{t('port.footer')}</p>
+        </>}
+
       </div>
     </div>
   )
