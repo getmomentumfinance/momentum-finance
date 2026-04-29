@@ -62,7 +62,7 @@ export function SharedDataProvider({ children }) {
       { data: budgetsData },
       { data: targetsData },
     ] = await Promise.all([
-      supabase.from('categories').select('id, name, color, icon, importance').eq('user_id', user.id),
+      supabase.from('categories').select('id, name, color, icon, importance, parent_id').eq('user_id', user.id),
       supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
