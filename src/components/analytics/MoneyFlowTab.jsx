@@ -16,13 +16,16 @@ const GRID         = 'rgba(255,255,255,0.04)'
 
 // ── Exact same formulas as Dashboard.jsx ────────────────────────────────────
 function computeCurrentValues(cards, allTxs, currentDate) {
-  const nonSplit = allTxs.filter(t => !t.split_parent_id)
+  // Dashboard excludes split parents via !t.split_parent_id (their split_parent_id is null so they pass).
+  // SharedDataContext already excludes split parents at DB level (is_split_parent=false).
+  // Split children sum to the parent amount, so using them directly gives the same result —
+  // do NOT filter by !t.split_parent_id here or split transactions vanish from the balance.
 
   // debit + credit running balance
   let debitCredit = 0
   for (const card of cards) {
     if (!DEBIT_CREDIT.has(card.type)) continue
-    const delta = nonSplit
+    const delta = allTxs
       .filter(t => t.card_id === card.id && !t.is_cash)
       .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
     debitCredit += Number(card.initial_balance) + delta
@@ -30,21 +33,21 @@ function computeCurrentValues(cards, allTxs, currentDate) {
 
   // cash
   const cashInitial = cards.filter(c => c.type === 'cash').reduce((s, c) => s + Number(c.initial_balance), 0)
-  const cashDelta   = nonSplit.filter(t => t.is_cash).reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+  const cashDelta   = allTxs.filter(t => t.is_cash).reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
   const cash        = cashInitial + cashDelta
   const total       = debitCredit + cash
 
   // savings — global savings_in / savings_out (matches dashboard exactly)
   const savingsInitial = cards.filter(c => c.type === 'savings').reduce((s, c) => s + Number(c.initial_balance), 0)
-  const savIn          = nonSplit.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
-  const savOut         = nonSplit.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const savIn          = allTxs.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const savOut         = allTxs.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const savings        = savingsInitial + savIn - savOut
 
   // invest card balance (cost basis — not live market value)
   let invest = 0
   for (const card of cards) {
     if (card.type !== 'invest') continue
-    const delta = nonSplit
+    const delta = allTxs
       .filter(t => t.card_id === card.id && !t.is_cash)
       .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
     invest += Number(card.initial_balance) + delta
@@ -54,7 +57,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth()
   const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
   const monthEnd   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
-  const income = nonSplit
+  const income = allTxs
     .filter(t => t.type === 'income' && t.date >= monthStart && t.date <= monthEnd)
     .reduce((s, t) => s + t.amount, 0)
 
@@ -64,11 +67,11 @@ function computeCurrentValues(cards, allTxs, currentDate) {
     if (card.type === 'cash') {
       perCard[card.id] = Number(card.initial_balance) + cashDelta
     } else if (card.type === 'savings') {
-      const si = nonSplit.filter(t => t.card_id === card.id && t.source === 'savings_in').reduce((s,t)=>s+t.amount,0)
-      const so = nonSplit.filter(t => t.card_id === card.id && t.source === 'savings_out').reduce((s,t)=>s+t.amount,0)
+      const si = allTxs.filter(t => t.card_id === card.id && t.source === 'savings_in').reduce((s,t)=>s+t.amount,0)
+      const so = allTxs.filter(t => t.card_id === card.id && t.source === 'savings_out').reduce((s,t)=>s+t.amount,0)
       perCard[card.id] = Number(card.initial_balance) + si - so
     } else {
-      const delta = nonSplit
+      const delta = allTxs
         .filter(t => t.card_id === card.id && !t.is_cash)
         .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
       perCard[card.id] = Number(card.initial_balance) + delta
@@ -186,8 +189,9 @@ export default function MoneyFlowTab({ range, currentDate }) {
     if (!cards.length) return []
 
     const cardById  = Object.fromEntries(cards.map(c => [c.id, c]))
-    const nonSplit  = allTransactions.filter(t => !t.split_parent_id)
-    const sorted    = [...nonSplit].sort((a, b) => a.date.localeCompare(b.date))
+    // Do not filter by !t.split_parent_id — split children must be counted since
+    // SharedDataContext excludes split parents (DB filter), and children sum to the parent amount.
+    const sorted    = [...allTransactions].sort((a, b) => a.date.localeCompare(b.date))
     const firstDate = sorted.length ? sorted[0].date : null
     const dates     = buildDates(range, currentDate, firstDate)
     if (!dates.length) return []
