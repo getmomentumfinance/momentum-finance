@@ -11,7 +11,6 @@ import { usePreferences } from '../../context/UserPreferencesContext'
 function amountColor(type, source) {
   if (type === 'income')   return 'var(--type-income)'
   if (type === 'expense')  return 'var(--type-expense)'
-  if (type === 'savings')  return source === 'savings_in' ? 'var(--type-income)' : source === 'savings_out' ? 'var(--type-expense)' : '#9ca3af'
   if (type === 'cash_out') return source === 'cash' ? 'var(--type-income)' : 'var(--type-expense)'
   return '#9ca3af'
 }
@@ -19,9 +18,8 @@ function amountColor(type, source) {
 function amountSign(type, source) {
   if (type === 'income')   return '+'
   if (type === 'expense')  return '−'
-  if (type === 'savings')  return source === 'savings_in' ? '+' : source === 'savings_out' ? '−' : ''
   if (type === 'cash_out') return source === 'cash' ? '+' : '−'
-  if (type === 'transfer') return '−'
+  return ''  // transfer, savings — neutral
   return ''
 }
 
