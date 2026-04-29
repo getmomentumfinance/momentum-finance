@@ -165,12 +165,12 @@ export default function MoneyFlowTab({ range, currentDate }) {
   )
 
   const DEFAULT_COLORS = useMemo(() => ({
-    total:   colors.accent ?? '#a78bfa',
-    cash:    '#fbbf24',
-    invest:  '#f472b6',
-    savings: '#818cf8',
-    income:  colors.income ?? '#4ade80',
-  }), [colors.accent, colors.income])
+    total:   colors.accent   || '#a78bfa',
+    cash:    colors.cashOut  || '#fb923c',
+    invest:  colors.invest   || '#60a5fa',
+    savings: colors.savings  || '#a78bfa',
+    income:  colors.income   || '#4ade80',
+  }), [colors.accent, colors.cashOut, colors.invest, colors.savings, colors.income])
 
   const [customColors, setCustomColors] = useState({})
   function setColor(key, hex) { setCustomColors(prev => ({ ...prev, [key]: hex })) }
