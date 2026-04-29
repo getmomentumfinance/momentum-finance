@@ -30,6 +30,17 @@ import MoneyFlowTab from '../components/analytics/MoneyFlowTab'
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
 
+// Compute Y-axis ticks with a step size that fits the data (~7 ticks, nice round numbers)
+function niceYTicks(data, keys) {
+  const max = Math.max(0, ...data.flatMap(d => keys.map(k => Number(d[k]) || 0)))
+  if (max === 0) return [0]
+  const raw = max / 7
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)))
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => max / s <= 8) ?? mag * 10
+  const top  = Math.ceil(max / step) * step
+  return Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step)
+}
+
 const tooltipStyle = {
   contentStyle: { background: 'var(--color-dash-card)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12 },
   itemStyle:    { color: '#fff' },
@@ -389,7 +400,7 @@ function WeekBreakCard({ title, rows, weekLabels }) {
               const den = weeks.reduce((sum, _, i) => sum + (i - xMean) ** 2, 0)
               const delta = nonZeroWeeks < 2 || den === 0 ? null : Math.round((num / den) * (n - 1))
               const trendLabel = delta === null || delta === 0 ? '—' : delta > 0 ? `+${fmtK(delta)}` : `-${fmtK(Math.abs(delta))}`
-              const trendColor = delta === null || delta === 0 ? 'rgba(255,255,255,0.2)' : delta > 0 ? 'var(--color-alert)' : 'var(--type-income)'
+              const trendColor = delta === null || delta === 0 ? 'rgba(255,255,255,0.2)' : delta > 0 ? 'var(--type-expense)' : 'var(--type-income)'
               return (
                 <div key={name} className="flex items-center gap-2 py-1.5">
                   <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
@@ -2224,7 +2235,7 @@ export default function Analytics() {
                       </defs>
                       <CartesianGrid vertical={false} stroke={GRID} />
                       <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} tickCount={8} />
+                      <YAxis ticks={niceYTicks(periodData, ['income', 'expense'])} tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
                       <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'income' ? 'Income' : 'Expenses'} />} cursor={false} />
                       <Area type="monotone" dataKey="income"  stroke={colors.income}  fill="url(#incomeGrad)"  strokeWidth={1.5} dot={false} />
                       <Area type="monotone" dataKey="expense" stroke={colors.expense} fill="url(#expenseGrad)" strokeWidth={2}   dot={false} />
