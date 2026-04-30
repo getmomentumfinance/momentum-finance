@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     strategy:
@@ -56,6 +59,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Momentum ${{ github.ref_name }}
@@ -68,7 +72,7 @@ jobs:
             |----------|------|
             | macOS Apple Silicon | `.dmg` ending in `aarch64` |
             | macOS Intel | `.dmg` ending in `x86_64` |
-            | Windows | `.msi` |
+            | Windows | `.msi` or `.exe` |
             | Linux | `.AppImage` or `.deb` |
 
             Existing users will be updated automatically.
