@@ -60,11 +60,11 @@ function UpdateChecker() {
     async function check() {
       try {
         const { check } = await import('@tauri-apps/plugin-updater')
-        const { relaunch } = await import('@tauri-apps/plugin-process')
+        const { restart } = await import('@tauri-apps/plugin-process')
         const update = await check()
         if (!update) return
         await update.downloadAndInstall()
-        await relaunch()
+        await restart()
       } catch {
         // Not in Tauri, or update check failed — silently ignore
       }
