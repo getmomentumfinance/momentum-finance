@@ -29,6 +29,8 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     name: ${{ matrix.name }}
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
