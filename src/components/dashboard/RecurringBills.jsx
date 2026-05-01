@@ -157,6 +157,7 @@ export default function RecurringBills({ currentDate }) {
           card_id:        bill.card_id        ?? null,
           receiver_id:    bill.receiver_id    ?? null,
           comment:        commentParts.join(' — ') || null,
+          importance:     bill.importance        ?? null,
           date:           today,
           is_cash:        false,
           status:         'completed',

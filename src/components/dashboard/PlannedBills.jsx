@@ -121,6 +121,7 @@ export default function PlannedBills({ currentDate = new Date() }) {
       subcategory_id: item.subcategory_id || null,
       card_id:        item.card_id        || null,
       comment:        commentParts.join(' — ') || null,
+      importance:     item.importance        || null,
       is_cash:        false,
       is_deleted:     false,
       status:         'completed',
