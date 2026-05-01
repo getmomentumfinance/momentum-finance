@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowUpRight, Download, TrendingUp, Wallet, PiggyBank, BarChart3, Shield, Zap } from 'lucide-react'
 import { gsap } from 'gsap'
+import { supabase } from '../lib/supabase'
 
 const WHITE  = '#ffffff'
 const MUTED  = 'rgba(255,255,255,0.35)'
@@ -60,7 +61,16 @@ function Node({ label, value, icon: Icon, style: s }) {
 }
 
 export default function LandingPage() {
-  const downloadUrl = useDownloadUrl()
+  const downloadUrl  = useDownloadUrl()
+  const navigate     = useNavigate()
+  const [guestLoading, setGuestLoading] = useState(false)
+
+  async function handleTryGuest() {
+    setGuestLoading(true)
+    const { error } = await supabase.auth.signInAnonymously()
+    if (!error) navigate('/dashboard')
+    else setGuestLoading(false)
+  }
 
   // Refs
   const badgeRef   = useRef(null)
@@ -254,8 +264,21 @@ export default function LandingPage() {
           </a>
         </div>
 
+        {/* Try without account */}
+        <button onClick={handleTryGuest} disabled={guestLoading} style={{
+          background: 'none', border: 'none', cursor: guestLoading ? 'default' : 'pointer',
+          color: 'rgba(255,255,255,0.35)', fontSize: 12, marginTop: 16,
+          textDecoration: 'underline', textUnderlineOffset: 3, padding: 0,
+          transition: 'color .15s',
+        }}
+          onMouseEnter={e => { if (!guestLoading) e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+        >
+          {guestLoading ? 'Starting…' : 'Try without account'}
+        </button>
+
         {/* Trust line */}
-        <div ref={trustRef} style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 32 }}>
+        <div ref={trustRef} style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 16 }}>
           {[{ Icon: Shield, label: 'Private' }, { Icon: Zap, label: 'Always free' }].map(({ Icon, label }) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <Icon size={11} color={DIM} />

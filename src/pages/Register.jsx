@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { usePreferences } from '../context/UserPreferencesContext'
 const logoImg = '/momentum_transparant.png'
 
@@ -14,7 +15,9 @@ const rules = [
 ]
 
 export default function Register() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const { user }  = useAuth()
+  const isGuest   = user?.is_anonymous === true
   const { t } = usePreferences()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -44,15 +47,26 @@ export default function Register() {
 
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    })
+    let data, error
+
+    if (isGuest) {
+      // Upgrade anonymous session → keeps all existing data
+      ;({ data, error } = await supabase.auth.updateUser({
+        email,
+        password,
+        data: { full_name: fullName },
+      }))
+    } else {
+      ;({ data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      }))
+    }
 
     if (error) {
       setError(error.message)
-    } else if (data.session) {
+    } else if (data.session || data.user) {
       navigate('/dashboard')
     } else {
       setConfirmed(true)
@@ -96,8 +110,14 @@ export default function Register() {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="gradient-text text-3xl font-bold mb-2">{t('reg.title')}</h1>
-          <p className="text-muted text-sm">{t('reg.subtitle')}</p>
+          <h1 className="gradient-text text-3xl font-bold mb-2">
+            {isGuest ? 'Save your data' : t('reg.title')}
+          </h1>
+          <p className="text-muted text-sm">
+            {isGuest
+              ? 'Create a free account to keep everything you\'ve added. Nothing will be lost.'
+              : t('reg.subtitle')}
+          </p>
         </div>
 
         {/* Google */}

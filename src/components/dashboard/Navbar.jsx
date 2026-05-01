@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import ProfileModal from './ProfileModal'
@@ -70,8 +70,23 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
   const initials  = (user?.user_metadata?.full_name || user?.email || '?')
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 
+  const isGuest = user?.is_anonymous === true
+
   return (
     <>
+      {/* ── Guest banner ── */}
+      {isGuest && (
+        <div className="sticky top-0 z-[60] flex items-center justify-center gap-3 px-4 py-2 text-xs font-medium"
+          style={{ background: 'rgba(251,191,36,0.12)', borderBottom: '1px solid rgba(251,191,36,0.2)', color: 'rgba(253,224,71,0.9)' }}>
+          <span>⚠ Guest session — your data will be deleted after 30 days of inactivity.</span>
+          <Link to="/register"
+            className="flex items-center gap-1 px-3 py-1 rounded-full font-semibold transition-colors"
+            style={{ background: 'rgba(251,191,36,0.2)', color: 'rgb(253,224,71)', border: '1px solid rgba(251,191,36,0.3)' }}>
+            <UserPlus size={11} /> Create free account to keep your data
+          </Link>
+        </div>
+      )}
+
       {/* ── Desktop navbar ── */}
       {!isMobile && <nav className="sticky top-0 z-50 drag-region">
         <div
