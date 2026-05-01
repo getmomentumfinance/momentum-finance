@@ -91,7 +91,7 @@ function AppRoutes() {
   return (
     <div key={location.pathname} className="page-fade-in">
       <Routes>
-        <Route path="/"             element={user ? <Navigate to={landingPage} /> : <LandingPage />} />
+        <Route path="/"             element={user ? <Navigate to={landingPage} /> : (window.__TAURI_INTERNALS__ ? <Navigate to="/login" /> : <LandingPage />)} />
         <Route path="/login"        element={user ? <Navigate to={landingPage} /> : <Login />} />
         <Route path="/register"     element={user ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/dashboard"    element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
