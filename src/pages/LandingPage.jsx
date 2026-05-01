@@ -148,32 +148,35 @@ export default function LandingPage() {
   // ── GSAP entrance timeline ────────────────────────────────────────
   useEffect(() => {
     const ctx = gsap.context(() => {
-      const tl = gsap.timeline({ defaults: { ease: 'power3.out', duration: 0.65 } })
+      const tl = gsap.timeline({ defaults: { ease: 'power4.out' } })
 
       // Nav slides down from above
-      tl.from(navRef.current, { y: -28, opacity: 0, duration: 0.55 })
+      tl.from(navRef.current, { y: -60, opacity: 0, duration: 0.7 })
 
       // Eyebrow label
-      tl.from(labelRef.current, { y: 18, opacity: 0, duration: 0.5 }, '-=0.3')
+      tl.from(labelRef.current, { y: 30, opacity: 0, duration: 0.55 }, '-=0.4')
 
-      // Hero title
-      tl.from(titleRef.current, { y: 28, opacity: 0, duration: 0.7 }, '-=0.35')
+      // Hero title — scale + slide
+      tl.from(titleRef.current, { y: 60, opacity: 0, scale: 0.94, duration: 0.85 }, '-=0.35')
 
       // Description
-      tl.from(descRef.current, { y: 18, opacity: 0, duration: 0.5 }, '-=0.45')
+      tl.from(descRef.current, { y: 30, opacity: 0, duration: 0.6 }, '-=0.5')
 
       // CTA row
-      tl.from(ctaRef.current, { y: 16, opacity: 0, duration: 0.5 }, '-=0.35')
+      tl.from(ctaRef.current, { y: 24, opacity: 0, duration: 0.55 }, '-=0.4')
 
-      // Feature pills — stagger
+      // Feature pills — stagger with scale
       if (pillsRef.current) {
         tl.from(pillsRef.current.children, {
-          y: 14, opacity: 0, duration: 0.4, stagger: 0.09,
-        }, '-=0.25')
+          y: 20, opacity: 0, scale: 0.85, duration: 0.45, stagger: 0.1,
+        }, '-=0.3')
       }
 
-      // Cards stack slides in from the right
-      tl.from(cardsRef.current, { x: 48, opacity: 0, duration: 0.85, ease: 'power2.out' }, 0.15)
+      // Cards stack — dramatic slide + rotate from right
+      tl.from(cardsRef.current, {
+        x: 120, opacity: 0, rotation: 4, duration: 1,
+        ease: 'power3.out',
+      }, 0.1)
     })
 
     return () => ctx.revert()
@@ -227,8 +230,8 @@ export default function LandingPage() {
               textDecoration: 'none',
               boxShadow: '0 0 24px rgba(167,139,250,0.4)',
             }}
-              onMouseEnter={() => gsap.to(primaryBtn.current, { scale: 1.04, duration: 0.2, ease: 'power2.out' })}
-              onMouseLeave={() => gsap.to(primaryBtn.current, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.45)' })}
+              onMouseEnter={() => gsap.to(primaryBtn.current, { scale: 1.06, y: -2, boxShadow: '0 0 40px rgba(167,139,250,0.65)', duration: 0.2, ease: 'power2.out' })}
+              onMouseLeave={() => gsap.to(primaryBtn.current, { scale: 1, y: 0, boxShadow: '0 0 24px rgba(167,139,250,0.4)', duration: 0.55, ease: 'elastic.out(1, 0.4)' })}
             >
               Use in browser <ArrowRight size={14} />
             </Link>
@@ -258,12 +261,12 @@ export default function LandingPage() {
                 color: 'rgba(212,187,248,0.7)', cursor: 'default',
               }}
                 onMouseEnter={e => gsap.to(e.currentTarget, {
-                  scale: 1.07, background: 'rgba(167,139,250,0.16)',
-                  borderColor: 'rgba(167,139,250,0.4)', duration: 0.2, ease: 'power2.out',
+                  scale: 1.12, background: 'rgba(167,139,250,0.22)',
+                  borderColor: 'rgba(167,139,250,0.6)', y: -3, duration: 0.2, ease: 'power2.out',
                 })}
                 onMouseLeave={e => gsap.to(e.currentTarget, {
                   scale: 1, background: 'rgba(167,139,250,0.08)',
-                  borderColor: BORDER, duration: 0.4, ease: 'elastic.out(1, 0.5)',
+                  borderColor: BORDER, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.4)',
                 })}
               >
                 <Icon size={12} color={ROSE} />
