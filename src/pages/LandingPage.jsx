@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BarChart3, Wallet, PiggyBank, CalendarDays, Shield, Zap, Download } from 'lucide-react'
+import { gsap } from 'gsap'
 import GradientMenu from '../components/ui/gradient-menu'
 
 const ROSE    = '#a78bfa'
@@ -23,6 +24,7 @@ function DownloadButton() {
   const [url,     setUrl]     = useState(null)
   const [label,   setLabel]   = useState('Download app')
   const [loading, setLoading] = useState(true)
+  const btnRef = useRef(null)
 
   useEffect(() => {
     const os = getOS()
@@ -53,17 +55,13 @@ function DownloadButton() {
     display: 'inline-flex', alignItems: 'center', gap: 8,
     padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
     background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(167,139,250,0.25)',
-    color: WHITE, textDecoration: 'none',
-    transition: 'border-color .18s, background .18s',
-    opacity: loading ? 0.5 : 1,
+    color: WHITE, textDecoration: 'none', opacity: loading ? 0.5 : 1,
   }
 
   return (
-    <a
-      href={url ?? FALLBACK}
-      style={btnStyle}
-      onMouseEnter={e => { e.currentTarget.style.background='rgba(167,139,250,0.12)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.5)' }}
-      onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.borderColor='rgba(167,139,250,0.25)' }}
+    <a ref={btnRef} href={url ?? FALLBACK} style={btnStyle}
+      onMouseEnter={() => gsap.to(btnRef.current, { background: 'rgba(167,139,250,0.12)', borderColor: 'rgba(167,139,250,0.5)', duration: 0.2 })}
+      onMouseLeave={() => gsap.to(btnRef.current, { background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(167,139,250,0.25)', duration: 0.25 })}
     >
       <Download size={14} /> {loading ? 'Loading…' : label}
     </a>
@@ -121,6 +119,15 @@ function TiltCard({ gradient, number, name, expiry, width = 260, height = 163, s
 }
 
 export default function LandingPage() {
+  const navRef    = useRef(null)
+  const labelRef  = useRef(null)
+  const titleRef  = useRef(null)
+  const descRef   = useRef(null)
+  const ctaRef    = useRef(null)
+  const pillsRef  = useRef(null)
+  const cardsRef  = useRef(null)
+  const primaryBtn = useRef(null)
+
   useEffect(() => {
     document.body.style.background = '#181929'
     document.documentElement.style.background = '#181929'
@@ -129,8 +136,6 @@ export default function LandingPage() {
       @keyframes float1 { 0%,100% { transform: rotate(-14deg) translateY(0); } 50% { transform: rotate(-14deg) translateY(-8px); } }
       @keyframes float2 { 0%,100% { transform: rotate(-2deg) translateY(0); }  50% { transform: rotate(-2deg) translateY(-12px); } }
       @keyframes float3 { 0%,100% { transform: rotate(12deg) translateY(0); }  50% { transform: rotate(12deg) translateY(-6px); } }
-      @keyframes chipFloat1 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-      @keyframes chipFloat2 { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
     `
     document.head.appendChild(style)
     return () => {
@@ -138,6 +143,40 @@ export default function LandingPage() {
       document.documentElement.style.background = ''
       document.head.removeChild(style)
     }
+  }, [])
+
+  // ── GSAP entrance timeline ────────────────────────────────────────
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out', duration: 0.65 } })
+
+      // Nav slides down from above
+      tl.from(navRef.current, { y: -28, opacity: 0, duration: 0.55 })
+
+      // Eyebrow label
+      tl.from(labelRef.current, { y: 18, opacity: 0, duration: 0.5 }, '-=0.3')
+
+      // Hero title
+      tl.from(titleRef.current, { y: 28, opacity: 0, duration: 0.7 }, '-=0.35')
+
+      // Description
+      tl.from(descRef.current, { y: 18, opacity: 0, duration: 0.5 }, '-=0.45')
+
+      // CTA row
+      tl.from(ctaRef.current, { y: 16, opacity: 0, duration: 0.5 }, '-=0.35')
+
+      // Feature pills — stagger
+      if (pillsRef.current) {
+        tl.from(pillsRef.current.children, {
+          y: 14, opacity: 0, duration: 0.4, stagger: 0.09,
+        }, '-=0.25')
+      }
+
+      // Cards stack slides in from the right
+      tl.from(cardsRef.current, { x: 48, opacity: 0, duration: 0.85, ease: 'power2.out' }, 0.15)
+    })
+
+    return () => ctx.revert()
   }, [])
 
   return (
@@ -149,7 +188,7 @@ export default function LandingPage() {
     }}>
 
       {/* ── Nav ─────────────────────────────────────────────────── */}
-      <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px clamp(24px,5vw,64px)', flexShrink: 0 }}>
+      <nav ref={navRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px clamp(24px,5vw,64px)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <div style={{ width: 30, height: 30, borderRadius: '50%', background: `linear-gradient(135deg, ${BERRY}, ${ROSE})`, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <img src="/momentum_transparant.png" alt="" style={{ width: 20, height: 20, objectFit: 'contain' }} />
@@ -164,10 +203,10 @@ export default function LandingPage() {
 
         {/* Left — text + CTA */}
         <div style={{ flex: '1 1 360px', maxWidth: 520, zIndex: 1 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 20 }}>
+          <p ref={labelRef} style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED, marginBottom: 20 }}>
             All-in-one personal finance
           </p>
-          <h1 style={{
+          <h1 ref={titleRef} style={{
             fontWeight: 900, lineHeight: 1.04, letterSpacing: '-0.03em',
             fontSize: 'clamp(2.4rem,5.5vw,4.2rem)',
             color: WHITE, margin: '0 0 20px',
@@ -175,21 +214,22 @@ export default function LandingPage() {
             Smart and simple<br />
             <em style={{ fontStyle: 'italic', fontFamily: 'Georgia,"Times New Roman",serif', color: PINK }}>personal finance</em>
           </h1>
-          <p style={{ fontSize: 'clamp(13px,1.4vw,16px)', lineHeight: 1.7, color: MUTED, maxWidth: 400, margin: '0 0 36px' }}>
+          <p ref={descRef} style={{ fontSize: 'clamp(13px,1.4vw,16px)', lineHeight: 1.7, color: MUTED, maxWidth: 400, margin: '0 0 36px' }}>
             Track every transaction, beat every budget, and grow toward the goals that actually matter — free, forever.
           </p>
 
           {/* CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <Link to="/register" style={{
+          <div ref={ctaRef} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <Link ref={primaryBtn} to="/register" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               padding: '13px 28px', borderRadius: 99, fontSize: 14, fontWeight: 700,
               background: `linear-gradient(135deg, ${PINK}, ${ROSE})`, color: BERRY,
-              textDecoration: 'none', transition: 'opacity .18s, transform .15s',
+              textDecoration: 'none',
               boxShadow: '0 0 24px rgba(167,139,250,0.4)',
             }}
-              onMouseEnter={e => { e.currentTarget.style.opacity='.88'; e.currentTarget.style.transform='scale(1.02)' }}
-              onMouseLeave={e => { e.currentTarget.style.opacity='1'; e.currentTarget.style.transform='scale(1)' }}>
+              onMouseEnter={() => gsap.to(primaryBtn.current, { scale: 1.04, duration: 0.2, ease: 'power2.out' })}
+              onMouseLeave={() => gsap.to(primaryBtn.current, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.45)' })}
+            >
               Use in browser <ArrowRight size={14} />
             </Link>
             <DownloadButton />
@@ -203,20 +243,29 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Feature pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 32 }}>
+          {/* Feature pills — staggered on entrance, GSAP hover */}
+          <div ref={pillsRef} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 32 }}>
             {[
-              { Icon: BarChart3, label: 'Analytics' },
-              { Icon: Wallet,    label: 'Budgets' },
-              { Icon: PiggyBank, label: 'Savings' },
-              { Icon: CalendarDays, label: 'Bills' },
+              { Icon: BarChart3,    label: 'Analytics' },
+              { Icon: Wallet,       label: 'Budgets'   },
+              { Icon: PiggyBank,    label: 'Savings'   },
+              { Icon: CalendarDays, label: 'Bills'     },
             ].map(({ Icon, label }) => (
               <div key={label} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                 background: 'rgba(167,139,250,0.08)', border: `1px solid ${BORDER}`,
-                color: 'rgba(212,187,248,0.7)',
-              }}>
+                color: 'rgba(212,187,248,0.7)', cursor: 'default',
+              }}
+                onMouseEnter={e => gsap.to(e.currentTarget, {
+                  scale: 1.07, background: 'rgba(167,139,250,0.16)',
+                  borderColor: 'rgba(167,139,250,0.4)', duration: 0.2, ease: 'power2.out',
+                })}
+                onMouseLeave={e => gsap.to(e.currentTarget, {
+                  scale: 1, background: 'rgba(167,139,250,0.08)',
+                  borderColor: BORDER, duration: 0.4, ease: 'elastic.out(1, 0.5)',
+                })}
+              >
                 <Icon size={12} color={ROSE} />
                 {label}
               </div>
@@ -225,7 +274,7 @@ export default function LandingPage() {
         </div>
 
         {/* Right — cards stack */}
-        <div style={{ flex: '1 1 340px', position: 'relative', height: '100%', maxWidth: 560, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div ref={cardsRef} style={{ flex: '1 1 340px', position: 'relative', height: '100%', maxWidth: 560, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'relative', width: 280, height: 180 }}>
             <TiltCard
               gradient="linear-gradient(140deg, #d4a5c0 0%, #a77693 60%, #7d5070 100%)"
