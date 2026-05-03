@@ -309,6 +309,7 @@ function getTrendColors() {
 }
 function WeekBreakPanel({ dims, weekLabels, dim, onDimChange }) {
   const { fmtK, t } = usePreferences()
+  const colors = useThemeColors()
   const rows = dims[dim] ?? []
   return (
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
@@ -343,7 +344,6 @@ function WeekBreakPanel({ dims, weekLabels, dim, onDimChange }) {
             </span>
           </div>
           {rows.map(({ name, color, weeks }) => {
-            const tc = getTrendColors()
             const nonZeroWeeks = weeks.filter(v => v > 0).length
             const n = weeks.length
             const xMean = (n - 1) / 2
@@ -352,7 +352,7 @@ function WeekBreakPanel({ dims, weekLabels, dim, onDimChange }) {
             const den = weeks.reduce((sum, _, i) => sum + (i - xMean) ** 2, 0)
             const delta = nonZeroWeeks < 2 || den === 0 ? null : Math.round((num / den) * (n - 1))
             const trendLabel = delta === null || delta === 0 ? '—' : delta > 0 ? `+${fmtK(delta)}` : `-${fmtK(Math.abs(delta))}`
-            const trendColor = delta === null || delta === 0 ? tc.medium : delta > 0 ? tc.easy : tc.strict
+            const trendColor = delta === null || delta === 0 ? 'rgba(255,255,255,0.2)' : delta > 0 ? colors.income : colors.expense
             return (
               <div key={name} className="flex items-center gap-3 py-2">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
