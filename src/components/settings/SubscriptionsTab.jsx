@@ -67,10 +67,10 @@ export default function SubscriptionsTab() {
     [optimizerRows]
   )
 
-  const cancellableSavings = useMemo(
-    () => optimizerRows.filter(r => usage[r.key] != null && usage[r.key] <= 2).reduce((s, r) => s + r.yearly, 0),
-    [optimizerRows, usage]
-  )
+  const savingsLow    = useMemo(() => optimizerRows.filter(r => usage[r.key] != null && usage[r.key] <= 2).reduce((s, r) => s + r.yearly, 0), [optimizerRows, usage])
+  const savingsMid    = useMemo(() => optimizerRows.filter(r => usage[r.key] === 3).reduce((s, r) => s + r.yearly, 0), [optimizerRows, usage])
+  const savingsTotal  = savingsLow + savingsMid
+  const cancellableSavings = savingsLow
 
   // ── Empty state ─────────────────────────────────────────────
   if (optimizerRows.length === 0) {
@@ -173,16 +173,50 @@ export default function SubscriptionsTab() {
           })}
         </div>
 
-        {/* Footer — potential savings */}
-        {cancellableSavings > 0 && (
-          <div
-            className="flex items-center justify-between pt-4"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-          >
-            <p className="text-xs text-white/40">Potential savings if you cancel rated 1–2</p>
-            <p className="text-sm font-bold tabular-nums" style={{ color: colors.income }}>
-              {fmt(cancellableSavings)}/yr
-            </p>
+        {/* Savings breakdown */}
+        {savingsTotal > 0 && (
+          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+
+            {/* Cancel (1–2 dots) */}
+            {savingsLow > 0 && (
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: savingsMid > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined }}>
+                <div>
+                  <p className="text-xs font-medium" style={{ color: colors.expense }}>Cancel these <span className="opacity-60">(rated 1–2)</span></p>
+                  <p className="text-[10px] text-white/30 mt-0.5">Subscriptions you barely use</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold tabular-nums" style={{ color: colors.expense }}>+{fmt(savingsLow)}<span className="text-xs font-normal opacity-60">/yr</span></p>
+                  <p className="text-[10px] text-white/30 tabular-nums">{fmt(savingsLow / 12)}/mo</p>
+                </div>
+              </div>
+            )}
+
+            {/* Review (3 dots) */}
+            {savingsMid > 0 && (
+              <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <div>
+                  <p className="text-xs font-medium" style={{ color: colors.warning }}>Review these <span className="opacity-60">(rated 3)</span></p>
+                  <p className="text-[10px] text-white/30 mt-0.5">Occasional use — worth reconsidering</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold tabular-nums" style={{ color: colors.warning }}>+{fmt(savingsMid)}<span className="text-xs font-normal opacity-60">/yr</span></p>
+                  <p className="text-[10px] text-white/30 tabular-nums">{fmt(savingsMid / 12)}/mo</p>
+                </div>
+              </div>
+            )}
+
+            {/* Total */}
+            <div className="flex items-center justify-between px-4 py-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <div>
+                <p className="text-xs font-semibold text-white/70">Total potential savings</p>
+                <p className="text-[10px] text-white/30 mt-0.5">If all low-rated subs are cancelled</p>
+              </div>
+              <div className="text-right">
+                <p className="text-base font-bold tabular-nums" style={{ color: colors.income }}>+{fmt(savingsTotal)}<span className="text-xs font-normal opacity-60">/yr</span></p>
+                <p className="text-[10px] text-white/30 tabular-nums">{fmt(savingsTotal / 12)}/mo</p>
+              </div>
+            </div>
+
           </div>
         )}
 
