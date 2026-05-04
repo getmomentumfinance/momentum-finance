@@ -343,22 +343,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       })
   }, [isEditing, user?.id, transaction?.id])
 
-  // Auto-fetch price when ticker + quantity are set and price is empty
-  useEffect(() => {
-    if (!ticker.trim() || !quantity) return
-    let cancelled = false
-    const t = setTimeout(async () => {
-      if (pricePerUnit !== '') return
-      setFetchingPrice(true)
-      const today = new Date().toISOString().slice(0, 10)
-      const result = priceDate === today
-        ? await fetchLivePrice(ticker.trim())
-        : await fetchHistoricalPrice(ticker.trim(), priceDate)
-      if (!cancelled && result) setPricePerUnit(String(parseFloat(result.price.toFixed(4))))
-      if (!cancelled) setFetchingPrice(false)
-    }, 600)
-    return () => { cancelled = true; clearTimeout(t) }
-  }, [ticker, quantity]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Price per unit is entered manually by the user — no auto-fetch
 
   async function handleAddTickerToList(symbol) {
     const { data } = await supabase
