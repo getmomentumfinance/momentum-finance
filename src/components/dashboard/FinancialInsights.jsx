@@ -31,10 +31,18 @@ export default function FinancialInsights({ currentDate = new Date() }) {
   const data = useMemo(() => {
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()
-    const thisStart = toLocalStr(new Date(year, month,     1))
-    const thisEnd   = toLocalStr(new Date(year, month + 1, 0))
+    const today = new Date()
+
+    // When viewing the current month, compare only up to today vs the same day last month
+    // so mid-month comparisons aren't skewed by a partial vs full month
+    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth()
+    const prevMonthDays  = new Date(year, month, 0).getDate()  // days in previous month
+    const compareDay     = isCurrentMonth ? Math.min(today.getDate(), prevMonthDays) : prevMonthDays
+
+    const thisStart = toLocalStr(new Date(year, month, 1))
+    const thisEnd   = isCurrentMonth ? toLocalStr(today) : toLocalStr(new Date(year, month + 1, 0))
     const lastStart = toLocalStr(new Date(year, month - 1, 1))
-    const lastEnd   = toLocalStr(new Date(year, month,     0))
+    const lastEnd   = toLocalStr(new Date(year, month - 1, compareDay))
     const yearStr   = `${year}-`
 
     const thisTxs    = allTransactions.filter(t => t.date >= thisStart && t.date <= thisEnd)

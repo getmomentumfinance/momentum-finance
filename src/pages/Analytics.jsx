@@ -1168,6 +1168,8 @@ export default function Analytics() {
   const prevPeriodExpenses = useMemo(() => {
     const y = currentDate.getFullYear()
     const m = currentDate.getMonth()
+    const today = new Date()
+    const isCurrentMonth = y === today.getFullYear() && m === today.getMonth()
     return transactions.filter(t => {
       if (t.type !== 'expense' || t.is_split_parent) return false
       const d = new Date(t.date + 'T00:00:00')
@@ -1177,7 +1179,13 @@ export default function Analytics() {
       if (range === 'month') {
         const py = m === 0 ? y - 1 : y
         const pm = m === 0 ? 11 : m - 1
-        return d.getFullYear() === py && d.getMonth() === pm
+        if (d.getFullYear() !== py || d.getMonth() !== pm) return false
+        // Cap at same day of month as today so partial-month comparisons are fair
+        if (isCurrentMonth) {
+          const prevMonthDays = new Date(y, m, 0).getDate()
+          return d.getDate() <= Math.min(today.getDate(), prevMonthDays)
+        }
+        return true
       }
       if (range === '3m') {
         const start = new Date(y, m - 5, 1)
