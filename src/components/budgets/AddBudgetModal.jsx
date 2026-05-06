@@ -210,6 +210,8 @@ export default function AddBudgetModal({
   const [cardSearch,       setCardSearch]       = useState('')
   const [recOpen,          setRecOpen]          = useState(false)
   const [recSearch,        setRecSearch]        = useState('')
+  const [excludedCategoryIds,    setExcludedCategoryIds]    = useState(budget?.excluded_category_ids    ?? [])
+  const [excludedSubcategoryIds, setExcludedSubcategoryIds] = useState(budget?.excluded_subcategory_ids ?? [])
   const [saving,           setSaving]           = useState(false)
   const [deleting,         setDeleting]         = useState(false)
   const [confirmDelete,    setConfirmDelete]    = useState(false)
@@ -305,9 +307,11 @@ export default function AddBudgetModal({
       importance:     null,
       receiver_id:    null,
       period,
-      reset_day:         (period === 'weekly' || period === 'monthly') ? (resetDay ?? null) : null,
-      card_id:           cardId || null,
-      rollover_behavior: rolloverBehavior,
+      reset_day:              (period === 'weekly' || period === 'monthly') ? (resetDay ?? null) : null,
+      card_id:                cardId || null,
+      rollover_behavior:      rolloverBehavior,
+      excluded_category_ids:    excludedCategoryIds,
+      excluded_subcategory_ids: excludedSubcategoryIds,
     }
     const { error } = isEdit
       ? await supabase.from('budgets').update(payload).eq('id', budget.id)
@@ -477,6 +481,20 @@ export default function AddBudgetModal({
                   )}
                 </div>
               )}
+
+              {/* ── Exclusions ── */}
+              <div className="flex flex-col gap-3 pt-2 border-t border-white/[0.05]">
+                <label className="text-xs text-muted uppercase tracking-widest">Exclude from budget</label>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] text-white/30">Categories</span>
+                  <MultiDropdownSelect values={excludedCategoryIds} onChange={setExcludedCategoryIds} options={categoryOptions} placeholder="None excluded…" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[10px] text-white/30">Subcategories</span>
+                  <MultiDropdownSelect values={excludedSubcategoryIds} onChange={setExcludedSubcategoryIds} options={subcategoryOpts} placeholder="None excluded…" />
+                </div>
+              </div>
+
             </div>
 
             {/* Column 2: period settings */}

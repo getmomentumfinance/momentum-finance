@@ -4,6 +4,11 @@
  */
 export function txMatchesBudget(tx, budget, catMap = {}) {
   const imp = () => tx.importance
+
+  // Exclusions — checked before inclusions
+  if (budget.excluded_category_ids?.length    && budget.excluded_category_ids.includes(tx.category_id))       return false
+  if (budget.excluded_subcategory_ids?.length && budget.excluded_subcategory_ids.includes(tx.subcategory_id)) return false
+
   // Multi-select (new)
   if (budget.category_ids?.length)    return budget.category_ids.includes(tx.category_id)
   if (budget.subcategory_ids?.length) return budget.subcategory_ids.includes(tx.subcategory_id)
