@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
+import { useUIPrefs } from '../../context/UIPrefContext'
 
 function getPeriodKey(frequency, date) {
   const y = date.getFullYear()
@@ -53,13 +54,19 @@ export default function BalanceProjection({ currentDate = new Date() }) {
   const { fmt, t } = usePreferences()
   const { pendingItems, subscriptions, subPayments, recurringBills, billPayments, plannedBills } = useSharedData()
 
+  const { setPref, prefs } = useUIPrefs()
+
   const ROWS = ROW_KEYS.map(r => ({ ...r, label: t(r.tKey) }))
-  const [checked,   setChecked]   = useState({ recurring: true, pending: true, planned: false, subscriptions: false, wishlist: false })
+
+  const DEFAULT_CHECKED = { recurring: true, pending: true, planned: false, subscriptions: false, wishlist: false }
+  const checked = { ...DEFAULT_CHECKED, ...(prefs['bp-checked'] ?? {}) }
+  const mode    = prefs['bp-mode'] ?? 'thisMonth'
+
   const [wishlist,  setWishlist]  = useState(0)
   const [collapsed, setCollapsed] = useCollapsed('BalanceProjection')
-  const [mode,      setMode]      = useState('thisMonth')
 
-  const toggle = (key) => setChecked(p => ({ ...p, [key]: !p[key] }))
+  const toggle  = (key) => setPref('bp-checked', { ...checked, [key]: !checked[key] })
+  const setMode = (m)   => setPref('bp-mode', m)
 
   // Only wishlist still needs its own fetch
   useEffect(() => {

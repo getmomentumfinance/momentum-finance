@@ -74,10 +74,9 @@ export default function PendingTransactions({ currentDate = new Date() }) {
   const { fmt, t } = usePreferences()
   const { categoryMap, receiverMap } = useSharedData()
   const c = useCardCustomization('Pending Transactions')
-  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
-  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('pending-hide-paid') === 'true')
-  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['pending-hide-paid'] === true || prefs['pending-hide-paid'] === 'true') }, [prefsLoaded])
-  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('pending-hide-paid', String(next)); return next }) }
+  const { setPref, prefs } = useUIPrefs()
+  const hidePaid = prefs['pending-hide-paid'] === true || prefs['pending-hide-paid'] === 'true'
+  function toggleHidePaid() { setPref('pending-hide-paid', String(!hidePaid)) }
 
   const [items,          setItems]          = useState([])
   const [showModal,      setShowModal]      = useState(false)

@@ -63,10 +63,9 @@ export default function Subscriptions({ currentDate = new Date() }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const c = useCardCustomization('Subscriptions')
-  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
-  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('subs-hide-paid') === 'true')
-  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['subs-hide-paid'] === true || prefs['subs-hide-paid'] === 'true') }, [prefsLoaded])
-  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('subs-hide-paid', String(next)); return next }) }
+  const { setPref, prefs } = useUIPrefs()
+  const hidePaid = prefs['subs-hide-paid'] === true || prefs['subs-hide-paid'] === 'true'
+  function toggleHidePaid() { setPref('subs-hide-paid', String(!hidePaid)) }
 
   const { categoryMap: catMap, receiverMap } = useSharedData()
   const [subs,     setSubs]     = useState([])

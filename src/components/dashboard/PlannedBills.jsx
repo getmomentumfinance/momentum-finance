@@ -72,10 +72,9 @@ export default function PlannedBills({ currentDate = new Date() }) {
   const { fmt, t } = usePreferences()
   const { categoryMap, receiverMap } = useSharedData()
   const c = useCardCustomization('Planned Bills')
-  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
-  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('planned-hide-paid') === 'true')
-  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['planned-hide-paid'] === true || prefs['planned-hide-paid'] === 'true') }, [prefsLoaded])
-  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('planned-hide-paid', String(next)); return next }) }
+  const { setPref, prefs } = useUIPrefs()
+  const hidePaid = prefs['planned-hide-paid'] === true || prefs['planned-hide-paid'] === 'true'
+  function toggleHidePaid() { setPref('planned-hide-paid', String(!hidePaid)) }
 
   const [items,     setItems]     = useState([])
   const [showModal, setShowModal] = useState(false)

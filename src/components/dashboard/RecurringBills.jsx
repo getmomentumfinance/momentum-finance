@@ -79,10 +79,9 @@ export default function RecurringBills({ currentDate }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { categoryMap: catMap, receiverMap } = useSharedData()
-  const { setPref, prefs, loaded: prefsLoaded } = useUIPrefs()
-  const [hidePaid, setHidePaidState] = useState(() => localStorage.getItem('bills-hide-paid') === 'true')
-  useEffect(() => { if (prefsLoaded) setHidePaidState(prefs['bills-hide-paid'] === true || prefs['bills-hide-paid'] === 'true') }, [prefsLoaded])
-  function toggleHidePaid() { setHidePaidState(v => { const next = !v; setPref('bills-hide-paid', String(next)); return next }) }
+  const { setPref, prefs } = useUIPrefs()
+  const hidePaid = prefs['bills-hide-paid'] === true || prefs['bills-hide-paid'] === 'true'
+  function toggleHidePaid() { setPref('bills-hide-paid', String(!hidePaid)) }
   const [bills,    setBills]    = useState([])
   const [payments, setPayments] = useState([])
   const [showModal,  setShowModal]  = useState(false)
