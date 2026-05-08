@@ -92,7 +92,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
   }, [activeRows, baseBalance])
 
   return createPortal(
-    <div className="fixed inset-0 z-[500] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="modal-backdrop fixed inset-0 z-[500] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
         className="relative z-10 w-full max-w-lg glass-popup rounded-2xl flex flex-col max-h-[80vh] shadow-2xl"

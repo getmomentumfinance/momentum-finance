@@ -36,7 +36,7 @@ export default function PaymentModal({ item, onClose }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center"
+      className="modal-backdrop fixed inset-0 z-[60] flex items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.55)' }}
       onClick={onClose}
     >

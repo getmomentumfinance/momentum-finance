@@ -165,7 +165,7 @@ function BudgetTransactionsModal({ filter, currentDate, catMap, onClose }) {
   })()
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-md flex flex-col shadow-2xl max-h-[80vh]">
 
@@ -549,7 +549,7 @@ function EditTargetModal({ target, catMap, importanceLevels, onClose, onSave, on
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-md flex flex-col shadow-2xl">
 
@@ -828,7 +828,7 @@ function TargetHistoryModal({ target, allExpenses, catMap, importanceLevels, cur
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-xl flex flex-col shadow-2xl max-h-[88vh]">
 
@@ -2504,7 +2504,7 @@ export default function Budgets() {
       </div>
 
       {showSimulator && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+        <div className="modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setShowSimulator(false) }}>
           <div className="relative w-full max-w-3xl">
             <button onClick={() => setShowSimulator(false)}

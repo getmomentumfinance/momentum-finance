@@ -216,7 +216,7 @@ export default function PaletteEditorModal({ palette, onSave, onClose }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="glass-popup border border-white/10 rounded-2xl w-full max-w-xl flex flex-col shadow-2xl max-h-[90vh]">

@@ -44,7 +44,7 @@ export default function ProfileModal({ onClose }) {
     .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div
