@@ -39,7 +39,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
           .select('amount, source')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
-          .eq('type', 'savings'),
+          .in('source', ['savings_in', 'savings_out']),
       totalBalanceProp !== undefined ? { data: null } :
         supabase.from('cards').select('initial_balance').eq('user_id', user.id).eq('type', 'savings'),
     ])

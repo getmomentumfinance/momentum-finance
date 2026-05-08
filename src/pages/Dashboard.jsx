@@ -423,7 +423,7 @@ export default function Dashboard() {
             'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} /> },
             'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} /> },
             'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} /> },
-            'savings-goals': { visKey: 'dash-showSavingsGoals',  node: <SavingsGoals /> },
+            'savings-goals': { visKey: 'dash-showSavingsGoals',  node: <SavingsGoals totalBalance={totalSavings} /> },
             'budgets':       { visKey: 'dash-showBudgets',       node: <BudgetsWidget currentDate={currentDate} /> },
             'pending':       { visKey: 'dash-showPending',       node: <PendingTransactions currentDate={currentDate} /> },
             'wishlist':      { visKey: 'dash-showWishlist',      node: <Wishlist currentDate={currentDate} /> },
