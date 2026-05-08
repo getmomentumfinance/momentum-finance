@@ -14,6 +14,7 @@ import ParticleLayer from './components/shared/ParticleLayer'
 import Toast from './components/shared/Toast'
 import { useGlassBlur } from './hooks/useGlassBlur'
 import LandingPage from './pages/LandingPage'
+import DashboardSkeleton from './components/shared/DashboardSkeleton'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
@@ -27,7 +28,7 @@ import CalendarPage from './pages/CalendarPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return null
+  if (loading) return <DashboardSkeleton />
   return user ? children : <Navigate to="/login" />
 }
 
@@ -86,7 +87,7 @@ function AppRoutes() {
   const { user, loading } = useAuth()
   const { landingPage }   = usePreferences()
   const location          = useLocation()
-  if (loading) return null
+  if (loading) return user ? <DashboardSkeleton /> : null
 
   return (
     <div key={location.pathname} className="page-fade-in">
