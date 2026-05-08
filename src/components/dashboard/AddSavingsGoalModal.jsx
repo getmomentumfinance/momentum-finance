@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trash2 } from 'lucide-react'
+import { X, Trash2, PiggyBank } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { CATEGORY_ICONS } from '../shared/CategoryPill'
@@ -54,19 +54,36 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
   const { user } = useAuth()
   const { fmt } = usePreferences()
 
-  const [name,      setName]      = useState(goal?.name             ?? '')
-  const [icon,      setIcon]      = useState(goal?.icon             ?? '')
-  const [color,     setColor]     = useState(goal?.color            ?? '#a78bfa')
-  const [allocated, setAllocated] = useState(goal?.allocated_amount ?? '')
-  const [target,    setTarget]    = useState(goal?.target_amount    ?? '')
-  const [note,      setNote]      = useState(goal?.note             ?? '')
-  const [saving,    setSaving]    = useState(false)
-  const [deleting,  setDeleting]  = useState(false)
+  const [name,            setName]            = useState(goal?.name             ?? '')
+  const [icon,            setIcon]            = useState(goal?.icon             ?? '')
+  const [color,           setColor]           = useState(goal?.color            ?? '#a78bfa')
+  const [allocated,       setAllocated]       = useState(goal?.allocated_amount ?? '')
+  const [target,          setTarget]          = useState(goal?.target_amount    ?? '')
+  const [monthlyTransfer, setMonthlyTransfer] = useState(goal?.monthly_transfer  != null ? String(goal.monthly_transfer) : '')
+  const [note,            setNote]            = useState(goal?.note             ?? '')
+  const [saving,          setSaving]          = useState(false)
+  const [deleting,        setDeleting]        = useState(false)
 
   const colorPicker = useColorPicker()
 
   // When editing, the goal's current allocation is freed up
   const maxAllocate = isEdit ? available + (goal?.allocated_amount ?? 0) : available
+
+  // Time-to-goal helper
+  const timeToGoal = useMemo(() => {
+    const t = parseFloat(target)
+    const m = parseFloat(monthlyTransfer)
+    const a = parseFloat(allocated) || 0
+    if (!t || !m || m <= 0 || t <= 0) return null
+    const remaining = Math.max(0, t - a)
+    if (remaining === 0) return { months: 0, label: 'Already reached!' }
+    const months = Math.ceil(remaining / m)
+    if (months <= 1)  return { months, label: '1 month' }
+    if (months < 12)  return { months, label: `${months} months` }
+    const yrs = Math.floor(months / 12)
+    const mo  = months % 12
+    return { months, label: mo === 0 ? `${yrs} yr${yrs > 1 ? 's' : ''}` : `${yrs} yr${yrs > 1 ? 's' : ''} ${mo} mo` }
+  }, [target, monthlyTransfer, allocated])
 
   const selectedIcon = CATEGORY_ICONS.find(i => i.id === icon)
 
@@ -75,14 +92,13 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
     const allocatedNum = Math.min(Math.max(parseFloat(allocated) || 0, 0), maxAllocate)
     setSaving(true)
     const payload = {
-      name:             name.trim(),
-      icon:             icon || null,
+      name:              name.trim(),
+      icon:              icon || null,
       color,
-      allocated_amount: allocatedNum,
-      target_amount:    target && !isNaN(parseFloat(target)) ? parseFloat(target) : null,
-      note:             note.trim() || null,
-      // preserve monthly_transfer if already set (slider on savings page handles it separately)
-      ...(isEdit && goal.monthly_transfer != null ? { monthly_transfer: goal.monthly_transfer } : {}),
+      allocated_amount:  allocatedNum,
+      target_amount:     target && !isNaN(parseFloat(target)) ? parseFloat(target) : null,
+      monthly_transfer:  monthlyTransfer !== '' && !isNaN(parseFloat(monthlyTransfer)) ? parseFloat(monthlyTransfer) : null,
+      note:              note.trim() || null,
     }
     const { error } = isEdit
       ? await supabase.from('savings_goals').update(payload).eq('id', goal.id)
@@ -174,6 +190,32 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
                 type="number" step="0.01" min="0"
                 placeholder="0,00" className={inp + ' pl-8'} />
             </div>
+          </div>
+
+          {/* Monthly contribution */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+              <PiggyBank size={12} className="text-muted" />
+              Monthly contribution <span className="text-white/30 normal-case font-normal">(optional)</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+              <input value={monthlyTransfer} onChange={e => setMonthlyTransfer(e.target.value)}
+                type="number" step="0.01" min="0"
+                placeholder="0,00" className={inp + ' pl-8'} />
+            </div>
+            {timeToGoal && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
+                style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.15)' }}>
+                <PiggyBank size={11} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                {timeToGoal.months === 0
+                  ? <span style={{ color: 'rgba(167,139,250,0.8)' }}>Goal already reached!</span>
+                  : <span style={{ color: 'rgba(167,139,250,0.8)' }}>
+                      You'll reach this goal in <strong>{timeToGoal.label}</strong>
+                    </span>
+                }
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
