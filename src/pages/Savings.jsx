@@ -18,6 +18,7 @@ import { useThemeColors } from '../hooks/useThemeColors'
 import CardCustomizationPopup from '../components/shared/CardCustomizationPopup'
 import SavingsGoals from '../components/dashboard/SavingsGoals'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { CATEGORY_ICONS } from '../components/shared/CategoryPill'
 
 // ── Colour tokens ─────────────────────────────────────────────
 const COLORS = {
@@ -255,6 +256,7 @@ export default function Savings() {
   const tc = useThemeColors()
   const [currentDate,   setCurrentDate]   = useState(new Date())
   const [allTxs,        setAllTxs]        = useState([])
+  const [allocations,   setAllocations]   = useState([])
   const [savingsCards,  setSavingsCards]  = useState([])
   const [monthIncome,   setMonthIncome]   = useState(0)
   const [loading,       setLoading]       = useState(true)
@@ -272,7 +274,7 @@ export default function Savings() {
       const start = new Date(yr, mo, 1).toISOString().slice(0, 10)
       const end   = new Date(yr, mo + 1, 0).toISOString().slice(0, 10)
 
-      const [{ data: txs }, { data: cards }, { data: cardTxs }, { data: incomeTxs }] = await Promise.all([
+      const [{ data: txs }, { data: cards }, { data: cardTxs }, { data: incomeTxs }, { data: allocsData }] = await Promise.all([
         supabase.from('transactions')
           .select('amount, date, source, description')
           .eq('user_id', user.id)
@@ -294,10 +296,16 @@ export default function Savings() {
           .eq('is_deleted', false)
           .gte('date', start)
           .lte('date', end),
+        supabase.from('savings_allocations')
+          .select('id, amount, created_at, savings_goals(name, color, icon)')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(20),
       ])
 
       if (txs)       setAllTxs(txs)
       if (incomeTxs) setMonthIncome(incomeTxs.reduce((s, t) => s + t.amount, 0))
+      if (allocsData) setAllocations(allocsData)
 
       if (cards && cardTxs) {
         const CREDIT = new Set(['income'])
@@ -313,7 +321,11 @@ export default function Savings() {
 
     load()
     window.addEventListener('transaction-saved', load)
-    return () => window.removeEventListener('transaction-saved', load)
+    window.addEventListener('savings-goal-updated', load)
+    return () => {
+      window.removeEventListener('transaction-saved', load)
+      window.removeEventListener('savings-goal-updated', load)
+    }
   }, [user?.id, currentDate])
 
   const year  = currentDate.getFullYear()
@@ -404,11 +416,15 @@ export default function Savings() {
 
   const targetPct = target > 0 ? Math.min((thisMonthIn / target) * 100, 100) : 0
 
-  // Recent savings (last 6)
-  const recent = [...allTxs]
-    .filter(t => t.amount > 0)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5)
+  // Recent activity: savings transactions + goal allocations merged
+  const recentTxs = allTxs
+    .filter(tx => tx.amount > 0)
+    .map(tx => ({ kind: 'tx', date: tx.date, sortKey: tx.date, amount: tx.amount, source: tx.source, description: tx.description }))
+  const recentAllocs = allocations
+    .map(a => ({ kind: 'alloc', date: a.created_at.slice(0, 10), sortKey: a.created_at, amount: a.amount, goalName: a.savings_goals?.name, goalColor: a.savings_goals?.color, goalIcon: a.savings_goals?.icon, id: a.id }))
+  const recent = [...recentTxs, ...recentAllocs]
+    .sort((a, b) => b.sortKey.localeCompare(a.sortKey))
+    .slice(0, 8)
 
   const monthLabel = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -649,8 +665,31 @@ export default function Savings() {
             <div className="px-5 py-4 text-xs text-muted">{t('sav.noTxYet')}</div>
           ) : (
             <div className="overflow-y-auto">
-              {recent.map((tx, i) => {
-                const isIn  = tx.source === 'savings_in'
+              {recent.map((item, i) => {
+                if (item.kind === 'alloc') {
+                  const goalColor = item.goalColor ?? '#a78bfa'
+                  const GoalIcon  = item.goalIcon ? CATEGORY_ICONS.find(ic => ic.id === item.goalIcon)?.Icon : null
+                  return (
+                    <div key={item.id ?? i} className="flex items-center gap-3 px-4 py-2.5 border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: `color-mix(in srgb, ${goalColor} 18%, transparent)` }}>
+                        {GoalIcon
+                          ? <GoalIcon size={13} style={{ color: goalColor }} />
+                          : <PiggyBank size={13} style={{ color: goalColor }} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-medium truncate leading-tight">
+                          {item.goalName ? `→ ${item.goalName}` : 'Goal deposit'}
+                        </p>
+                        <p className="text-[10px] text-muted">{item.date}</p>
+                      </div>
+                      <span className="text-[11px] font-semibold tabular-nums flex-shrink-0" style={{ color: goalColor }}>
+                        +{fmt(item.amount)}
+                      </span>
+                    </div>
+                  )
+                }
+                const isIn  = item.source === 'savings_in'
                 const color = isIn ? C_IN : C_OUT
                 const sign  = isIn ? '+' : '−'
                 return (
@@ -661,12 +700,12 @@ export default function Savings() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-medium truncate leading-tight">
-                        {tx.description || (isIn ? t('sav.deposit') : t('sav.withdrawal'))}
+                        {item.description || (isIn ? t('sav.deposit') : t('sav.withdrawal'))}
                       </p>
-                      <p className="text-[10px] text-muted">{tx.date}</p>
+                      <p className="text-[10px] text-muted">{item.date}</p>
                     </div>
                     <span className="text-[11px] font-semibold tabular-nums flex-shrink-0" style={{ color }}>
-                      {sign}{fmt(tx.amount)}
+                      {sign}{fmt(item.amount)}
                     </span>
                   </div>
                 )

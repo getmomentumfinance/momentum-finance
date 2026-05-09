@@ -25,6 +25,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
   const { fmt, t } = usePreferences()
   const c = useCardCustomization('Savings Goals')
   const [goals,          setGoals]          = useState([])
+  const [allocations,    setAllocations]    = useState([])
   const [loading,        setLoading]        = useState(true)
   const [fetchedBalance, setFetchedBalance] = useState(0)
   const [modalGoal,      setModalGoal]      = useState(undefined)
@@ -32,7 +33,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
 
   async function load() {
     if (!user?.id) return
-    const [{ data: goals }, { data: txs }, { data: savingsCards }] = await Promise.all([
+    const [{ data: goalsData }, { data: txs }, { data: savingsCards }, { data: allocsData }] = await Promise.all([
       supabase.from('savings_goals').select('*').eq('user_id', user.id).order('created_at'),
       totalBalanceProp !== undefined ? { data: null } :
         supabase.from('transactions')
@@ -42,8 +43,14 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
           .in('source', ['savings_in', 'savings_out']),
       totalBalanceProp !== undefined ? { data: null } :
         supabase.from('cards').select('initial_balance').eq('user_id', user.id).eq('type', 'savings'),
+      supabase.from('savings_allocations')
+        .select('id, goal_id, amount, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100),
     ])
-    setGoals(goals ?? [])
+    setGoals(goalsData ?? [])
+    setAllocations(allocsData ?? [])
     if (txs) {
       const txBal = (txs ?? []).reduce((s, t) => {
         if (t.source === 'savings_in'  && t.amount > 0) return s + t.amount
@@ -119,7 +126,8 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
                   const target    = goal.target_amount
                   const pct       = target && target > 0 ? Math.min((allocated / target) * 100, 100) : null
                   const GoalIcon  = goal.icon ? CATEGORY_ICONS.find(i => i.id === goal.icon)?.Icon : null
-                  return <GoalCard key={goal.id} goal={goal} pct={pct} GoalIcon={GoalIcon} onEdit={setModalGoal} showSlider={showSlider} unallocated={unallocated} onReload={load} />
+                  const goalAllocs = allocations.filter(a => a.goal_id === goal.id)
+                  return <GoalCard key={goal.id} goal={goal} pct={pct} GoalIcon={GoalIcon} onEdit={setModalGoal} showSlider={showSlider} unallocated={unallocated} onReload={load} allocations={goalAllocs} />
                 })}
               </div>
             )}
@@ -161,7 +169,7 @@ function formatDuration(months) {
   return `${yrs}y ${mos}mo`
 }
 
-function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onReload }) {
+function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onReload, allocations = [] }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const allocated = goal.allocated_amount ?? 0
@@ -183,7 +191,10 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
     const maxDeposit = unallocated ?? 0
     const capped = Math.min(amt, maxDeposit)
     setSaving(true)
-    await supabase.from('savings_goals').update({ allocated_amount: allocated + capped }).eq('id', goal.id)
+    await Promise.all([
+      supabase.from('savings_goals').update({ allocated_amount: allocated + capped }).eq('id', goal.id),
+      supabase.from('savings_allocations').insert({ user_id: user.id, goal_id: goal.id, amount: capped }),
+    ])
     setSaving(false)
     setDepositing(false)
     setDepositAmount('')
@@ -315,6 +326,23 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
         <p className="text-[10px] leading-snug" style={{ color: `color-mix(in srgb, ${solidColor} 60%, rgba(255,255,255,0.35))` }}>
           {fmt(monthly)}/mo — {formatDuration(Math.ceil(remaining / monthly))}
         </p>
+      )}
+
+      {/* Recent allocations — Savings page only */}
+      {showSlider && allocations.length > 0 && (
+        <div className="flex flex-col gap-1 pt-2 border-t border-white/[0.06]">
+          <span className="text-[9px] uppercase tracking-widest text-muted mb-0.5">Recent deposits</span>
+          {allocations.slice(0, 3).map(a => (
+            <div key={a.id} className="flex items-center justify-between">
+              <span className="text-[10px] text-muted">
+                {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+              <span className="text-[10px] font-semibold tabular-nums" style={{ color: solidColor }}>
+                +{fmt(a.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Quick deposit */}
