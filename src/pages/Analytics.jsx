@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { DEFAULT_IMPORTANCE } from '../constants/importance'
-import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X, Info } from 'lucide-react'
+import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X, Info, Users } from 'lucide-react'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -702,6 +702,10 @@ export default function Analytics() {
   }, [transactions, range, currentDate])
 
   const expenses = useMemo(() => filtered.filter(t => t.type === 'expense' && !t.is_split_parent), [filtered])
+
+  const totalReimbursable = useMemo(() =>
+    expenses.reduce((s, t) => s + (t.reimbursable_amount ?? 0), 0)
+  , [expenses])
 
   // ── Per-type totals (split parents excluded to avoid double-counting) ──
   const typeTotals = useMemo(() => {
@@ -2218,6 +2222,18 @@ export default function Analytics() {
         {/* ── Normal two-column layout ── */}
         {range !== 'compare' && (
         <div className="flex flex-col gap-5">
+
+        {/* ── Reimbursable summary banner ── */}
+        {totalReimbursable > 0 && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+            style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.15)' }}>
+            <Users size={14} style={{ color: 'rgba(167,139,250,0.8)', flexShrink: 0 }} />
+            <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <strong style={{ color: 'rgba(167,139,250,0.9)' }}>{fmt(totalReimbursable)}</strong> of your spending this period will be paid back ·{' '}
+              your actual cost: <strong>{fmt((typeTotals['expense'] || 0) - totalReimbursable)}</strong>
+            </span>
+          </div>
+        )}
 
         {/* ── Donut row — week and month only ── */}
         {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 md:grid-cols-4 gap-5">

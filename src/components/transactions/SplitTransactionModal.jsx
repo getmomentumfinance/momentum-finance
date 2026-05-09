@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Plus, Scissors, Trash2, ChevronDown, ArrowLeft } from 'lucide-react'
+import { X, Plus, Scissors, Trash2, ChevronDown, ArrowLeft, Users } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { CategoryPill } from '../shared/CategoryPill'
@@ -107,11 +107,12 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
         category_id: c.category_id ?? '',
         subcategory_id: c.subcategory_id ?? '',
         importance: c.importance ?? '',
+        reimbursable: (c.reimbursable_amount ?? 0) > 0,
       }))
     }
     return [
-      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' },
-      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' },
+      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '', reimbursable: false },
+      { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '', reimbursable: false },
     ]
   })
 
@@ -133,7 +134,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
   }
 
   function addSplit() {
-    setSplits(ss => [...ss, { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '' }])
+    setSplits(ss => [...ss, { key: crypto.randomUUID(), amount: '', description: '', category_id: '', subcategory_id: '', importance: '', reimbursable: false }])
   }
 
   function removeSplit(key) {
@@ -160,6 +161,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
       type: transaction.type,
       date: transaction.date,
       amount: parseFloat(sp.amount),
+      reimbursable_amount: sp.reimbursable ? parseFloat(sp.amount) : 0,
       description: transaction.description || null,
       comment: sp.description || null,
       receiver_id: transaction.receiver_id || null,
@@ -224,7 +226,15 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
             return (
               <div key={sp.key} className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted uppercase tracking-widest">Part {idx + 1}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted uppercase tracking-widest">Part {idx + 1}</span>
+                    {sp.reimbursable && (
+                      <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(167,139,250,0.12)', color: 'rgba(167,139,250,0.8)' }}>
+                        <Users size={8} /> owed back
+                      </span>
+                    )}
+                  </div>
                   {splits.length > 2 && (
                     <button type="button" onClick={() => removeSplit(sp.key)}
                       className="text-white/25 hover:text-red-400 transition-colors p-0.5">
@@ -272,6 +282,17 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
                   onChange={e => updateSplit(sp.key, 'description', e.target.value)}
                   className={inp}
                 />
+
+                {/* Reimbursable toggle */}
+                <button
+                  type="button"
+                  onClick={() => updateSplit(sp.key, 'reimbursable', !sp.reimbursable)}
+                  className="flex items-center gap-1.5 text-[11px] transition-colors w-fit"
+                  style={{ color: sp.reimbursable ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.25)' }}
+                >
+                  <Users size={11} />
+                  {sp.reimbursable ? 'Owed back to me' : 'Someone owes me this part'}
+                </button>
               </div>
             )
           })}

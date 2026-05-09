@@ -97,7 +97,7 @@ export function calcBudgetSpend(budget, expenses, currentDate) {
       (!budget.card_id || t.card_id === budget.card_id) &&
       txMatchesBudget(t, budget)
     )
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => s + (t.amount - (t.reimbursable_amount ?? 0)), 0)
 }
 
 /**

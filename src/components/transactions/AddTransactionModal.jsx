@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Banknote, ChevronDown, Building2, UserRound, Calendar, Scissors, Plus } from 'lucide-react'
+import { X, Banknote, ChevronDown, Building2, UserRound, Calendar, Scissors, Plus, Users } from 'lucide-react'
 import SplitTransactionModal from './SplitTransactionModal'
 import { TRANSACTION_TYPES as TYPES } from '../../constants/transactionTypes'
 import { useImportance } from '../../hooks/useImportance'
@@ -295,6 +295,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [receiverId,  setReceiverId]  = useState(transaction?.receiver_id    ?? null)
   const [importance,  setImportance]  = useState(transaction?.importance     ?? '')
   const [saving,      setSaving]      = useState(false)
+  const [reimbursableAmt, setReimbursableAmt] = useState(transaction?.reimbursable_amount > 0 ? String(transaction.reimbursable_amount) : '')
   const [pendingSplit, setPendingSplit] = useState(null) // transaction to split after save
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
   const { categories, receivers: sharedReceivers, allTransactions } = useSharedData()
@@ -508,19 +509,21 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         await supabase.from('transactions').insert({ user_id: user.id, ...payload })
       }
     } else {
+      const reimbursableParsed = parseFloat(reimbursableAmt) || 0
       const payload = {
         type,
-        description:    description.trim() || null,
-        amount:         parsed,
-        category_id:    categoryId || null,
-        subcategory_id: subId || null,
-        card_id:        isCash ? null : (cardId || null),
-        receiver_id:    receiverId || null,
-        is_cash:        isCash,
+        description:        description.trim() || null,
+        amount:             parsed,
+        reimbursable_amount: type === 'expense' ? Math.min(reimbursableParsed, parsed) : 0,
+        category_id:        categoryId || null,
+        subcategory_id:     subId || null,
+        card_id:            isCash ? null : (cardId || null),
+        receiver_id:        receiverId || null,
+        is_cash:            isCash,
         ...(type === 'income' && { is_earned: isEarned }),
         ...(type === 'expense' && { importance: importance || null }),
         date,
-        comment:        comment.trim() || null,
+        comment:            comment.trim() || null,
         status,
       }
       if (effectiveIsEditing) {
@@ -636,6 +639,41 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   className={inp + ' pl-8'}
                 />
               </div>
+              {/* Reimbursable toggle — expenses only */}
+              {type === 'expense' && (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReimbursableAmt(r => r ? '' : (amount || ''))}
+                    className="flex items-center gap-2 text-[11px] transition-colors w-fit"
+                    style={{ color: reimbursableAmt ? 'rgba(167,139,250,0.9)' : 'rgba(255,255,255,0.3)' }}
+                  >
+                    <Users size={11} />
+                    {reimbursableAmt ? 'Being reimbursed' : 'Someone will pay me back'}
+                  </button>
+                  {!!reimbursableAmt && (
+                    <div className="flex flex-col gap-1.5 pl-4 border-l-2" style={{ borderColor: 'rgba(167,139,250,0.25)' }}>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">€</span>
+                          <input
+                            value={reimbursableAmt}
+                            onChange={e => setReimbursableAmt(e.target.value.replace(/[^0-9.,]/g, ''))}
+                            type="text" inputMode="decimal" placeholder="0,00"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white outline-none focus:border-white/30"
+                          />
+                        </div>
+                        <span className="text-[10px] text-muted whitespace-nowrap">owed back</span>
+                      </div>
+                      {parseFloat(reimbursableAmt) > 0 && parseFloat(amount) > 0 && (
+                        <p className="text-[10px]" style={{ color: 'rgba(167,139,250,0.7)' }}>
+                          Your cost: €{Math.max(0, parseFloat(amount.replace(',', '.')) - parseFloat(reimbursableAmt.replace(',', '.'))).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
