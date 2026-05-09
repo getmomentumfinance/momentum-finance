@@ -10,6 +10,26 @@ function midColor(colorValue) {
   const [r1,g1,b1] = p(stops[0]), [r2,g2,b2] = p(stops[stops.length-1])
   return '#' + [Math.round((r1+r2)/2), Math.round((g1+g2)/2), Math.round((b1+b2)/2)].map(x => x.toString(16).padStart(2,'0')).join('')
 }
+
+function ProgressRing({ pct, color, size = 80, strokeWidth = 5 }) {
+  const r    = (size - strokeWidth * 2) / 2
+  const circ = 2 * Math.PI * r
+  const offset = circ - (Math.min(pct, 100) / 100) * circ
+  const cx = size / 2
+  return (
+    <svg width={size} height={size}>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={strokeWidth} />
+      <circle cx={cx} cy={cx} r={r} fill="none"
+        stroke={color} strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={`${circ}`}
+        strokeDashoffset={`${offset}`}
+        transform={`rotate(-90 ${cx} ${cx})`}
+        style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
+    </svg>
+  )
+}
+
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -52,12 +72,12 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
     setGoals(goalsData ?? [])
     setAllocations(allocsData ?? [])
     if (txs) {
-      const txBal = (txs ?? []).reduce((s, t) => {
-        if (t.source === 'savings_in'  && t.amount > 0) return s + t.amount
-        if (t.source === 'savings_out' && t.amount > 0) return s - t.amount
+      const txBal = (txs ?? []).reduce((s, tx) => {
+        if (tx.source === 'savings_in'  && tx.amount > 0) return s + tx.amount
+        if (tx.source === 'savings_out' && tx.amount > 0) return s - tx.amount
         return s
       }, 0)
-      const initBal = (savingsCards ?? []).reduce((s, c) => s + Number(c.initial_balance ?? 0), 0)
+      const initBal = (savingsCards ?? []).reduce((s, card) => s + Number(card.initial_balance ?? 0), 0)
       setFetchedBalance(Math.max(txBal + initBal, 0))
     }
     setLoading(false)
@@ -73,6 +93,87 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
   const totalAllocated = goals.reduce((s, g) => s + (g.allocated_amount ?? 0), 0)
   const unallocated    = Math.max(totalBalance - totalAllocated, 0)
 
+  const goalCards = goals.map(goal => {
+    const allocated  = goal.allocated_amount ?? 0
+    const target     = goal.target_amount
+    const pct        = target && target > 0 ? Math.min((allocated / target) * 100, 100) : null
+    const GoalIcon   = goal.icon ? CATEGORY_ICONS.find(i => i.id === goal.icon)?.Icon : null
+    const goalAllocs = allocations.filter(a => a.goal_id === goal.id)
+    return (
+      <GoalCard
+        key={goal.id}
+        goal={goal} pct={pct} GoalIcon={GoalIcon}
+        onEdit={setModalGoal} showSlider={showSlider}
+        unallocated={unallocated} onReload={load}
+        allocations={goalAllocs}
+      />
+    )
+  })
+
+  const modals = (
+    <>
+      {c.open && (
+        <CardCustomizationPopup
+          popupRef={c.popupRef} pos={c.pos}
+          enableColor={c.enableColor}   setEnableColor={c.setEnableColor}
+          showBorder={c.showBorder}     setShowBorder={c.setShowBorder}
+          tab={c.tab}                   setTab={c.setTab}
+          selectedColor={c.selectedColor}   setSelectedColor={c.setSelectedColor}
+          opacity={c.opacity}           setOpacity={c.setOpacity}
+          darkOverlay={c.darkOverlay}   setDarkOverlay={c.setDarkOverlay}
+          colors={c.colors}
+        />
+      )}
+      {modalGoal !== undefined && (
+        <AddSavingsGoalModal
+          goal={modalGoal}
+          available={unallocated}
+          onClose={() => setModalGoal(undefined)}
+          onSaved={load}
+        />
+      )}
+    </>
+  )
+
+  // ── Savings page: full expanded view ──────────────────────────
+  if (showSlider) {
+    return (
+      <>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-semibold">{t('savings.title')}</h2>
+            <p className="text-[11px] text-muted mt-0.5">
+              {t('savings.distributed', { allocated: fmt(totalAllocated), balance: fmt(totalBalance ?? 0) })}
+            </p>
+          </div>
+          <button
+            onClick={() => setModalGoal(null)}
+            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+          >
+            <Plus size={12} /> {t('savings.addGoal')}
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1,2,3].map(i => <SkeletonCard key={i} />)}
+          </div>
+        ) : goals.length === 0 ? (
+          <div className="glass-card rounded-2xl flex flex-col items-center py-12 gap-2">
+            <Target size={28} className="text-white/15" />
+            <p className="text-muted text-sm">{t('savings.noGoals')}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {goalCards}
+          </div>
+        )}
+        {modals}
+      </>
+    )
+  }
+
+  // ── Dashboard: compact widget ─────────────────────────────────
   return (
     <>
       <div className="glass-card rounded-2xl p-5 relative overflow-hidden" style={{ border: c.borderStyle }}>
@@ -95,7 +196,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
                 <PiggyBank size={14} />
               </button>
               <div>
-                <button type="button" onClick={() => setCollapsed(c => !c)} className="text-sm font-semibold hover:text-white/70 transition-colors">{t('savings.title')}</button>
+                <button type="button" onClick={() => setCollapsed(v => !v)} className="text-sm font-semibold hover:text-white/70 transition-colors">{t('savings.title')}</button>
                 <p className="text-[11px] text-muted mt-0.5">
                   {t('savings.distributed', { allocated: fmt(totalAllocated), balance: fmt(totalBalance ?? 0) })}
                 </p>
@@ -121,41 +222,13 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
               </div>
             ) : (
               <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-                {goals.map(goal => {
-                  const allocated = goal.allocated_amount ?? 0
-                  const target    = goal.target_amount
-                  const pct       = target && target > 0 ? Math.min((allocated / target) * 100, 100) : null
-                  const GoalIcon  = goal.icon ? CATEGORY_ICONS.find(i => i.id === goal.icon)?.Icon : null
-                  const goalAllocs = allocations.filter(a => a.goal_id === goal.id)
-                  return <GoalCard key={goal.id} goal={goal} pct={pct} GoalIcon={GoalIcon} onEdit={setModalGoal} showSlider={showSlider} unallocated={unallocated} onReload={load} allocations={goalAllocs} />
-                })}
+                {goalCards}
               </div>
             )}
           </>)}
         </div>
       </div>
-
-      {c.open && (
-        <CardCustomizationPopup
-          popupRef={c.popupRef} pos={c.pos}
-          enableColor={c.enableColor}   setEnableColor={c.setEnableColor}
-          showBorder={c.showBorder}     setShowBorder={c.setShowBorder}
-          tab={c.tab}                   setTab={c.setTab}
-          selectedColor={c.selectedColor}   setSelectedColor={c.setSelectedColor}
-          opacity={c.opacity}           setOpacity={c.setOpacity}
-          darkOverlay={c.darkOverlay}   setDarkOverlay={c.setDarkOverlay}
-          colors={c.colors}
-        />
-      )}
-
-      {modalGoal !== undefined && (
-        <AddSavingsGoalModal
-          goal={modalGoal}
-          available={unallocated}
-          onClose={() => setModalGoal(undefined)}
-          onSaved={load}
-        />
-      )}
+      {modals}
     </>
   )
 }
@@ -172,9 +245,9 @@ function formatDuration(months) {
 function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onReload, allocations = [] }) {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
-  const allocated = goal.allocated_amount ?? 0
-  const target    = goal.target_amount
-  const isComplete = pct >= 100
+  const allocated  = goal.allocated_amount ?? 0
+  const target     = goal.target_amount
+  const isComplete = pct !== null && pct >= 100
   const [displayPct,    setDisplayPct]    = useState(0)
   const [showConfetti,  setShowConfetti]  = useState(false)
   const [depositing,    setDepositing]    = useState(false)
@@ -204,20 +277,19 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
 
   function cancelDeposit(e) { e.stopPropagation(); setDepositing(false); setDepositAmount('') }
 
-  const remaining   = target && target > 0 ? Math.max(0, target - allocated) : null
+  const remaining      = target && target > 0 ? Math.max(0, target - allocated) : null
   const defaultMonthly = remaining !== null && remaining > 0 ? Math.max(1, Math.ceil(remaining / 12)) : 1
   const [monthly, setMonthly] = useState(() => goal.monthly_transfer ?? defaultMonthly)
   const debounceRef = useRef(null)
 
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setDisplayPct(pct ?? 0)
       if (isComplete) setShowConfetti(true)
     }, 50)
-    return () => clearTimeout(t)
+    return () => clearTimeout(timer)
   }, [pct, isComplete])
 
-  // Sync if goal reloads
   useEffect(() => {
     setMonthly(goal.monthly_transfer ?? defaultMonthly)
   }, [goal.id, goal.monthly_transfer])
@@ -235,15 +307,157 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
   const sliderMax    = remaining !== null ? Math.ceil(remaining) : 1000
   const solidColor   = midColor(goal.color ?? '#a78bfa')
 
+  const depositForm = depositing && (
+    <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
+      <div className="relative flex-1">
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">€</span>
+        <input
+          ref={depositInputRef}
+          type="number" step="0.01" min="0" max={unallocated}
+          value={depositAmount}
+          onChange={e => setDepositAmount(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleDeposit(e); if (e.key === 'Escape') cancelDeposit(e) }}
+          placeholder="0,00"
+          className="w-full bg-white/5 border border-white/10 rounded-lg pl-6 pr-2 py-1.5 text-xs text-white outline-none focus:border-white/30"
+        />
+      </div>
+      <button type="button" onClick={handleDeposit} disabled={saving || !depositAmount}
+        className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40"
+        style={{ background: `color-mix(in srgb, ${solidColor} 25%, transparent)`, color: solidColor }}>
+        <Check size={12} />
+      </button>
+      <button type="button" onClick={cancelDeposit}
+        className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors text-white/40">
+        <X size={12} />
+      </button>
+    </div>
+  )
+
+  // ── Full card (Savings page) ──────────────────────────────────
+  if (showSlider) {
+    return (
+      <div className="rounded-2xl overflow-hidden flex flex-col"
+        style={{ border: `1px solid color-mix(in srgb, ${solidColor} 25%, rgba(255,255,255,0.06))` }}>
+        {showConfetti && <ConfettiBurst color={goal.color ?? '#a78bfa'} />}
+
+        {/* Gradient header */}
+        <div className="relative p-5"
+          style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${solidColor} 22%, rgba(10,10,18,0.97)), color-mix(in srgb, ${solidColor} 9%, rgba(10,10,18,0.99)))` }}>
+
+          {/* Top row: icon + name + buttons */}
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {GoalIcon
+                ? <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: `color-mix(in srgb, ${solidColor} 22%, rgba(0,0,0,0.4))` }}>
+                    <GoalIcon size={15} style={{ color: solidColor }} />
+                  </div>
+                : <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ background: solidColor }} />
+              }
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-tight truncate">{goal.name}</p>
+                {goal.note && <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{goal.note}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+              {!isComplete && (
+                <button type="button"
+                  onClick={e => { e.stopPropagation(); setDepositing(v => !v); setDepositAmount('') }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                  style={{ background: `color-mix(in srgb, ${solidColor} 22%, rgba(0,0,0,0.3))`, color: solidColor }}
+                  title="Add money">
+                  <Plus size={12} />
+                </button>
+              )}
+              <button type="button" onClick={() => onEdit(goal)}
+                className="w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/12 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.35)' }}>
+                <Pencil size={11} />
+              </button>
+            </div>
+          </div>
+
+          {/* Progress ring + amount */}
+          <div className="flex items-center gap-5">
+            <div className="relative shrink-0">
+              <ProgressRing pct={displayPct} color={solidColor} size={80} strokeWidth={5} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                {pct !== null
+                  ? <span className="text-sm font-bold tabular-nums leading-none">{Math.round(displayPct)}%</span>
+                  : <PiggyBank size={18} style={{ color: solidColor, opacity: 0.6 }} />
+                }
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-2xl font-bold tabular-nums leading-none">{fmt(allocated)}</p>
+              {target
+                ? <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>of {fmt(target)}</p>
+                : <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>allocated</p>
+              }
+              {isComplete && (
+                <p className="text-[10px] font-semibold mt-1.5" style={{ color: solidColor }}>Goal reached!</p>
+              )}
+              {!isComplete && monthsToGoal && (
+                <p className="text-[10px] mt-1.5" style={{ color: `color-mix(in srgb, ${solidColor} 70%, rgba(255,255,255,0.4))` }}>
+                  {formatDuration(monthsToGoal)} to go
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.015)' }}>
+
+          {/* Monthly transfer slider */}
+          {remaining !== null && remaining > 0 && (
+            <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted uppercase tracking-widest">Monthly</span>
+                <span className="text-xs font-semibold tabular-nums" style={{ color: solidColor }}>{fmt(monthly)}/mo</span>
+              </div>
+              <input
+                type="range" min={1} max={sliderMax} step={1} value={monthly}
+                onChange={e => handleMonthlyChange(Number(e.target.value))}
+                className="w-full cursor-pointer"
+                style={{ accentColor: 'var(--color-progress-bar)' }}
+              />
+            </div>
+          )}
+
+          {/* Recent deposits */}
+          {allocations.length > 0 && (
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-white/[0.05]">
+              <span className="text-[9px] uppercase tracking-widest text-muted">Recent deposits</span>
+              {allocations.slice(0, 3).map(a => (
+                <div key={a.id} className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted">
+                    {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="text-[10px] font-semibold tabular-nums" style={{ color: solidColor }}>
+                    +{fmt(a.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {depositForm}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Compact card (Dashboard widget) ──────────────────────────
   return (
     <div
       className="relative rounded-xl p-4 flex flex-col gap-2.5 group overflow-hidden"
       style={{
         background: `color-mix(in srgb, ${solidColor} 8%, var(--color-dash-card, rgba(255,255,255,0.03)))`,
         border: `1px solid color-mix(in srgb, ${solidColor} 22%, transparent)`,
-        cursor: showSlider ? 'default' : 'pointer',
+        cursor: 'pointer',
       }}
-      onClick={showSlider ? undefined : () => onEdit(goal)}
+      onClick={() => onEdit(goal)}
     >
       {showConfetti && <ConfettiBurst color={goal.color ?? '#a78bfa'} />}
 
@@ -259,17 +473,16 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {!isComplete && (
-            <button
-              type="button"
+            <button type="button"
               onClick={e => { e.stopPropagation(); setDepositing(v => !v); setDepositAmount('') }}
               className="w-5 h-5 rounded-full flex items-center justify-center transition-colors"
               style={{ background: `color-mix(in srgb, ${solidColor} 20%, transparent)`, color: solidColor }}
-              title="Add money"
-            >
+              title="Add money">
               <Plus size={11} />
             </button>
           )}
-          <Pencil size={11} className="text-white/20 group-hover:text-white/50 transition-colors cursor-pointer mt-0.5" onClick={e => { e.stopPropagation(); onEdit(goal) }} />
+          <Pencil size={11} className="text-white/20 group-hover:text-white/50 transition-colors cursor-pointer mt-0.5"
+            onClick={e => { e.stopPropagation(); onEdit(goal) }} />
         </div>
       </div>
 
@@ -281,16 +494,12 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
       {pct !== null && (
         <div className="flex flex-col gap-1">
           <div className="h-1.5 w-full rounded-full bg-white/8 overflow-hidden">
-            <div
-              className="h-full rounded-full"
+            <div className="h-full rounded-full"
               style={{
                 width: `${displayPct}%`,
-                background: isComplete
-                  ? `linear-gradient(90deg, ${goal.color ?? '#a78bfa'}, #fff8)`
-                  : (goal.color ?? '#a78bfa'),
+                background: isComplete ? `linear-gradient(90deg, ${goal.color ?? '#a78bfa'}, #fff8)` : (goal.color ?? '#a78bfa'),
                 transition: 'width 0.9s cubic-bezier(0.4,0,0.2,1)',
-              }}
-            />
+              }} />
           </div>
           <span className="text-[10px] text-muted">{t('savings.pctOfGoal', { pct: Math.round(pct) })}</span>
         </div>
@@ -298,82 +507,13 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
 
       {goal.note && <p className="text-[11px] text-muted truncate">{goal.note}</p>}
 
-      {/* Slider — Savings page only */}
-      {showSlider && remaining !== null && remaining > 0 && (
-        <div className="flex flex-col gap-2 pt-1 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted uppercase tracking-widest">Monthly transfer</span>
-            <span className="text-xs font-semibold tabular-nums" style={{ color: solidColor }}>{fmt(monthly)}</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={sliderMax}
-            step={1}
-            value={monthly}
-            onChange={e => handleMonthlyChange(Number(e.target.value))}
-            className="w-full cursor-pointer"
-            style={{ accentColor: 'var(--color-progress-bar)' }}
-          />
-          <p className="text-[10px]" style={{ color: `color-mix(in srgb, ${solidColor} 60%, rgba(255,255,255,0.35))` }}>
-            Reach goal in <span className="font-semibold">{formatDuration(monthsToGoal)}</span>
-          </p>
-        </div>
-      )}
-
-      {/* Widget hint — no slider */}
-      {!showSlider && remaining !== null && remaining > 0 && monthly > 0 && (
+      {remaining !== null && remaining > 0 && monthly > 0 && (
         <p className="text-[10px] leading-snug" style={{ color: `color-mix(in srgb, ${solidColor} 60%, rgba(255,255,255,0.35))` }}>
           {fmt(monthly)}/mo — {formatDuration(Math.ceil(remaining / monthly))}
         </p>
       )}
 
-      {/* Recent allocations — Savings page only */}
-      {showSlider && allocations.length > 0 && (
-        <div className="flex flex-col gap-1 pt-2 border-t border-white/[0.06]">
-          <span className="text-[9px] uppercase tracking-widest text-muted mb-0.5">Recent deposits</span>
-          {allocations.slice(0, 3).map(a => (
-            <div key={a.id} className="flex items-center justify-between">
-              <span className="text-[10px] text-muted">
-                {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-              <span className="text-[10px] font-semibold tabular-nums" style={{ color: solidColor }}>
-                +{fmt(a.amount)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Quick deposit */}
-      {depositing && (
-        <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
-          <div className="relative flex-1">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">€</span>
-            <input
-              ref={depositInputRef}
-              type="number"
-              step="0.01"
-              min="0"
-              max={unallocated}
-              value={depositAmount}
-              onChange={e => setDepositAmount(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleDeposit(e); if (e.key === 'Escape') cancelDeposit(e) }}
-              placeholder="0,00"
-              className="w-full bg-white/5 border border-white/10 rounded-lg pl-6 pr-2 py-1.5 text-xs text-white outline-none focus:border-white/30"
-            />
-          </div>
-          <button type="button" onClick={handleDeposit} disabled={saving || !depositAmount}
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40"
-            style={{ background: `color-mix(in srgb, ${solidColor} 25%, transparent)`, color: solidColor }}>
-            <Check size={12} />
-          </button>
-          <button type="button" onClick={cancelDeposit}
-            className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors text-white/40">
-            <X size={12} />
-          </button>
-        </div>
-      )}
+      {depositForm}
     </div>
   )
 }
@@ -390,18 +530,13 @@ function ConfettiBurst({ color }) {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden">
       {pieces.map(p => (
-        <div
-          key={p.id}
-          className="absolute rounded-sm"
+        <div key={p.id} className="absolute rounded-sm"
           style={{
-            left: p.left,
-            top: 0,
-            width: p.size,
-            height: p.size,
+            left: p.left, top: 0,
+            width: p.size, height: p.size,
             background: p.hue,
             animation: `confettiFall 0.9s ease-out ${p.delay} forwards`,
-          }}
-        />
+          }} />
       ))}
     </div>
   )
