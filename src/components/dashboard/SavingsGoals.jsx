@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Target, Plus, Pencil, PiggyBank } from 'lucide-react'
+import { Target, Plus, Pencil, PiggyBank, Check, X } from 'lucide-react'
 
 function midColor(colorValue) {
   if (!colorValue) return '#a78bfa'
@@ -119,7 +119,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
                   const target    = goal.target_amount
                   const pct       = target && target > 0 ? Math.min((allocated / target) * 100, 100) : null
                   const GoalIcon  = goal.icon ? CATEGORY_ICONS.find(i => i.id === goal.icon)?.Icon : null
-                  return <GoalCard key={goal.id} goal={goal} pct={pct} GoalIcon={GoalIcon} onEdit={setModalGoal} showSlider={showSlider} />
+                  return <GoalCard key={goal.id} goal={goal} pct={pct} GoalIcon={GoalIcon} onEdit={setModalGoal} showSlider={showSlider} unallocated={unallocated} onReload={load} />
                 })}
               </div>
             )}
@@ -161,13 +161,37 @@ function formatDuration(months) {
   return `${yrs}y ${mos}mo`
 }
 
-function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider }) {
+function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onReload }) {
+  const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const allocated = goal.allocated_amount ?? 0
   const target    = goal.target_amount
   const isComplete = pct >= 100
-  const [displayPct, setDisplayPct] = useState(0)
-  const [showConfetti, setShowConfetti] = useState(false)
+  const [displayPct,    setDisplayPct]    = useState(0)
+  const [showConfetti,  setShowConfetti]  = useState(false)
+  const [depositing,    setDepositing]    = useState(false)
+  const [depositAmount, setDepositAmount] = useState('')
+  const [saving,        setSaving]        = useState(false)
+  const depositInputRef = useRef(null)
+
+  useEffect(() => { if (depositing) setTimeout(() => depositInputRef.current?.focus(), 50) }, [depositing])
+
+  async function handleDeposit(e) {
+    e.stopPropagation()
+    const amt = parseFloat(depositAmount)
+    if (isNaN(amt) || amt <= 0) return
+    const maxDeposit = unallocated ?? 0
+    const capped = Math.min(amt, maxDeposit)
+    setSaving(true)
+    await supabase.from('savings_goals').update({ allocated_amount: allocated + capped }).eq('id', goal.id)
+    setSaving(false)
+    setDepositing(false)
+    setDepositAmount('')
+    window.dispatchEvent(new CustomEvent('savings-goal-updated'))
+    onReload?.()
+  }
+
+  function cancelDeposit(e) { e.stopPropagation(); setDepositing(false); setDepositAmount('') }
 
   const remaining   = target && target > 0 ? Math.max(0, target - allocated) : null
   const defaultMonthly = remaining !== null && remaining > 0 ? Math.max(1, Math.ceil(remaining / 12)) : 1
@@ -222,7 +246,20 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider }) {
           }
           <span className="text-sm font-medium truncate">{goal.name}</span>
         </div>
-        <Pencil size={11} className="text-white/20 group-hover:text-white/50 transition-colors shrink-0 mt-0.5 cursor-pointer" onClick={() => onEdit(goal)} />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {!isComplete && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setDepositing(v => !v); setDepositAmount('') }}
+              className="w-5 h-5 rounded-full flex items-center justify-center transition-colors"
+              style={{ background: `color-mix(in srgb, ${solidColor} 20%, transparent)`, color: solidColor }}
+              title="Add money"
+            >
+              <Plus size={11} />
+            </button>
+          )}
+          <Pencil size={11} className="text-white/20 group-hover:text-white/50 transition-colors cursor-pointer mt-0.5" onClick={e => { e.stopPropagation(); onEdit(goal) }} />
+        </div>
       </div>
 
       <div>
@@ -278,6 +315,36 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider }) {
         <p className="text-[10px] leading-snug" style={{ color: `color-mix(in srgb, ${solidColor} 60%, rgba(255,255,255,0.35))` }}>
           {fmt(monthly)}/mo — {formatDuration(Math.ceil(remaining / monthly))}
         </p>
+      )}
+
+      {/* Quick deposit */}
+      {depositing && (
+        <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
+          <div className="relative flex-1">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">€</span>
+            <input
+              ref={depositInputRef}
+              type="number"
+              step="0.01"
+              min="0"
+              max={unallocated}
+              value={depositAmount}
+              onChange={e => setDepositAmount(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleDeposit(e); if (e.key === 'Escape') cancelDeposit(e) }}
+              placeholder="0,00"
+              className="w-full bg-white/5 border border-white/10 rounded-lg pl-6 pr-2 py-1.5 text-xs text-white outline-none focus:border-white/30"
+            />
+          </div>
+          <button type="button" onClick={handleDeposit} disabled={saving || !depositAmount}
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40"
+            style={{ background: `color-mix(in srgb, ${solidColor} 25%, transparent)`, color: solidColor }}>
+            <Check size={12} />
+          </button>
+          <button type="button" onClick={cancelDeposit}
+            className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors text-white/40">
+            <X size={12} />
+          </button>
+        </div>
       )}
     </div>
   )
