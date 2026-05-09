@@ -1174,7 +1174,13 @@ export default function Analytics() {
       if (t.type !== 'expense' || t.is_split_parent) return false
       const d = new Date(t.date + 'T00:00:00')
       if (range === 'compare') {
-        return d.getFullYear() === compareDate.getFullYear() && d.getMonth() === compareDate.getMonth()
+        if (d.getFullYear() !== compareDate.getFullYear() || d.getMonth() !== compareDate.getMonth()) return false
+        // Cap to same day as today when current view is the current calendar month
+        if (isCurrentMonth) {
+          const compareDays = new Date(compareDate.getFullYear(), compareDate.getMonth() + 1, 0).getDate()
+          return d.getDate() <= Math.min(today.getDate(), compareDays)
+        }
+        return true
       }
       if (range === 'month') {
         const py = m === 0 ? y - 1 : y
