@@ -54,6 +54,7 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
   const { user } = useAuth()
   const { fmt } = usePreferences()
 
+  const [type,            setType]            = useState(goal?.type            ?? 'goal')
   const [name,            setName]            = useState(goal?.name             ?? '')
   const [icon,            setIcon]            = useState(goal?.icon             ?? '')
   const [color,           setColor]           = useState(goal?.color            ?? '#a78bfa')
@@ -92,6 +93,7 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
     const allocatedNum = Math.min(Math.max(parseFloat(allocated) || 0, 0), maxAllocate)
     setSaving(true)
     const payload = {
+      type,
       name:              name.trim(),
       icon:              icon || null,
       color,
@@ -124,7 +126,9 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
       <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md flex flex-col shadow-2xl">
 
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
-          <h2 className="text-base font-semibold text-white">{isEdit ? 'Edit Goal' : 'New Savings Goal'}</h2>
+          <h2 className="text-base font-semibold text-white">
+            {isEdit ? `Edit ${goal?.type === 'fund' ? 'Fund' : 'Goal'}` : 'New Savings Goal'}
+          </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
             <X size={15} />
           </button>
@@ -132,10 +136,31 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
 
         <div className="overflow-y-auto flex flex-col gap-5 p-6 scrollbar-thin">
 
+          {/* Goal vs Fund toggle */}
+          <div className="flex gap-1.5 p-1 bg-white/5 rounded-xl">
+            {[
+              { value: 'goal', label: 'Goal',  desc: 'Save toward a purchase' },
+              { value: 'fund', label: 'Fund',  desc: 'Ongoing reserve or buffer' },
+            ].map(opt => (
+              <button key={opt.value} type="button" onClick={() => setType(opt.value)}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-lg transition-colors"
+                style={{
+                  background: type === opt.value ? 'rgba(255,255,255,0.12)' : 'transparent',
+                  color: type === opt.value ? '#fff' : 'rgba(255,255,255,0.35)',
+                }}>
+                <span className="text-sm font-semibold">{opt.label}</span>
+                <span className="text-[10px]" style={{ color: type === opt.value ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)' }}>
+                  {opt.desc}
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-col gap-2">
-            <label className="text-xs text-muted uppercase tracking-widest">Goal name</label>
+            <label className="text-xs text-muted uppercase tracking-widest">{type === 'fund' ? 'Fund name' : 'Goal name'}</label>
             <input value={name} onChange={e => setName(e.target.value)}
-              placeholder="e.g. Emergency fund" className={inp} autoFocus />
+              placeholder={type === 'fund' ? 'e.g. Emergency fund' : 'e.g. New laptop'}
+              className={inp} autoFocus />
           </div>
 
           <div className="flex flex-col gap-2">

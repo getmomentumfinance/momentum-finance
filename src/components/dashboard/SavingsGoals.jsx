@@ -137,9 +137,36 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
 
   // ── Savings page: full expanded view ──────────────────────────
   if (showSlider) {
+    const goalItems = goals.filter(g => (g.type ?? 'goal') === 'goal')
+    const fundItems = goals.filter(g => g.type === 'fund')
+
+    function renderGrid(items) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map(goal => {
+            const allocated  = goal.allocated_amount ?? 0
+            const target     = goal.target_amount
+            const pct        = target && target > 0 ? Math.min((allocated / target) * 100, 100) : null
+            const GoalIcon   = goal.icon ? CATEGORY_ICONS.find(i => i.id === goal.icon)?.Icon : null
+            const goalAllocs = allocations.filter(a => a.goal_id === goal.id)
+            return (
+              <GoalCard
+                key={goal.id}
+                goal={goal} pct={pct} GoalIcon={GoalIcon}
+                onEdit={setModalGoal} showSlider={showSlider}
+                unallocated={unallocated} onReload={load}
+                allocations={goalAllocs}
+              />
+            )
+          })}
+        </div>
+      )
+    }
+
     return (
       <>
-        <div className="flex items-center justify-between mb-5">
+        {/* Section header */}
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-base font-semibold">{t('savings.title')}</h2>
             <p className="text-[11px] text-muted mt-0.5">
@@ -150,7 +177,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
             onClick={() => setModalGoal(null)}
             className="btn-primary flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
           >
-            <Plus size={12} /> {t('savings.addGoal')}
+            <Plus size={12} /> Add
           </button>
         </div>
 
@@ -164,8 +191,27 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
             <p className="text-muted text-sm">{t('savings.noGoals')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {goalCards}
+          <div className="flex flex-col gap-8">
+            {goalItems.length > 0 && (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <Target size={13} className="text-muted" />
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">Goals</h3>
+                  <span className="text-[10px] text-white/20 font-medium">{goalItems.length}</span>
+                </div>
+                {renderGrid(goalItems)}
+              </div>
+            )}
+            {fundItems.length > 0 && (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-2">
+                  <PiggyBank size={13} className="text-muted" />
+                  <h3 className="text-xs font-semibold uppercase tracking-widest text-muted">Funds</h3>
+                  <span className="text-[10px] text-white/20 font-medium">{fundItems.length}</span>
+                </div>
+                {renderGrid(fundItems)}
+              </div>
+            )}
           </div>
         )}
         {modals}
