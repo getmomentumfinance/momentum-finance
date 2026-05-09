@@ -381,7 +381,8 @@ export default function Savings() {
   const monthKey      = `${year}-${String(month + 1).padStart(2, '0')}`
   const totalIn       = deposits.reduce((s, t) => s + t.amount, 0)
   const totalOut      = withdrawals.reduce((s, t) => s + t.amount, 0)
-  const totalBalance  = totalIn - totalOut
+  const savingsInitial = savingsCards.reduce((s, c) => s + Number(c.initial_balance ?? 0), 0)
+  const totalBalance  = savingsInitial + totalIn - totalOut
   const thisMonthIn   = deposits.filter(t => t.date.startsWith(monthKey)).reduce((s, t) => s + t.amount, 0)
   const thisMonthOut  = withdrawals.filter(t => t.date.startsWith(monthKey)).reduce((s, t) => s + t.amount, 0)
   const netThisMonth  = thisMonthIn - thisMonthOut
