@@ -219,6 +219,10 @@ body {
 }
 .btn-modal-cancel:hover { border-color: color-mix(in srgb, var(--color-alert) 60%, transparent); color: var(--color-alert); }
 
+/* ── Modal scroll lock ── */
+body:has(.modal-backdrop) { overflow: hidden; }
+.modal-backdrop { overscroll-behavior: contain; }
+
 /* ── Glassmorphism — popups / modals ── */
 .glass-popup {
   background: color-mix(in srgb, var(--color-dash-card) 78%, transparent);
