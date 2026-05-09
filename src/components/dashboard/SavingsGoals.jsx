@@ -382,67 +382,58 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
   // ── Full card (Savings page) ──────────────────────────────────
   if (showSlider) {
     return (
-      <div className="rounded-2xl overflow-hidden flex flex-col"
-        style={{ border: `1px solid color-mix(in srgb, ${solidColor} 25%, rgba(255,255,255,0.06))` }}>
+      <div className="rounded-2xl flex flex-col gap-4 p-5 relative overflow-hidden"
+        style={{
+          background: `color-mix(in srgb, ${solidColor} 6%, var(--color-dash-card, rgba(255,255,255,0.03)))`,
+          border: `1px solid color-mix(in srgb, ${solidColor} 20%, rgba(255,255,255,0.07))`,
+        }}>
         {showConfetti && <ConfettiBurst color={goal.color ?? '#a78bfa'} />}
 
-        {/* Gradient header */}
-        <div className="relative p-5"
-          style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${solidColor} 22%, rgba(10,10,18,0.97)), color-mix(in srgb, ${solidColor} 9%, rgba(10,10,18,0.99)))` }}>
-
-          {/* Top row: icon + name + buttons */}
-          <div className="flex items-start justify-between mb-5">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {GoalIcon
-                ? <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: `color-mix(in srgb, ${solidColor} 22%, rgba(0,0,0,0.4))` }}>
-                    <GoalIcon size={15} style={{ color: solidColor }} />
-                  </div>
-                : <span className="w-3 h-3 rounded-full shrink-0 mt-1" style={{ background: solidColor }} />
-              }
-              <div className="min-w-0">
-                <p className="text-sm font-semibold leading-tight truncate">{goal.name}</p>
-                {goal.note && <p className="text-[10px] mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.4)' }}>{goal.note}</p>}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0 ml-2">
-              {!isComplete && (
-                <button type="button"
-                  onClick={e => { e.stopPropagation(); setDepositing(v => !v); setDepositAmount('') }}
-                  className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
-                  style={{ background: `color-mix(in srgb, ${solidColor} 22%, rgba(0,0,0,0.3))`, color: solidColor }}
-                  title="Add money">
-                  <Plus size={12} />
-                </button>
-              )}
-              <button type="button" onClick={() => onEdit(goal)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/12 transition-colors"
-                style={{ color: 'rgba(255,255,255,0.35)' }}>
-                <Pencil size={11} />
-              </button>
+        {/* Top row: icon + name + buttons */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {GoalIcon
+              ? <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: `color-mix(in srgb, ${solidColor} 15%, rgba(255,255,255,0.05))` }}>
+                  <GoalIcon size={15} style={{ color: solidColor }} />
+                </div>
+              : <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ background: solidColor }} />
+            }
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-tight truncate">{goal.name}</p>
+              {goal.note && <p className="text-[10px] text-muted mt-0.5 truncate">{goal.note}</p>}
             </div>
           </div>
+          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+            {!isComplete && (
+              <button type="button"
+                onClick={e => { e.stopPropagation(); setDepositing(v => !v); setDepositAmount('') }}
+                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                style={{ background: `color-mix(in srgb, ${solidColor} 15%, rgba(255,255,255,0.05))`, color: solidColor }}
+                title="Add money">
+                <Plus size={12} />
+              </button>
+            )}
+            <button type="button" onClick={() => onEdit(goal)}
+              className="w-6 h-6 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 transition-colors text-white/30 hover:text-white/60">
+              <Pencil size={11} />
+            </button>
+          </div>
+        </div>
 
-          {/* Progress ring + amount */}
-          <div className="flex items-center gap-5">
+        {/* Progress area */}
+        {pct !== null ? (
+          <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              <ProgressRing pct={displayPct} color={solidColor} size={80} strokeWidth={5} />
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                {pct !== null
-                  ? <span className="text-sm font-bold tabular-nums leading-none">{Math.round(displayPct)}%</span>
-                  : <PiggyBank size={18} style={{ color: solidColor, opacity: 0.6 }} />
-                }
+              <ProgressRing pct={displayPct} color={solidColor} size={76} strokeWidth={5} />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="text-sm font-bold tabular-nums">{Math.round(displayPct)}%</span>
               </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-2xl font-bold tabular-nums leading-none">{fmt(allocated)}</p>
-              {target
-                ? <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>of {fmt(target)}</p>
-                : <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>allocated</p>
-              }
-              {isComplete && (
-                <p className="text-[10px] font-semibold mt-1.5" style={{ color: solidColor }}>Goal reached!</p>
-              )}
+            <div>
+              <p className="text-xl font-bold tabular-nums leading-none">{fmt(allocated)}</p>
+              <p className="text-xs text-muted mt-1">of {fmt(target)}</p>
+              {isComplete && <p className="text-[10px] font-semibold mt-1.5" style={{ color: solidColor }}>Goal reached!</p>}
               {!isComplete && monthsToGoal && (
                 <p className="text-[10px] mt-1.5" style={{ color: `color-mix(in srgb, ${solidColor} 70%, rgba(255,255,255,0.4))` }}>
                   {formatDuration(monthsToGoal)} to go
@@ -450,46 +441,47 @@ function GoalCard({ goal, pct, GoalIcon, onEdit, showSlider, unallocated, onRelo
               )}
             </div>
           </div>
-        </div>
+        ) : (
+          <div>
+            <p className="text-2xl font-bold tabular-nums leading-none">{fmt(allocated)}</p>
+            <p className="text-xs text-muted mt-1">allocated</p>
+          </div>
+        )}
 
-        {/* Body */}
-        <div className="p-4 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.015)' }}>
+        {/* Monthly transfer slider */}
+        {remaining !== null && remaining > 0 && (
+          <div className="flex flex-col gap-2 pt-1 border-t border-white/[0.06]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-muted uppercase tracking-widest">Monthly</span>
+              <span className="text-xs font-semibold tabular-nums" style={{ color: solidColor }}>{fmt(monthly)}/mo</span>
+            </div>
+            <input
+              type="range" min={1} max={sliderMax} step={1} value={monthly}
+              onChange={e => handleMonthlyChange(Number(e.target.value))}
+              className="w-full cursor-pointer"
+              style={{ accentColor: 'var(--color-progress-bar)' }}
+            />
+          </div>
+        )}
 
-          {/* Monthly transfer slider */}
-          {remaining !== null && remaining > 0 && (
-            <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted uppercase tracking-widest">Monthly</span>
-                <span className="text-xs font-semibold tabular-nums" style={{ color: solidColor }}>{fmt(monthly)}/mo</span>
+        {/* Recent deposits */}
+        {allocations.length > 0 && (
+          <div className="flex flex-col gap-1.5 pt-1 border-t border-white/[0.06]">
+            <span className="text-[9px] uppercase tracking-widest text-muted">Recent deposits</span>
+            {allocations.slice(0, 3).map(a => (
+              <div key={a.id} className="flex items-center justify-between">
+                <span className="text-[10px] text-muted">
+                  {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+                <span className="text-[10px] font-semibold tabular-nums" style={{ color: solidColor }}>
+                  +{fmt(a.amount)}
+                </span>
               </div>
-              <input
-                type="range" min={1} max={sliderMax} step={1} value={monthly}
-                onChange={e => handleMonthlyChange(Number(e.target.value))}
-                className="w-full cursor-pointer"
-                style={{ accentColor: 'var(--color-progress-bar)' }}
-              />
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {/* Recent deposits */}
-          {allocations.length > 0 && (
-            <div className="flex flex-col gap-1.5 pt-2 border-t border-white/[0.05]">
-              <span className="text-[9px] uppercase tracking-widest text-muted">Recent deposits</span>
-              {allocations.slice(0, 3).map(a => (
-                <div key={a.id} className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted">
-                    {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
-                  <span className="text-[10px] font-semibold tabular-nums" style={{ color: solidColor }}>
-                    +{fmt(a.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {depositForm}
-        </div>
+        {depositForm}
       </div>
     )
   }
