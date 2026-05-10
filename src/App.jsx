@@ -90,7 +90,7 @@ function AppRoutes() {
   if (loading) return user ? <DashboardSkeleton /> : null
 
   return (
-    <div key={location.pathname} className="page-fade-in">
+    <div key={location.pathname}>
       <Routes>
         <Route path="/"             element={user ? <Navigate to={landingPage} /> : (window.__TAURI_INTERNALS__ ? <Navigate to="/login" /> : <LandingPage />)} />
         <Route path="/login"        element={user ? <Navigate to={landingPage} /> : <Login />} />
