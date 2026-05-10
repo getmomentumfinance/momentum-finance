@@ -152,7 +152,7 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
                         className={`text-sm font-semibold tabular-nums ${deleted ? 'line-through' : ''}`}
                         style={{ color: deleted ? '#9ca3af' : rowColor }}
                       >
-                        {sign}{fmt(Math.abs(row.amount))}
+                        {sign}{fmt(row.amount)}
                       </span>
                       {running != null && (
                         <span className="text-[10px] tabular-nums text-white/25 mt-0.5">

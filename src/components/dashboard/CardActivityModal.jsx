@@ -149,7 +149,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
                         className={`text-sm font-semibold tabular-nums ${deleted ? 'line-through' : ''}`}
                         style={{ color: deleted ? '#9ca3af' : typeInfo.color }}
                       >
-                        {sign}{fmt(Math.abs(row.amount))}
+                        {sign}{fmt(row.amount)}
                       </span>
                       {running != null && (
                         <span className={`text-[10px] tabular-nums mt-0.5 ${running < 0 ? 'text-red-400/40' : 'text-white/25'}`}>
