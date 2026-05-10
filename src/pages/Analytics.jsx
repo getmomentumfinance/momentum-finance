@@ -1810,7 +1810,7 @@ export default function Analytics() {
         }}
       />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
 
         {/* View tabs — Spending / Money Flow */}
         <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 w-max mb-4">
@@ -1948,9 +1948,9 @@ export default function Analytics() {
                   </p>
 
                   {/* List + Chart side by side: 35% / 65% */}
-                  <div className={isMobile ? 'flex flex-col gap-4' : 'flex gap-4 items-start'}>
-                    {/* List — 35% */}
-                    <div style={isMobile ? undefined : { width: '45%' }}>
+                  <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
+                    {/* List */}
+                    <div className="w-full lg:w-[45%]">
                       <WeekBreakPanel
                         dims={weeklyAllDimsBreakdown.dims}
                         weekLabels={weeklyAllDimsBreakdown.weekLabels}
@@ -1959,9 +1959,9 @@ export default function Analytics() {
                       />
                     </div>
 
-                    {/* Chart — 65% */}
-                    <div className="glass-card rounded-2xl p-5 flex flex-col"
-                      style={isMobile ? { height: 260 } : { flex: 1, height: 340 }}>
+                    {/* Chart */}
+                    <div className="glass-card rounded-2xl p-5 flex flex-col flex-1"
+                      style={{ height: isMobile ? 260 : 340 }}>
                       <div className="flex items-start justify-between mb-0.5">
                         <div>
                           <h2 className="text-sm font-semibold">{t('an.weekBreakdown')}</h2>

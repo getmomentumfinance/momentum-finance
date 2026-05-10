@@ -309,7 +309,7 @@ export default function Transactions() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
         <h1 className="text-3xl font-bold mb-1">{t('tx.title')}</h1>
         <p className="text-muted text-sm mb-6">{dateStr}</p>
 

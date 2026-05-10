@@ -473,7 +473,7 @@ export default function Settings() {
     <div className="min-h-screen md:h-screen flex flex-col bg-dash-bg text-white md:overflow-hidden">
       <Navbar currentDate={currentDate} onPrev={() => {}} onNext={() => {}} />
 
-      <div className="flex-1 flex flex-col md:overflow-hidden py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div className="flex-1 flex flex-col md:overflow-hidden py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
         <h1 className="text-2xl md:text-3xl font-bold mb-6">{t('set.title')}</h1>
 
         {/* Tab bar — scrollable on mobile */}

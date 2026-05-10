@@ -387,7 +387,7 @@ export default function CalendarPage() {
     <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={prevPeriod} onNext={nextPeriod} />
 
-      <div id="page-content" className="px-4 md:px-16 py-4 flex-1 flex flex-col md:overflow-hidden pb-20 md:pb-4">
+      <div id="page-content" className="px-4 md:px-8 lg:px-16 py-4 flex-1 flex flex-col md:overflow-hidden pb-20 md:pb-4">
 
         {/* Page header */}
         <div className="flex items-center justify-between mb-4 shrink-0">

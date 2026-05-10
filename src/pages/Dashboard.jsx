@@ -85,7 +85,7 @@ export default function Dashboard() {
   const [totalSavingsMonth, setTotalSavingsMonth] = useState(0)
   const [totalSavings,      setTotalSavings]      = useState(0)
   const [activityKind,      setActivityKind]      = useState(null)
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile(1024)
 
   // ── Widget drag-and-drop columns ───────────────────────────────
   // Initialize both columns together to prevent a key appearing in both
@@ -275,7 +275,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={prevMonth} onNext={nextMonth} />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="min-w-0">
@@ -394,14 +394,14 @@ export default function Dashboard() {
         {(v('dash-showFinancialInsights') || v('dash-showActionCenter')) && (
         <FadeIn delay={100}>
         {!isMobile && (
-          <div className="flex gap-4 items-stretch mb-4" style={{ height: '230px' }}>
+          <div className="flex gap-4 items-stretch mb-4 min-h-[200px]">
             {v('dash-showFinancialInsights') && (
-              <div className="flex-1 min-w-0 h-full">
+              <div className="flex-1 min-w-0">
                 <FinancialInsights currentDate={currentDate} />
               </div>
             )}
             {v('dash-showActionCenter') && (
-              <div className="shrink-0 h-full" style={{ width: '300px' }}>
+              <div className="w-72 xl:w-80 shrink-0">
                 <ActionCenter currentDate={currentDate} />
               </div>
             )}

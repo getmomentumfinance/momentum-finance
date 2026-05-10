@@ -444,14 +444,14 @@ export default function Savings() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">{t('sav.title')}</h1>
           <p className="text-muted text-sm mt-1">{monthLabel}</p>
         </div>
 
         {/* Top section: 5-col grid on desktop, stacked on mobile */}
-        <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start">
+        <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
           {/* Hero balance card */}
           <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
@@ -639,8 +639,8 @@ export default function Savings() {
           )
         })()}
 
-        {/* Row 2: savings flow (span 4) */}
-        <div className="glass-card rounded-2xl pt-5 px-5 pb-1 flex flex-col" style={{ gridColumn: '1 / span 4', alignSelf: 'stretch' }}>
+        {/* Row 2: savings flow */}
+        <div className="glass-card rounded-2xl pt-5 px-5 pb-1 flex flex-col col-span-full lg:col-span-4 self-stretch">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h2 className="text-sm font-semibold">{t('sav.flowTitle')}</h2>
@@ -652,11 +652,11 @@ export default function Savings() {
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('common.loading')}</div>
             : deposits.length === 0
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('sav.noDataYetPeriod')}</div>
-            : <div className="flex-1 min-h-0" style={{ minHeight: 140 }}><SavingsLineChart data={savingsChartData} /></div>}
+            : <div className="flex-1 min-h-[140px] sm:min-h-[180px]"><SavingsLineChart data={savingsChartData} /></div>}
         </div>
 
         {/* Col 5 row 2: Recent activity */}
-        <div className="glass-card rounded-2xl overflow-hidden flex flex-col" style={{ alignSelf: 'stretch' }}>
+        <div className="glass-card rounded-2xl overflow-hidden flex flex-col self-stretch">
           <div className="px-5 pt-4 pb-3 border-b border-white/5">
             <h2 className="text-sm font-semibold">{t('sav.recentActivity')}</h2>
           </div>
@@ -724,7 +724,7 @@ export default function Savings() {
           t={t}
         />
 
-        <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ gridColumn: '2 / span 4', alignSelf: 'stretch' }}>
+        <div className="glass-card rounded-2xl p-5 flex flex-col col-span-full lg:col-start-2 lg:col-span-4 self-stretch">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-sm font-semibold">{t('sav.netFlowTitle')}</h2>
@@ -736,7 +736,7 @@ export default function Savings() {
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('common.loading')}</div>
             : allTxs.length === 0
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('sav.noDataYetPeriod')}</div>
-            : <div className="flex-1 min-h-0" style={{ minHeight: 140 }}><NetFlowChart data={flowChartData} view={flowView} /></div>}
+            : <div className="flex-1 min-h-[140px] sm:min-h-[180px]"><NetFlowChart data={flowChartData} view={flowView} /></div>}
         </div>
 
         </div>{/* end 5-col grid */}

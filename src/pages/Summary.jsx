@@ -288,7 +288,7 @@ export default function Summary() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6 flex flex-col gap-5">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6 flex flex-col gap-5">
 
           {/* ── Section label ── */}
           <p className="text-xs text-white/30 uppercase tracking-widest">{monthLabel}</p>

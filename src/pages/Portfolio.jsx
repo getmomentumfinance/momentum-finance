@@ -138,7 +138,7 @@ export default function Portfolio() {
         onNext={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
       />
 
-      <div id="page-content" className="py-6 px-4 md:px-16 pb-24 md:pb-6">
+      <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
