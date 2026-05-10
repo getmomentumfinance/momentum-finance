@@ -13,6 +13,7 @@ const SharedDataContext = createContext({
   receiverColorMap: {},
   cards:            [],
   allTransactions:  [],
+  balanceTxs:       [],
   pendingItems:     [],
   subscriptions:    [],
   subPayments:      [],
@@ -34,6 +35,7 @@ export function SharedDataProvider({ children }) {
   const [receiverColorMap, setReceiverColorMap] = useState({})
   const [cards,            setCards]            = useState([])
   const [allTransactions,  setAllTransactions]  = useState([])
+  const [balanceTxs,       setBalanceTxs]       = useState([])
   const [pendingItems,     setPendingItems]     = useState([])
   const [subscriptions,    setSubscriptions]    = useState([])
   const [subPayments,      setSubPayments]      = useState([])
@@ -55,6 +57,7 @@ export function SharedDataProvider({ children }) {
       { data: grpData },
       { data: cardsData },
       { data: txData },
+      { data: balanceTxData },
       { data: pendingData },
       { data: subsData },
       { data: billsData },
@@ -67,6 +70,7 @@ export function SharedDataProvider({ children }) {
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
       supabase.from('transactions').select('id, card_id, type, source, amount, reimbursable_amount, is_cash, split_parent_id, is_split_parent, date, category_id, subcategory_id, receiver_id, importance, is_earned, ticker, quantity, price_per_unit').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
+      supabase.from('transactions').select('card_id, type, amount, is_cash').eq('user_id', user.id).eq('is_deleted', false).is('split_parent_id', null),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),
       supabase.from('subscriptions').select('id, name, amount, billing_day, status, is_trial, trial_ends_at').eq('user_id', user.id).eq('status', 'active'),
       supabase.from('recurring_bills').select('id, name, amount, frequency, due_day, next_due_date').eq('user_id', user.id),
@@ -113,6 +117,7 @@ export function SharedDataProvider({ children }) {
 
     setCards(cardsData ?? [])
     setAllTransactions(txData ?? [])
+    setBalanceTxs(balanceTxData ?? [])
     setPendingItems(pendingData ?? [])
     setSubscriptions(subsData ?? [])
     setSubPayments(subPmtsData ?? [])
@@ -145,7 +150,7 @@ export function SharedDataProvider({ children }) {
     <SharedDataContext.Provider value={{
       categories, receivers, categoryMap, receiverMap,
       receiverGroups, receiverGroupMap, receiverColorMap,
-      cards, allTransactions, pendingItems,
+      cards, allTransactions, balanceTxs, pendingItems,
       subscriptions, subPayments, recurringBills, billPayments, plannedBills,
       budgets, targets,
     }}>

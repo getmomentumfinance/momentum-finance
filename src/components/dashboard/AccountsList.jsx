@@ -7,9 +7,8 @@ import { useSharedData } from '../../context/SharedDataContext'
 const CREDIT_TYPES = new Set(['income'])
 
 function computeBalance(card, transactions) {
-  const isTrading = card.type === 'trading'
   const delta = transactions
-    .filter(t => t.card_id === card.id && !t.is_cash && !(isTrading && t.type === 'invest'))
+    .filter(t => t.card_id === card.id && !t.is_cash)
     .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
   return Number(card.initial_balance) + delta
 }
@@ -27,7 +26,7 @@ function computeCashBalance(cards, transactions) {
 export default function AccountsList({ currentDate }) {
   const { fmt, t } = usePreferences()
   const { label: cashLabel } = useCashLabel()
-  const { cards, allTransactions } = useSharedData()
+  const { cards, balanceTxs } = useSharedData()
   const [activeCard, setActiveCard] = useState(undefined)
 
   if (cards.length === 0) {
@@ -38,7 +37,7 @@ export default function AccountsList({ currentDate }) {
     )
   }
 
-  const cashBalance  = computeCashBalance(cards, allTransactions)
+  const cashBalance  = computeCashBalance(cards, balanceTxs)
   const nonCashCards = cards.filter(c => c.type !== 'cash')
 
   return (
@@ -59,7 +58,7 @@ export default function AccountsList({ currentDate }) {
         </div>
 
         {nonCashCards.map(card => {
-          const balance = computeBalance(card, allTransactions)
+          const balance = computeBalance(card, balanceTxs)
           return (
             <div
               key={card.id}
