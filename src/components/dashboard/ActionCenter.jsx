@@ -95,7 +95,7 @@ export default function ActionCenter({ currentDate = new Date() }) {
 
   const alertCount   = visibleItems.filter(i => i.severity === 'alert').length
   const warningCount = visibleItems.filter(i => i.severity === 'warning').length
-  const topColor     = alertCount > 0 ? 'var(--color-accent)' : 'var(--color-warning)'
+  const topColor     = 'var(--color-accent)'
 
   return (
     <>
@@ -122,7 +122,7 @@ export default function ActionCenter({ currentDate = new Date() }) {
               )}
               {warningCount > 0 && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: 'var(--color-warning)25', color: 'var(--color-warning)' }}>
+                  style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}>
                   {t('ac.soon', { n: warningCount })}
                 </span>
               )}
