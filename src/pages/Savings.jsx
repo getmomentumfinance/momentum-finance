@@ -19,6 +19,7 @@ import CardCustomizationPopup from '../components/shared/CardCustomizationPopup'
 import SavingsGoals from '../components/dashboard/SavingsGoals'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { CATEGORY_ICONS } from '../components/shared/CategoryPill'
+import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
 
 // ── Colour tokens ─────────────────────────────────────────────
 const COLORS = {
@@ -456,10 +457,12 @@ export default function Savings() {
           {/* Hero balance card */}
           <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
             <span className="text-[10px] text-muted uppercase tracking-widest font-medium">{t('sav.totalBalance')}</span>
-            <span className="text-3xl font-bold">{loading ? '—' : fmt(totalBalance)}</span>
+            {loading
+              ? <Skeleton className="h-8 w-2/3 rounded mt-1" />
+              : <span className="text-3xl font-bold">{fmt(totalBalance)}</span>}
             <div className="flex flex-col gap-2 mt-auto">
               {loading ? (
-                <span className="text-xs text-muted">{t('common.loading')}</span>
+                <div className="flex flex-col gap-2">{[1,2].map(i => <Skeleton key={i} className="h-3 w-full rounded" />)}</div>
               ) : savingsCards.length === 0 ? (
                 <span className="text-xs text-muted">{t('sav.noData')}</span>
               ) : savingsCards.map(card => {
@@ -649,7 +652,7 @@ export default function Savings() {
             <ViewToggle value={savingsView} onChange={setSavingsView} t={t} />
           </div>
           {loading
-            ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('common.loading')}</div>
+            ? <div className="flex-1 p-4 flex flex-col gap-3"><Skeleton className="h-full min-h-[140px] rounded-xl" /></div>
             : deposits.length === 0
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('sav.noDataYetPeriod')}</div>
             : <div className="flex-1 min-h-[140px] sm:min-h-[180px]"><SavingsLineChart data={savingsChartData} /></div>}
@@ -661,7 +664,7 @@ export default function Savings() {
             <h2 className="text-sm font-semibold">{t('sav.recentActivity')}</h2>
           </div>
           {loading ? (
-            <div className="px-5 py-4 text-xs text-muted">{t('common.loading')}</div>
+            <div className="flex flex-col px-4 py-2">{[1,2,3,4].map(i => <SkeletonRow key={i} />)}</div>
           ) : recent.length === 0 ? (
             <div className="px-5 py-4 text-xs text-muted">{t('sav.noTxYet')}</div>
           ) : (
@@ -733,7 +736,7 @@ export default function Savings() {
             <ViewToggle value={flowView} onChange={setFlowView} t={t} />
           </div>
           {loading
-            ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('common.loading')}</div>
+            ? <div className="flex-1 p-4"><Skeleton className="h-full min-h-[140px] rounded-xl" /></div>
             : allTxs.length === 0
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('sav.noDataYetPeriod')}</div>
             : <div className="flex-1 min-h-[140px] sm:min-h-[180px]"><NetFlowChart data={flowChartData} view={flowView} /></div>}
