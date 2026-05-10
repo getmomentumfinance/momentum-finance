@@ -7,6 +7,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { TYPES_MAP } from '../../constants/transactionTypes'
 import { CategoryPill } from '../shared/CategoryPill'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { SkeletonRow } from '../shared/Skeleton'
 
 function amountColor(type, source) {
   if (type === 'income')   return 'var(--type-income)'
@@ -157,7 +158,7 @@ export default function RecentTransactions({ currentDate }) {
       </div>
 
       {loading ? (
-        <div className="py-10 text-center text-xs text-muted shrink-0">{t('common.loading')}</div>
+        <div className="flex flex-col px-4 py-2 shrink-0">{[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}</div>
       ) : rows.length === 0 ? (
         <div className="py-10 text-center text-xs text-muted shrink-0">{t('rt.noTx')}</div>
       ) : (

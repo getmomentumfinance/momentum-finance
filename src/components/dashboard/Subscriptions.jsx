@@ -11,6 +11,7 @@ import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import AddSubscriptionModal from './AddSubscriptionModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { SkeletonRow } from '../shared/Skeleton'
 
 function getPeriodKey(date) {
   const y = date.getFullYear()
@@ -247,7 +248,7 @@ export default function Subscriptions({ currentDate = new Date() }) {
 
           {/* List */}
           {loading ? (
-            <p className="text-center text-muted text-xs py-4">{t('common.loading')}</p>
+            <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
           ) : displayed.length === 0 ? (
             <p className="text-center text-muted text-sm py-6">{activeTab === 'trial' ? 'No free trials' : activeTab === 'active' ? t('subs.noActive') : t('subs.noCancelled')}</p>
           ) : (

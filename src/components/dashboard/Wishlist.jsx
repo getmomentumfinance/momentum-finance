@@ -12,6 +12,7 @@ import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { CATEGORY_ICONS } from '../shared/CategoryPill'
 import AddWishlistModal from './AddWishlistModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { SkeletonRow } from '../shared/Skeleton'
 
 // Derive importance key from item: subcategory first, then main cat, then null
 function getImportanceKey(item, catMap) {
@@ -197,7 +198,7 @@ export default function Wishlist({ currentDate = new Date() }) {
 
           {!collapsed && (<>
           {loading ? (
-            <p className="text-center text-muted text-xs py-4">{t('common.loading')}</p>
+            <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
           ) : items.length === 0 ? (
             <p className="text-center text-muted text-sm py-4">{t('wish.empty')}</p>
           ) : (

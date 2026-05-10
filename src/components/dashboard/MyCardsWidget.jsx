@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { SkeletonCard } from '../shared/Skeleton'
 import { useSharedData } from '../../context/SharedDataContext'
 import { supabase } from '../../lib/supabase'
 import CardCarousel from '../shared/CardCarousel'
@@ -74,7 +75,7 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
       WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 18%, black 82%, transparent 100%)',
     }}>
       {loading ? (
-        <p className="text-xs text-white/25 px-4 py-2">Loading…</p>
+        <div className="flex gap-3 px-4 py-2">{[1,2,3].map(i => <div key={i} className="w-32 shrink-0"><SkeletonCard /></div>)}</div>
       ) : carouselItems.length === 0 ? (
         <p className="text-xs text-white/25 px-4 py-2">No cards yet.</p>
       ) : (

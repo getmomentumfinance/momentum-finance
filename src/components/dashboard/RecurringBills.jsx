@@ -10,6 +10,7 @@ import AddRecurringBillModal from './AddRecurringBillModal'
 import { useCardCustomization } from '../../hooks/useCardCustomization'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { SkeletonRow } from '../shared/Skeleton'
 import { useUIPrefs } from '../../context/UIPrefContext'
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -242,7 +243,7 @@ export default function RecurringBills({ currentDate }) {
       {!collapsed && (<>
       {/* Content */}
       {loading ? (
-        <p className="text-center text-muted text-xs py-4">{t('common.loading')}</p>
+        <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
       ) : bills.length === 0 ? (
         <p className="text-center text-muted text-sm py-6">{t('bills.noBills')}</p>
       ) : (
