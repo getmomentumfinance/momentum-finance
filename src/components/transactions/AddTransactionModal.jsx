@@ -374,8 +374,9 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       return
     }
     if (type === 'invest') {
-      const trading = cards.find(c => c.type === 'trading')
-      if (trading) setCardId(trading.id)
+      // Only auto-select if there's exactly one trading account and no card already chosen
+      const tradingList = cards.filter(c => c.type === 'trading')
+      if (tradingList.length === 1 && !cardId) setCardId(tradingList[0].id)
       return
     }
     const preferredType = 'debit'
@@ -949,23 +950,21 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             <div className="flex flex-col gap-2">
               <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
                 Trading account
+                <span className="text-white/30 normal-case font-normal">(optional)</span>
                 {selectedCard && (
-                  <span className="text-white/30 normal-case font-normal">
+                  <span className="text-white/30 normal-case font-normal ml-auto">
                     Balance: {fmt(cardBalance(selectedCard))}
                   </span>
                 )}
               </label>
               <select value={cardId} onChange={e => setCardId(e.target.value)} className={sel}>
-                <option value="">Select trading account</option>
+                <option value="">No account (historical)</option>
                 {tradingCards.map(c => (
                   <option key={c.id} value={c.id}>
                     {c.name}  ·  {fmt(cardBalance(c))}
                   </option>
                 ))}
               </select>
-              {tradingCards.length === 0 && (
-                <p className="text-[11px] text-white/30">No trading accounts yet. Add one in Settings → Cards.</p>
-              )}
             </div>
           ) : type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (isCash ? (
             <div className="flex flex-col gap-2">
