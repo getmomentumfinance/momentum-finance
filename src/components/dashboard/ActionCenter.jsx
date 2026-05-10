@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase'
 import PaymentModal from './PaymentModal'
 
 const SEVERITY_COLOR = {
-  alert:   'var(--color-alert)',
+  alert:   'var(--color-accent)',
   warning: 'var(--color-warning)',
   info:    'var(--color-accent)',
 }
@@ -95,7 +95,7 @@ export default function ActionCenter({ currentDate = new Date() }) {
 
   const alertCount   = visibleItems.filter(i => i.severity === 'alert').length
   const warningCount = visibleItems.filter(i => i.severity === 'warning').length
-  const topColor     = alertCount > 0 ? 'var(--color-alert)' : 'var(--color-warning)'
+  const topColor     = alertCount > 0 ? 'var(--color-accent)' : 'var(--color-warning)'
 
   return (
     <>
@@ -116,7 +116,7 @@ export default function ActionCenter({ currentDate = new Date() }) {
             <div className="flex items-center gap-1.5">
               {alertCount > 0 && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: 'var(--color-alert)30', color: 'var(--color-alert)' }}>
+                  style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}>
                   {t('ac.urgent', { n: alertCount })}
                 </span>
               )}
