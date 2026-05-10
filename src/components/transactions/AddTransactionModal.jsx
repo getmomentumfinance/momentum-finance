@@ -348,8 +348,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
 
   async function handleAddTickerToList(symbol) {
     const { data, error } = await supabase
-      .from('tickers')
-      .upsert({ user_id: user.id, symbol }, { onConflict: 'user_id,symbol', ignoreDuplicates: false })
+      .from('tickers').insert({ user_id: user.id, symbol })
       .select().single()
     if (error) { console.error('ticker save error:', error.message); return }
     if (data) setTickers(prev =>
