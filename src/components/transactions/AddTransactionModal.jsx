@@ -347,10 +347,16 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   // Price per unit is entered manually by the user — no auto-fetch
 
   async function handleAddTickerToList(symbol) {
-    const { data } = await supabase
-      .from('tickers').insert({ user_id: user.id, symbol })
+    const { data, error } = await supabase
+      .from('tickers')
+      .upsert({ user_id: user.id, symbol }, { onConflict: 'user_id,symbol', ignoreDuplicates: false })
       .select().single()
-    if (data) setTickers(prev => [...prev, data].sort((a, b) => a.symbol.localeCompare(b.symbol)))
+    if (error) { console.error('ticker save error:', error.message); return }
+    if (data) setTickers(prev =>
+      prev.some(t => t.symbol === data.symbol)
+        ? prev
+        : [...prev, data].sort((a, b) => a.symbol.localeCompare(b.symbol))
+    )
   }
 
 
@@ -491,19 +497,20 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       const computed = qty * ppu + feeAmt
       const payload  = {
         type,
-        description:    ticker.trim().toUpperCase() || null,
-        amount:         computed,
-        ticker:         ticker.trim().toUpperCase() || null,
-        quantity:       qty,
-        price_per_unit: ppu,
-        card_id:        cardId || null,
-        is_cash:        false,
-        category_id:    null,
-        subcategory_id: null,
-        receiver_id:    null,
+        description:      ticker.trim().toUpperCase() || null,
+        amount:           computed,
+        ticker:           ticker.trim().toUpperCase() || null,
+        quantity:         qty,
+        price_per_unit:   ppu,
+        card_id:          cardId || null,
+        is_cash:          false,
+        is_split_parent:  false,
+        category_id:      null,
+        subcategory_id:   null,
+        receiver_id:      null,
         date,
-        comment:        comment.trim() || null,
-        status:         'completed',
+        comment:          comment.trim() || null,
+        status:           'completed',
       }
       if (effectiveIsEditing) {
         await supabase.from('transactions').update(payload).eq('id', editId)
@@ -514,18 +521,19 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       const reimbursableParsed = parseFloat(reimbursableAmt) || 0
       const payload = {
         type,
-        description:        description.trim() || null,
-        amount:             parsed,
+        description:         description.trim() || null,
+        amount:              parsed,
         reimbursable_amount: type === 'expense' ? Math.min(reimbursableParsed, parsed) : 0,
-        category_id:        categoryId || null,
-        subcategory_id:     subId || null,
-        card_id:            isCash ? null : (cardId || null),
-        receiver_id:        receiverId || null,
-        is_cash:            isCash,
+        category_id:         categoryId || null,
+        subcategory_id:      subId || null,
+        card_id:             isCash ? null : (cardId || null),
+        receiver_id:         receiverId || null,
+        is_cash:             isCash,
+        is_split_parent:     false,
         ...(type === 'income' && { is_earned: isEarned }),
         ...(type === 'expense' && { importance: importance || null }),
         date,
-        comment:            comment.trim() || null,
+        comment:             comment.trim() || null,
         status,
       }
       if (effectiveIsEditing) {
