@@ -298,10 +298,10 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [reimbursableAmt, setReimbursableAmt] = useState(transaction?.reimbursable_amount > 0 ? String(transaction.reimbursable_amount) : '')
   const [pendingSplit, setPendingSplit] = useState(null) // transaction to split after save
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
-  const { categories, receivers: sharedReceivers, allTransactions } = useSharedData()
+  const { categories, receivers: sharedReceivers, balanceTxs } = useSharedData()
   const [extraReceivers, setExtraReceivers] = useState([])
   const receivers = [...sharedReceivers, ...extraReceivers]
-  const cardTxs   = allTransactions
+  const cardTxs   = balanceTxs
   const [tickers, setTickers] = useState([])
 
   useEffect(() => {
@@ -395,8 +395,9 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const subcategories  = categories.filter(c => c.parent_id === categoryId)
   const CREDIT_TYPES = new Set(['income'])
   function cardBalance(card) {
+    const isTrading = card.type === 'trading'
     const delta = cardTxs
-      .filter(t => t.card_id === card.id && !t.is_cash)
+      .filter(t => t.card_id === card.id && !t.is_cash && !(isTrading && t.type === 'invest'))
       .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
     return Number(card.initial_balance) + delta
   }
