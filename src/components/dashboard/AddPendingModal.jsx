@@ -141,7 +141,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const { cards } = useCards()
   const { importance: importanceOptions } = useImportance()
 
-  const [name,       setName]       = useState(item?.name        ?? '')
+  const [name,       setName]       = useState('')
   const [icon,       setIcon]       = useState(item?.icon        ?? '')
   const [receiverId, setReceiverId] = useState(item?.receiver_id ?? '')
   const [amount,     setAmount]     = useState(item?.amount      ?? '')
@@ -149,7 +149,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const [categoryId, setCategoryId] = useState(item?.category_id    ?? '')
   const [subId,      setSubId]      = useState(item?.subcategory_id ?? '')
   const [cardId,     setCardId]     = useState(item?.card_id     ?? '')
-  const [comment,    setComment]    = useState(item?.comment     ?? '')
+  const [comment,    setComment]    = useState(item?.comment ?? item?.name ?? '')
   const [importance, setImportance] = useState(item?.importance  ?? '')
   const [saving,     setSaving]     = useState(false)
   const [deleting,   setDeleting]   = useState(false)
@@ -176,8 +176,9 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   async function handleSave() {
     if (!amount || isNaN(parseAmount(amount)) || !payBefore) return
     setSaving(true)
+    const commentVal = comment.trim() || null
     const payload = {
-      name:           name.trim(),
+      name:           commentVal,
       icon:           icon        || null,
       receiver_id:    receiverId  || null,
       amount:         parseAmount(amount),
@@ -185,7 +186,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
       category_id:    categoryId  || null,
       subcategory_id: subId       || null,
       card_id:        cardId      || null,
-      comment:        comment.trim() || null,
+      comment:        commentVal,
       importance:     importance     || null,
     }
     const { error } = isEdit
@@ -228,14 +229,6 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
 
         {/* Body */}
         <div className="overflow-y-auto flex flex-col gap-5 p-6 scrollbar-thin">
-
-          {/* Description */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-              Description <span className="text-white/30 normal-case font-normal">(optional)</span>
-            </label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. New phone" className={inp} />
-          </div>
 
           {/* Icon */}
           <div className="flex flex-col gap-2">
@@ -301,15 +294,15 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
             </select>
           </div>
 
-          {/* Comment */}
+          {/* Note */}
           <div className="flex flex-col gap-2">
             <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-              Comment <span className="text-white/30 normal-case font-normal">(optional)</span>
+              Note <span className="text-white/30 normal-case font-normal">(optional)</span>
             </label>
             <textarea
               value={comment}
               onChange={e => setComment(e.target.value)}
-              placeholder="Add a comment…"
+              placeholder="Add a description or comment…"
               rows={3}
               className={inp + ' resize-none'}
             />
