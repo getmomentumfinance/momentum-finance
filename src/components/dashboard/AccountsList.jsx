@@ -7,8 +7,9 @@ import { useSharedData } from '../../context/SharedDataContext'
 const CREDIT_TYPES = new Set(['income'])
 
 function computeBalance(card, transactions) {
+  const isTrading = card.type === 'trading'
   const delta = transactions
-    .filter(t => t.card_id === card.id && !t.is_cash && !t.split_parent_id)
+    .filter(t => t.card_id === card.id && !t.is_cash && !(isTrading && t.type === 'invest'))
     .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
   return Number(card.initial_balance) + delta
 }
@@ -18,7 +19,7 @@ function computeCashBalance(cards, transactions) {
     .filter(c => c.type === 'cash')
     .reduce((s, c) => s + Number(c.initial_balance), 0)
   const txTotal = transactions
-    .filter(t => t.is_cash && !t.split_parent_id)
+    .filter(t => t.is_cash)
     .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
   return initial + txTotal
 }
