@@ -545,13 +545,15 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         }
       } else {
         if (splitAfter) {
-          const { data: saved } = await supabase.from('transactions').insert({ user_id: user.id, ...payload }).select().single()
+          const { data: saved, error: splitErr } = await supabase.from('transactions').insert({ user_id: user.id, ...payload }).select().single()
+          if (splitErr) { console.error('transaction insert failed:', splitErr.message); setSaving(false); return }
           setSaving(false)
           window.dispatchEvent(new CustomEvent('transaction-saved'))
           if (saved) { setSavedTxId(saved.id); setPendingSplit(saved); return }
           onClose(); return
         }
-        await supabase.from('transactions').insert({ user_id: user.id, ...payload })
+        const { error: insertErr } = await supabase.from('transactions').insert({ user_id: user.id, ...payload })
+        if (insertErr) { console.error('transaction insert failed:', insertErr.message); setSaving(false); return }
       }
     }
 
