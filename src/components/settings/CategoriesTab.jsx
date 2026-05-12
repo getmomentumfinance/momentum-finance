@@ -6,6 +6,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { SOLIDS, GRADIENTS } from '../../constants/gradients'
 import { extractNColors } from '../../utils/gradientColors'
 import { CATEGORY_ICONS, CategoryPill } from '../shared/CategoryPill'
+import { SkeletonRow } from '../shared/Skeleton'
 
 // ── Color picker ───────────────────────────────────────────────
 function ColorPicker({ value, onChange }) {
@@ -181,6 +182,7 @@ function ReceiverAvatar({ name, domain, logoUrl }) {
 // ══════════════════════════════════════════════════════════════
 function CategoriesSection({ userId }) {
   const [cats, setCats] = useState([])
+  const [catsLoading, setCatsLoading] = useState(true)
   const [expanded, setExpanded] = useState({})
   const [editId, setEditId] = useState(null)
   const [editName, setEditName] = useState('')
@@ -196,8 +198,10 @@ function CategoriesSection({ userId }) {
   useEffect(() => { load() }, [userId])
 
   async function load() {
+    setCatsLoading(true)
     const { data } = await supabase.from('categories').select('*').eq('user_id', userId).order('created_at')
     setCats(data ?? [])
+    setCatsLoading(false)
   }
 
   async function fetchFresh() {
@@ -284,6 +288,10 @@ function CategoriesSection({ userId }) {
 
   const tops  = cats.filter(c => !c.parent_id)
   const subsOf = pid => cats.filter(c => c.parent_id === pid)
+
+  if (catsLoading) return (
+    <div className="flex flex-col gap-2">{[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}</div>
+  )
 
   return (
     <div className="flex flex-col gap-2">

@@ -6,6 +6,7 @@ import { useThemeColors } from '../../hooks/useThemeColors'
 import { supabase } from '../../lib/supabase'
 import { ReceiverAvatar } from '../shared/ReceiverCombobox'
 import { CreditCard } from 'lucide-react'
+import { SkeletonRow } from '../shared/Skeleton'
 
 export default function SubscriptionsTab() {
   const { user }             = useAuth()
@@ -16,6 +17,7 @@ export default function SubscriptionsTab() {
   const [allSubs,  setAllSubs]  = useState([])
   const [allBills, setAllBills] = useState([])
   const [usage,    setUsage]    = useState({})
+  const [loading,  setLoading]  = useState(true)
 
   // ── Fetch data ──────────────────────────────────────────────
   useEffect(() => {
@@ -26,6 +28,7 @@ export default function SubscriptionsTab() {
     ]).then(([{ data: subs }, { data: bills }]) => {
       setAllSubs(subs ?? [])
       setAllBills(bills ?? [])
+      setLoading(false)
     })
     try {
       setUsage(JSON.parse(localStorage.getItem(`sub-usage-${user.id}`)) ?? {})
@@ -71,6 +74,10 @@ export default function SubscriptionsTab() {
   const savingsMid    = useMemo(() => optimizerRows.filter(r => usage[r.key] === 3).reduce((s, r) => s + r.yearly, 0), [optimizerRows, usage])
   const savingsTotal  = savingsLow + savingsMid
   const cancellableSavings = savingsLow
+
+  if (loading) return (
+    <div className="flex flex-col gap-2 p-2">{[1,2,3,4].map(i => <SkeletonRow key={i} />)}</div>
+  )
 
   // ── Empty state ─────────────────────────────────────────────
   if (optimizerRows.length === 0) {

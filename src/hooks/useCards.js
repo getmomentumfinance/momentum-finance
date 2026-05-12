@@ -5,16 +5,18 @@ import { useAuth } from '../context/AuthContext'
 export function useCards() {
   const { user } = useAuth()
   const [cards, setCards] = useState([])
+  const [loading, setLoading] = useState(true)
   const userId = user?.id
 
   useEffect(() => {
     if (!userId) return
+    setLoading(true)
     supabase
       .from('cards')
       .select('*')
       .eq('user_id', userId)
       .order('created_at')
-      .then(({ data }) => { if (data) setCards(data) })
+      .then(({ data }) => { if (data) setCards(data); setLoading(false) })
   }, [userId])
 
   async function addCard(card) {
@@ -54,5 +56,5 @@ export function useCards() {
     }
   }
 
-  return { cards, addCard, updateCard, deleteCard, setMainCard }
+  return { cards, loading, addCard, updateCard, deleteCard, setMainCard }
 }

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { CATEGORY_ICONS, ICONS_MAP } from '../shared/CategoryPill'
 import { useCards } from '../../hooks/useCards'
+import { SkeletonCard } from '../shared/Skeleton'
 import { useBanks } from '../../hooks/useBanks'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -561,7 +562,7 @@ function computeBalance(card, transactions) {
 // ── Main tab ──────────────────────────────────────────────────
 export default function CardsTab() {
   const { user } = useAuth()
-  const { cards, addCard, updateCard, deleteCard, setMainCard } = useCards()
+  const { cards, loading: cardsLoading, addCard, updateCard, deleteCard, setMainCard } = useCards()
   const { banks, addBank, updateBank, deleteBank } = useBanks()
   const [addingBank,      setAddingBank]      = useState(false)
   const [transactions,    setTransactions]    = useState([])
@@ -584,7 +585,9 @@ export default function CardsTab() {
 
       {/* Col 1 — all card types */}
       <div className="flex flex-col gap-8 overflow-y-auto pr-1">
-        {CARD_TYPES.map(({ value, label, Icon, canBeMain, singleOnly }, i) => (
+        {cardsLoading ? (
+          <div className="flex flex-col gap-3">{[1,2,3].map(i => <SkeletonCard key={i} />)}</div>
+        ) : CARD_TYPES.map(({ value, label, Icon, canBeMain, singleOnly }, i) => (
           <div key={value}>
             <CardTypeSection
               type={value} label={label} Icon={Icon}
