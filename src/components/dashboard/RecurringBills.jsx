@@ -90,7 +90,7 @@ export default function RecurringBills({ currentDate }) {
   const [loading,    setLoading]    = useState(true)
   const [toggling,   setToggling]   = useState(new Set())
   const [collapsed, setCollapsed] = useCollapsed('RecurringBills')
-  const [filter, setFilter] = useState('month')
+  const [filter, setFilter] = useState('all')
   const [expandedId, setExpandedId] = useState(null)
   const [paidAmount, setPaidAmount] = useState('')
 
@@ -223,11 +223,16 @@ export default function RecurringBills({ currentDate }) {
           </button>
           <button type="button" onClick={() => setCollapsed(c => !c)} className="font-semibold text-base hover:text-white/70 transition-colors">{t('bills.title')}</button>
           <div className="flex items-center gap-0.5 ml-1">
-            {['month', 'all'].map(f => (
-              <button key={f} type="button" onClick={() => setFilter(f)}
+            {[
+              { id: 'all',       label: t('common.all') },
+              { id: 'monthly',   label: 'Monthly' },
+              { id: 'quarterly', label: 'Quarterly' },
+              { id: 'yearly',    label: 'Yearly' },
+            ].map(f => (
+              <button key={f.id} type="button" onClick={() => setFilter(f.id)}
                 className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors
-                  ${filter === f ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}>
-                {f === 'month' ? t('common.thisMonth') : t('common.all')}
+                  ${filter === f.id ? 'bg-white/15 text-white' : 'text-white/30 hover:text-white/60'}`}>
+                {f.label}
               </button>
             ))}
           </div>
@@ -250,8 +255,7 @@ export default function RecurringBills({ currentDate }) {
         <div className="flex flex-col divide-y divide-white/[0.04]">
           {[...bills].filter(bill => {
             if (filter === 'all') return true
-            const due = getDueDate(bill, currentDate)
-            return due.getFullYear() === currentDate.getFullYear() && due.getMonth() === currentDate.getMonth()
+            return bill.frequency === filter
           }).sort((a, b) => {
             const aPaid = payments.some(p => p.bill_id === a.id && p.period === getPeriodKey(a, currentDate))
             const bPaid = payments.some(p => p.bill_id === b.id && p.period === getPeriodKey(b, currentDate))
@@ -308,7 +312,14 @@ export default function RecurringBills({ currentDate }) {
                           {sub && <CategoryPill name={sub.name} color={sub.color} icon={sub.icon} />}
                         </div>
                       )}
-                      <div className="mt-1"><DueBadge dueDate={dueDate} isPaid={isPaid} t={t} /></div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <DueBadge dueDate={dueDate} isPaid={isPaid} t={t} />
+                        {bill.frequency !== 'monthly' && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/35 capitalize">
+                            {bill.frequency}
+                          </span>
+                        )}
+                      </div>
                     </>
                   )}
                 </div>
