@@ -826,14 +826,17 @@ function ReceiverTypeSection({ userId, type, label, description, icon: Icon, all
 function ReceiversSection({ userId }) {
   const [receivers, setReceivers] = useState([])
   const [groups,    setGroups]    = useState([])
+  const [loading,   setLoading]   = useState(true)
 
   const loadAll = useCallback(async () => {
+    setLoading(true)
     const [{ data: recs }, { data: grps }] = await Promise.all([
       supabase.from('receivers').select('*').eq('user_id', userId).order('name'),
       supabase.from('receiver_groups').select('*').eq('user_id', userId).order('created_at'),
     ])
     setReceivers(recs ?? [])
     setGroups(grps ?? [])
+    setLoading(false)
   }, [userId])
 
   useEffect(() => { loadAll() }, [loadAll])
@@ -846,6 +849,13 @@ function ReceiversSection({ userId }) {
   function dispatchEvent() {
     window.dispatchEvent(new CustomEvent('receiver-group-saved'))
   }
+
+  if (loading) return (
+    <>
+      <div className="flex flex-col gap-2">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
+      <div className="flex flex-col gap-2">{[1,2].map(i => <SkeletonRow key={i} />)}</div>
+    </>
+  )
 
   return (
     <>
