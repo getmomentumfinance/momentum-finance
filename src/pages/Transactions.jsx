@@ -134,6 +134,7 @@ export default function Transactions() {
   const [filterReceiver, setFilterReceiver] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [datePreset, setDatePreset] = useState('month')
   const [filterType, setFilterType] = useState('')
   const [filterImportance, setFilterImportance] = useState(new Set())
   const [filterCard,       setFilterCard]       = useState('')
@@ -154,10 +155,30 @@ export default function Transactions() {
     async function load() {
       setLoading(true)
 
+      const today = new Date()
       const year  = currentDate.getFullYear()
       const month = currentDate.getMonth()
-      const start = new Date(year, month, 1).toISOString().slice(0, 10)
-      const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      let start, end
+      if (datePreset === 'last_month') {
+        const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
+        end   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10)
+      } else if (datePreset === '3months') {
+        start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10)
+        end   = today.toISOString().slice(0, 10)
+      } else if (datePreset === 'year') {
+        start = `${today.getFullYear()}-01-01`
+        end   = `${today.getFullYear()}-12-31`
+      } else if (datePreset === 'all') {
+        start = `${today.getFullYear() - 5}-01-01`
+        end   = today.toISOString().slice(0, 10)
+      } else if (datePreset === 'custom' && filterDateFrom && filterDateTo) {
+        start = filterDateFrom
+        end   = filterDateTo
+      } else {
+        start = new Date(year, month, 1).toISOString().slice(0, 10)
+        end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      }
 
       const [
         { data: txs },
@@ -202,7 +223,7 @@ export default function Transactions() {
     load()
     window.addEventListener('transaction-saved', load)
     return () => window.removeEventListener('transaction-saved', load)
-  }, [user?.id, currentDate])
+  }, [user?.id, currentDate, datePreset, filterDateFrom, filterDateTo])
 
   // ── Sorting ──────────────────────────────────────────────────
   function toggleSort(col) {
@@ -228,8 +249,7 @@ export default function Transactions() {
     if (filterCat)                 result = result.filter(r => r.category_id === filterCat)
     if (filterSub)                 result = result.filter(r => r.subcategory_id === filterSub)
     if (filterReceiver)            result = result.filter(r => r.receiver_id === filterReceiver)
-    if (filterDateFrom)            result = result.filter(r => r.date >= filterDateFrom)
-    if (filterDateTo)              result = result.filter(r => r.date <= filterDateTo)
+    // date filtering is handled server-side via datePreset / filterDateFrom / filterDateTo
     if (filterType)                result = result.filter(r => r.type === filterType)
     if (filterImportance.size > 0) result = result.filter(r => filterImportance.has(r.importance ?? ''))
     if (filterCard)                result = result.filter(r => r.card_id === filterCard)
@@ -283,7 +303,7 @@ export default function Transactions() {
   function clearFilters() {
     setSearch(''); setFilterCat(''); setFilterSub('')
     setFilterReceiver(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterType('')
-    setFilterImportance(new Set()); setFilterCard('')
+    setFilterImportance(new Set()); setFilterCard(''); setDatePreset('month')
   }
 
   async function handleDelete(id) {
@@ -380,20 +400,33 @@ export default function Transactions() {
               {allCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
 
-            {/* Date range */}
-            <input
-              type="date"
-              value={filterDateFrom}
-              onChange={e => setFilterDateFrom(e.target.value)}
-              className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
-            />
-            <span className="text-white/20 text-xs">→</span>
-            <input
-              type="date"
-              value={filterDateTo}
-              onChange={e => setFilterDateTo(e.target.value)}
-              className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
-            />
+            {/* Date presets */}
+            {[
+              { id: 'month',      label: 'This month' },
+              { id: 'last_month', label: 'Last month' },
+              { id: '3months',    label: '3 months' },
+              { id: 'year',       label: 'This year' },
+              { id: 'all',        label: 'All time' },
+              { id: 'custom',     label: 'Custom' },
+            ].map(p => (
+              <button key={p.id} type="button"
+                onClick={() => setDatePreset(p.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors whitespace-nowrap
+                  ${datePreset === p.id
+                    ? 'bg-white/15 text-white border border-white/[0.12]'
+                    : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white/80'}`}>
+                {p.label}
+              </button>
+            ))}
+            {datePreset === 'custom' && (
+              <>
+                <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
+                  className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer" />
+                <span className="text-white/20 text-xs">→</span>
+                <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
+                  className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer" />
+              </>
+            )}
 
             {/* Clear */}
             {hasFilters && (
