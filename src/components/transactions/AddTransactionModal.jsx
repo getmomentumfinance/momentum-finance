@@ -306,8 +306,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
 
   useEffect(() => {
     if (!user?.id) return
-    supabase.from('tickers').select('id, symbol, name, quantity, avg_price').eq('user_id', user.id).order('symbol')
-      .then(({ data }) => { if (data) setTickers(data) })
+    supabase.from('tickers').select('id, symbol, name').eq('user_id', user.id).order('symbol')
+      .then(({ data, error }) => { if (error) console.error('tickers load:', error.message); if (data) setTickers(data) })
   }, [user?.id])
 
   async function handleAddReceiver(name, type = 'person') {
