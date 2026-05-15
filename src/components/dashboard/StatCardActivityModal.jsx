@@ -44,7 +44,7 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
 
       let txQuery = supabase
         .from('transactions')
-        .select('id, type, source, description, amount, date, is_cash, is_deleted, receiver_id')
+        .select('id, type, source, description, amount, date, is_cash, is_deleted, receiver_id, is_split_parent, split_parent_id')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
@@ -74,7 +74,22 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
     load()
   }, [user?.id, kind, year, month])
 
-  const activeRows = rows.filter(r => !r.is_deleted)
+  // Sort: interleave children under their parent
+  const sortedRows = (() => {
+    const active = rows.filter(r => !r.is_deleted)
+    const childMap = {}
+    active.filter(r => r.split_parent_id).forEach(r => {
+      if (!childMap[r.split_parent_id]) childMap[r.split_parent_id] = []
+      childMap[r.split_parent_id].push(r)
+    })
+    const result = []
+    active.filter(r => !r.split_parent_id).forEach(r => {
+      result.push(r)
+      ;(childMap[r.id] ?? []).forEach(c => result.push(c))
+    })
+    return result
+  })()
+  const activeRows = sortedRows
 
   const footerTotal = activeRows.reduce((s, r) => s + txEffect(r, config.signedTotal), 0)
 
@@ -119,18 +134,21 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
             <div className="text-center py-12 text-muted text-sm">No activity.</div>
           ) : (
             <div className="divide-y divide-white/[0.03]">
-              {rows.map(row => {
+              {activeRows.map(row => {
                 const typeInfo  = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
-                const rowColor = isCredit(row) && row.type !== 'income' ? 'var(--type-income)' : typeInfo.color
-                const sign     = isCredit(row) ? '+' : '−'
-                const deleted  = !!row.is_deleted
-                const running  = !deleted ? runningMap[row.id] : null
+                const rowColor  = isCredit(row) && row.type !== 'income' ? 'var(--type-income)' : typeInfo.color
+                const sign      = isCredit(row) ? '+' : '−'
+                const deleted   = !!row.is_deleted
+                const running   = !deleted ? runningMap[row.id] : null
+                const isChild   = !!row.split_parent_id
+                const isParent  = !!row.is_split_parent
 
                 return (
                   <div
                     key={row.id}
-                    className={`flex items-center gap-3 px-4 py-3 ${deleted ? 'opacity-40' : ''}`}
+                    className={`flex items-center gap-3 py-3 ${deleted ? 'opacity-40' : ''} ${isChild ? 'pl-8 pr-4 bg-white/[0.01]' : 'px-4'}`}
                   >
+                    {isChild && <span className="text-white/20 text-xs shrink-0">↳</span>}
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm text-white/90 truncate ${deleted ? 'line-through' : ''}`}>
                         {row.description || <span className="text-white/30 italic">No description</span>}
@@ -143,14 +161,17 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
                         >
                           {typeInfo.label}
                         </span>
+                        {isParent && (
+                          <span className="text-[9px] px-1.5 py-px rounded-full bg-white/8 text-white/35">split</span>
+                        )}
                         {deleted && <span className="text-red-400/60">deleted</span>}
                       </p>
                     </div>
 
                     <div className="flex flex-col items-end shrink-0">
                       <span
-                        className={`text-sm font-semibold tabular-nums ${deleted ? 'line-through' : ''}`}
-                        style={{ color: deleted ? '#9ca3af' : rowColor }}
+                        className={`text-sm font-semibold tabular-nums ${deleted ? 'line-through' : ''} ${isParent ? 'text-white/40' : ''}`}
+                        style={{ color: deleted ? '#9ca3af' : isParent ? undefined : rowColor }}
                       >
                         {sign}{fmt(row.amount)}
                       </span>
