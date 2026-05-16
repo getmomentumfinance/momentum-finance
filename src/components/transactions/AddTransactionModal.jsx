@@ -771,7 +771,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
               </div>
               {parseFloat(quantity) > 0 && parseFloat(pricePerUnit) > 0 && (
                 <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/8 text-xs">
-                  <span className="text-muted">Total deducted from card</span>
+                  <span className="text-muted">{cardId ? 'Total deducted from card' : 'Total invested'}</span>
                   <span className="text-white/60">
                     €{(parseFloat(quantity) * parseFloat(pricePerUnit) + (parseFloat(fee) || 0))
                       .toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
