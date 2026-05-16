@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext'
 import { extractNColors } from '../utils/gradientColors'
 
 const SharedDataContext = createContext({
+  loaded:           false,
   categories:       [],
   receivers:        [],
   categoryMap:      {},
@@ -44,6 +45,7 @@ export function SharedDataProvider({ children }) {
   const [plannedBills,     setPlannedBills]     = useState([])
   const [budgets,          setBudgets]          = useState([])
   const [targets,          setTargets]          = useState([])
+  const [loaded,           setLoaded]           = useState(false)
 
   const debounceRef  = useRef(null)
 
@@ -126,6 +128,7 @@ export function SharedDataProvider({ children }) {
     setPlannedBills(plannedData ?? [])
     setBudgets(budgetsData ?? [])
     setTargets(targetsData ?? [])
+    setLoaded(true)
   }, [user?.id])
 
   useEffect(() => {
@@ -150,7 +153,7 @@ export function SharedDataProvider({ children }) {
     <SharedDataContext.Provider value={{
       categories, receivers, categoryMap, receiverMap,
       receiverGroups, receiverGroupMap, receiverColorMap,
-      cards, allTransactions, balanceTxs, pendingItems,
+      loaded, cards, allTransactions, balanceTxs, pendingItems,
       subscriptions, subPayments, recurringBills, billPayments, plannedBills,
       budgets, targets,
     }}>

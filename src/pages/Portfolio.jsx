@@ -8,6 +8,7 @@ import { useSharedData } from '../context/SharedDataContext'
 import { useUIPrefs } from '../context/UIPrefContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
 import { fetchLivePrice } from '../lib/yahooFinance'
+import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 
@@ -36,7 +37,7 @@ function timeAgo(isoStr) {
 export default function Portfolio() {
   const { user }                    = useAuth()
   const { fmt, t }                  = usePreferences()
-  const { allTransactions }         = useSharedData()
+  const { allTransactions, loaded } = useSharedData()
   const { prefs, setPref }          = useUIPrefs()
   const { openTransactionModal }    = useTransactionModal()
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -186,7 +187,18 @@ export default function Portfolio() {
           </div>
         )}
 
-        {positions.length === 0 && !hasCachedPrices && (
+        {!loaded && (
+          <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
+            <div className="grid grid-cols-4 gap-4">
+              {[1,2,3,4].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+            </div>
+            <div className="flex flex-col gap-2 mt-2">
+              {[1,2,3].map(i => <SkeletonRow key={i} />)}
+            </div>
+          </div>
+        )}
+
+        {loaded && positions.length === 0 && !hasCachedPrices && (
           <div className="glass-card rounded-2xl flex flex-col items-center justify-center gap-4 py-20 text-center">
             <TrendingUp size={36} className="text-white/15" />
             <div>
