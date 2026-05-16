@@ -65,7 +65,7 @@ function Th({ col, width, onMouseDown, className = '', align = 'left', children 
         onMouseDown={e => onMouseDown(col, e)}
         className="absolute right-0 top-0 h-full w-4 flex items-center justify-center cursor-col-resize group z-10"
       >
-        <div className="w-px h-0 bg-transparent group-hover:h-4 group-hover:bg-white/25 transition-all" />
+        <div className="w-px h-0 bg-transparent" />
       </div>
     </th>
   )
@@ -334,11 +334,8 @@ export default function Transactions() {
         <h1 className="text-3xl font-bold mb-1">{t('tx.title')}</h1>
         <p className="text-muted text-sm mb-6">{dateStr}</p>
 
-        {/* Table card */}
-        <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
-
-          {/* Filter bar */}
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-white/8">
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-2 py-3 border-b border-white/8">
             {/* Search */}
             <div className="relative flex-1 min-w-[160px]">
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
@@ -830,7 +827,6 @@ export default function Transactions() {
             </div>
           </div>
 
-        </div>
       </div>
 
       {editingTx && (
