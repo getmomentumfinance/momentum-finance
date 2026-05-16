@@ -9,6 +9,7 @@ import SplitTransactionModal from '../components/transactions/SplitTransactionMo
 import { TYPES_MAP, TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { SkeletonRow } from '../components/shared/Skeleton'
 
 const DEFAULT_WIDTHS = {
   description: 240, type: 90, importance: 100, amount: 110,
@@ -486,7 +487,7 @@ export default function Transactions() {
           {/* Mobile card list */}
           <div className="md:hidden divide-y divide-white/[0.04]">
             {loading ? (
-              <p className="text-center py-12 text-muted text-xs">{t('common.loading')}</p>
+              <div className="flex flex-col px-4 py-2">{[1,2,3,4,5,6].map(i => <SkeletonRow key={i} />)}</div>
             ) : displayRows.length === 0 ? (
               <p className="text-center py-12 text-muted text-xs">{hasFilters ? t('tx.noMatch') : t('tx.noTx')}</p>
             ) : displayRows.map(row => {
@@ -582,9 +583,13 @@ export default function Transactions() {
 
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={11} className="text-center py-16 text-muted text-xs">{t('common.loading')}</td>
-                  </tr>
+                  <>
+                    {[1,2,3,4,5,6,7,8].map(i => (
+                      <tr key={i} className="border-b border-white/[0.03]">
+                        <td colSpan={11} className="px-4 py-1"><SkeletonRow /></td>
+                      </tr>
+                    ))}
+                  </>
                 ) : displayRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="text-center py-16 text-muted text-xs">
@@ -602,7 +607,7 @@ export default function Transactions() {
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors group ${isChild ? 'bg-white/[0.01]' : ''}`}
+                      className={`border-b border-white/[0.03] last:border-0 group ${isChild ? 'bg-white/[0.01]' : ''}`}
                     >
                       {/* Receiver */}
                       <td className="px-3 py-3 overflow-hidden" style={{ width: widths.description, maxWidth: widths.description }}>

@@ -264,7 +264,7 @@ export default function Portfolio() {
                       <>
                         <tr
                           key={p.ticker}
-                          className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer"
+                          className="border-b border-white/[0.03] cursor-pointer"
                           onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}
                         >
                           <td className="px-5 py-3.5">
