@@ -302,7 +302,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
   const { categories, receivers: sharedReceivers, balanceTxs } = useSharedData()
   const { prefs: uiPrefs } = useUIPrefs()
-  const tradeLabels = uiPrefs['invest_labels'] ?? ['Day Trade', 'Swing Trade', 'Long Term']
+  const rawTradeLabels = uiPrefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
+  const tradeLabels = rawTradeLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
   const [extraReceivers, setExtraReceivers] = useState([])
   const receivers = [...sharedReceivers, ...extraReceivers]
   const cardTxs   = balanceTxs
@@ -789,15 +790,15 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   Trade label <span className="text-white/30 normal-case font-normal">(optional)</span>
                 </label>
                 <div className="flex flex-wrap gap-1.5">
-                  {tradeLabels.map(l => (
-                    <button key={l} type="button" onClick={() => setInvestLabel(investLabel === l ? '' : l)}
+                  {tradeLabels.map(({ name, color }) => (
+                    <button key={name} type="button" onClick={() => setInvestLabel(investLabel === name ? '' : name)}
                       className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
                       style={{
-                        background: investLabel === l ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)' : 'rgba(255,255,255,0.05)',
-                        color: investLabel === l ? 'var(--color-accent)' : 'rgba(255,255,255,0.45)',
-                        border: `1px solid ${investLabel === l ? 'color-mix(in srgb, var(--color-accent) 40%, transparent)' : 'rgba(255,255,255,0.08)'}`,
+                        background: investLabel === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'rgba(255,255,255,0.05)',
+                        color: investLabel === name ? color : 'rgba(255,255,255,0.45)',
+                        border: `1px solid ${investLabel === name ? `color-mix(in srgb, ${color} 40%, transparent)` : 'rgba(255,255,255,0.08)'}`,
                       }}>
-                      {l}
+                      {name}
                     </button>
                   ))}
                 </div>

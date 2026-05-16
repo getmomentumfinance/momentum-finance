@@ -39,6 +39,8 @@ export default function Portfolio() {
   const { fmt, t }                  = usePreferences()
   const { allTransactions, loaded } = useSharedData()
   const { prefs, setPref }          = useUIPrefs()
+  const rawTradeLabels = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
+  const tradeLabelMap = Object.fromEntries(rawTradeLabels.map(l => typeof l === 'string' ? [l, '#a78bfa'] : [l.name, l.color]))
   const { openTransactionModal }    = useTransactionModal()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [refreshing,  setRefreshing]  = useState(false)
@@ -329,12 +331,15 @@ export default function Portfolio() {
                               <td className="pl-12 pr-4 py-2.5">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs text-white/40">{dateStr}</span>
-                                  {tx.label && (
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full"
-                                      style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}>
-                                      {tx.label}
-                                    </span>
-                                  )}
+                                  {tx.label && (() => {
+                                    const c = tradeLabelMap[tx.label] ?? 'var(--color-accent)'
+                                    return (
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                        style={{ background: `color-mix(in srgb, ${c} 18%, transparent)`, color: c }}>
+                                        {tx.label}
+                                      </span>
+                                    )
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">

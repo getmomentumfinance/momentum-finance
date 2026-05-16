@@ -228,7 +228,11 @@ function ThemeRow({ theme, onApply, onDelete }) {
 }
 
 
-const DEFAULT_TRADE_LABELS = ['Day Trade', 'Swing Trade', 'Long Term']
+const DEFAULT_TRADE_LABELS = [
+  { name: 'Day Trade',   color: '#60a5fa' },
+  { name: 'Swing Trade', color: '#a78bfa' },
+  { name: 'Long Term',   color: '#34d399' },
+]
 
 function TradeLabelsSection() {
   const { prefs, setPref } = useUIPrefs()
@@ -237,66 +241,89 @@ function TradeLabelsSection() {
   const [newLabel, setNewLabel] = useState('')
   const [editIdx, setEditIdx] = useState(null)
   const [editVal, setEditVal] = useState('')
+  const [colorPickerIdx, setColorPickerIdx] = useState(null)
+  const colorPickerRef = useRef(null)
+  const colorBtnRefs = useRef([])
 
   function save(updated) { setPref('invest_labels', updated) }
+  function normalise(v) { return typeof v === 'string' ? { name: v, color: '#a78bfa' } : v }
 
   function add() {
     const v = newLabel.trim()
-    if (!v || labels.includes(v)) return
-    save([...labels, v]); setNewLabel(''); setAdding(false)
+    if (!v) return
+    save([...labels.map(normalise), { name: v, color: '#a78bfa' }])
+    setNewLabel(''); setAdding(false)
   }
 
-  function remove(i) { save(labels.filter((_, idx) => idx !== i)) }
+  function remove(i) { save(labels.map(normalise).filter((_, idx) => idx !== i)) }
 
-  function startEdit(i) { setEditIdx(i); setEditVal(labels[i]) }
+  function startEdit(i) { setEditIdx(i); setEditVal(normalise(labels[i]).name) }
 
   function confirmEdit() {
     const v = editVal.trim()
     if (!v) return
-    const updated = labels.map((l, i) => i === editIdx ? v : l)
-    save(updated); setEditIdx(null)
+    save(labels.map((l, i) => i === editIdx ? { ...normalise(l), name: v } : normalise(l)))
+    setEditIdx(null)
+  }
+
+  function setColor(i, c) {
+    save(labels.map((l, idx) => idx === i ? { ...normalise(l), color: c } : normalise(l)))
+    setColorPickerIdx(null)
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h3 className="text-sm font-medium text-white">Trade labels</h3>
-        <p className="text-xs text-muted mt-0.5">Labels you can assign to investment transactions — e.g. strategy or timeframe.</p>
+        <p className="text-xs text-muted mt-0.5">Labels for investment transactions — strategy or timeframe.</p>
       </div>
       <div className="flex flex-col gap-1.5">
-        {labels.map((label, i) => (
-          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            {editIdx === i ? (
-              <>
-                <input
-                  autoFocus
-                  value={editVal}
-                  onChange={e => setEditVal(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditIdx(null) }}
-                  className="flex-1 bg-transparent text-sm text-white outline-none"
+        {labels.map((raw, i) => {
+          const label = normalise(raw)
+          return (
+            <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              {/* Color swatch */}
+              <button
+                ref={el => { colorBtnRefs.current[i] = el }}
+                type="button"
+                onClick={() => setColorPickerIdx(colorPickerIdx === i ? null : i)}
+                className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
+                style={{ background: label.color }}
+              />
+              {colorPickerIdx === i && (
+                <ColorPickerPopup
+                  popupRef={colorPickerRef}
+                  pos={{ top: (colorBtnRefs.current[i]?.getBoundingClientRect().bottom ?? 0) + 8, left: colorBtnRefs.current[i]?.getBoundingClientRect().left ?? 0 }}
+                  selected={label.color}
+                  onSelect={c => setColor(i, c)}
                 />
-                <button onClick={confirmEdit} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
-                <button onClick={() => setEditIdx(null)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
-              </>
-            ) : (
-              <>
-                <span className="flex-1 text-sm text-white/80">{label}</span>
-                <button onClick={() => startEdit(i)} className="text-white/25 hover:text-white/60 transition-colors"><Pencil size={12} /></button>
-                <button onClick={() => remove(i)} className="text-white/25 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
-              </>
-            )}
-          </div>
-        ))}
+              )}
+              {editIdx === i ? (
+                <>
+                  <input autoFocus value={editVal}
+                    onChange={e => setEditVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditIdx(null) }}
+                    className="flex-1 bg-transparent text-sm text-white outline-none" />
+                  <button onClick={confirmEdit} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
+                  <button onClick={() => setEditIdx(null)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm" style={{ color: label.color }}>{label.name}</span>
+                  <button onClick={() => startEdit(i)} className="text-white/25 hover:text-white/60 transition-colors"><Pencil size={12} /></button>
+                  <button onClick={() => remove(i)} className="text-white/25 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                </>
+              )}
+            </div>
+          )
+        })}
         {adding ? (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <input
-              autoFocus
-              value={newLabel}
+            <input autoFocus value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') setAdding(false) }}
               placeholder="Label name…"
-              className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
-            />
+              className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
             <button onClick={add} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
             <button onClick={() => setAdding(false)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
           </div>
@@ -728,216 +755,42 @@ export default function AppearanceTab() {
         />
       )}
 
-      {/* Accent color */}
-      <div className="pt-0 flex flex-col gap-4">
-        <ColorTrigger
-          label="Accent color"
-          description="Used for highlights, focus rings, and interactive elements."
-          color={accentColor}
-          btnRef={accent.btnRef}
-          onClick={() => accent.toggle(true)}
-        />
-        {accent.open && (
-          <ColorPickerPopup
-            popupRef={accent.popupRef}
-            pos={accent.pos}
-            selected={accentColor}
-            showGradients
-            onSelect={handleAccent}
-          />
-        )}
-      </div>
-
-      {/* Progress bar color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Progress bar color"
-          description="Color for due-date progress bars on pending items."
-          color={progressColor}
-          btnRef={progress.btnRef}
-          onClick={() => progress.toggle(true)}
-          preview={
-            <div className="flex flex-col gap-1 w-28">
-              <div className="flex items-center justify-between text-[10px] text-white/40">
-                <span>10d left</span><span>Mar 28</span>
-              </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full rounded-full w-[55%] transition-colors duration-300"
-                  style={{ background: progressColor }} />
-              </div>
-            </div>
-          }
-        />
-        {progress.open && (
-          <ColorPickerPopup
-            popupRef={progress.popupRef}
-            pos={progress.pos}
-            selected={progressColor}
-            showGradients
-            onSelect={handleProgress}
-          />
-        )}
-      </div>
-
-      {/* Alert color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Alert color"
-          description="Used for overdue and urgent states (≤3 days left)."
-          color={alertColor}
-          btnRef={alert.btnRef}
-          onClick={() => alert.toggle(true)}
-          preview={
-            <span className="text-xs font-medium" style={{ color: alertColor }}>2d overdue</span>
-          }
-        />
-        {alert.open && (
-          <ColorPickerPopup
-            popupRef={alert.popupRef}
-            pos={alert.pos}
-            selected={alertColor}
-            showGradients
-            onSelect={handleAlert}
-          />
-        )}
-      </div>
-
-      {/* Warning color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Warning color"
-          description="Used for items due today or within 7 days."
-          color={warningColor}
-          btnRef={warning.btnRef}
-          onClick={() => warning.toggle(true)}
-          preview={
-            <span className="text-xs font-medium" style={{ color: warningColor }}>Due in 5d</span>
-          }
-        />
-        {warning.open && (
-          <ColorPickerPopup
-            popupRef={warning.popupRef}
-            pos={warning.pos}
-            selected={warningColor}
-            showGradients
-            onSelect={handleWarning}
-          />
-        )}
-      </div>
-
-      {/* Line chart color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Chart colors"
-          description="Color used for charts, e.g. savings flow line and activity heatmap."
-          color={lineChartColor}
-          btnRef={lineChart.btnRef}
-          onClick={lineChart.toggle}
-          preview={
-            <svg width="60" height="24" viewBox="0 0 60 24">
-              <polyline points="0,20 10,14 20,16 30,6 40,10 50,4 60,8" fill="none" stroke={lineChartColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          }
-        />
-        {lineChart.open && (
-          <ColorPickerPopup
-            popupRef={lineChart.popupRef}
-            pos={lineChart.pos}
-            selected={lineChartColor}
-            onSelect={handleLineChart}
-          />
-        )}
-      </div>
-
-      {/* Bar chart color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Bar chart color"
-          description="Color used for positive bars in bar charts, e.g. net flow deposits."
-          color={barChartColor}
-          btnRef={barChart.btnRef}
-          onClick={() => barChart.toggle(true)}
-          preview={
-            <div className="flex items-end gap-0.5 h-6">
-              {[60, 40, 75, 50, 85].map((h, i) => (
-                <div key={i} className="w-2.5 rounded-t-sm" style={{ height: `${h}%`, background: barChartColor }} />
-              ))}
-            </div>
-          }
-        />
-        {barChart.open && (
-          <ColorPickerPopup
-            popupRef={barChart.popupRef}
-            pos={barChart.pos}
-            selected={barChartColor}
-            showGradients
-            onSelect={handleBarChart}
-          />
-        )}
-      </div>
-
-      {/* Calendar heatmap color */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Calendar heatmap color"
-          description="Tint applied to spending-heavy days in the big calendar."
-          color={calendarHeatmapColor}
-          btnRef={calendarHeatmap.btnRef}
-          onClick={() => calendarHeatmap.toggle(true)}
-          preview={
-            <div className="flex items-end gap-0.5 h-6">
-              {[20, 45, 70, 35, 90].map((pct, i) => (
-                <div
-                  key={i}
-                  className="w-4 rounded-sm"
-                  style={{
-                    height: '100%',
-                    background: `color-mix(in srgb, ${calendarHeatmapColor} ${pct}%, rgba(255,255,255,0.04))`,
-                  }}
+      {/* Color grid: Accent → Button style */}
+      <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-4 gap-4">
+          {[
+            { label: 'Accent',       color: accentColor,        hook: accent,        handler: handleAccent,        gradients: true },
+            { label: 'Progress bar', color: progressColor,      hook: progress,      handler: handleProgress,      gradients: true },
+            { label: 'Alert',        color: alertColor,         hook: alert,         handler: handleAlert,         gradients: false },
+            { label: 'Warning',      color: warningColor,       hook: warning,       handler: handleWarning,       gradients: false },
+            { label: 'Line chart',   color: lineChartColor,     hook: lineChart,     handler: handleLineChart,     gradients: false },
+            { label: 'Bar chart',    color: barChartColor,      hook: barChart,      handler: handleBarChart,      gradients: true },
+            { label: 'Heatmap',      color: calendarHeatmapColor, hook: calendarHeatmap, handler: handleCalendarHeatmap, gradients: false },
+            { label: 'Button style', color: buttonStyle,        hook: button,        handler: handleButton,        gradients: true },
+          ].map(({ label, color, hook, handler, gradients }) => (
+            <div key={label} className="flex flex-col items-center gap-2">
+              <button
+                ref={hook.btnRef}
+                type="button"
+                onClick={() => hook.toggle(true)}
+                className="w-10 h-10 rounded-full border-2 border-white/15 hover:border-white/40 transition-colors shrink-0"
+                style={{ background: color }}
+                title={label}
+              />
+              <span className="text-[10px] text-muted text-center leading-tight">{label}</span>
+              {hook.open && (
+                <ColorPickerPopup
+                  popupRef={hook.popupRef}
+                  pos={hook.pos}
+                  selected={color}
+                  showGradients={gradients}
+                  onSelect={handler}
                 />
-              ))}
+              )}
             </div>
-          }
-        />
-        {calendarHeatmap.open && (
-          <ColorPickerPopup
-            popupRef={calendarHeatmap.popupRef}
-            pos={calendarHeatmap.pos}
-            selected={calendarHeatmapColor}
-            onSelect={handleCalendarHeatmap}
-          />
-        )}
+          ))}
+        </div>
       </div>
-
-
-      {/* Button style */}
-      <div className="pt-8 border-t border-white/10 flex flex-col gap-4">
-        <ColorTrigger
-          label="Button style"
-          description="Background applied to primary action buttons."
-          color={buttonStyle}
-          btnRef={button.btnRef}
-          onClick={() => button.toggle(true)}
-          preview={
-            <div
-              className="h-7 w-20 rounded-lg text-[11px] font-medium text-white flex items-center justify-center"
-              style={{ background: buttonStyle }}
-            >
-              Preview
-            </div>
-          }
-        />
-        {button.open && (
-          <ColorPickerPopup
-            popupRef={button.popupRef}
-            pos={button.pos}
-            selected={buttonStyle}
-            showGradients
-            onSelect={handleButton}
-          />
-        )}
-      </div>
-
 
       {/* Importance flags + Transaction type colors + Income type colors + Limit strictness — side by side */}
       <div className="pt-8 border-t border-white/10 grid grid-cols-4 gap-8">
