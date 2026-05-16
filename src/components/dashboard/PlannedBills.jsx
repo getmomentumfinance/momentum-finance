@@ -81,7 +81,8 @@ export default function PlannedBills({ currentDate = new Date() }) {
   const [editItem,  setEditItem]  = useState(null)
   const [loading,   setLoading]   = useState(false)
   const [collapsed, setCollapsed] = useCollapsed('PlannedBills')
-  const [filter, setFilter] = useState('month')
+  const filter    = prefs['planned-filter'] ?? 'month'
+  const setFilter = (f) => setPref('planned-filter', f)
 
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 

@@ -108,10 +108,10 @@ export default function BalanceProjection({ currentDate = new Date() }) {
       : pendingItems
     const pendingTotal = pendingFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
-    // Planned bills — only count those with a due date, filter to month if applicable
+    // Planned bills — this month: only bills due this month; all time: all pending bills
     const plannedFiltered = mode === 'thisMonth'
       ? plannedBills.filter(i => i.pay_before && i.pay_before >= monthStart && i.pay_before <= monthEnd)
-      : plannedBills.filter(i => i.pay_before)
+      : plannedBills
     const plannedTotal = plannedFiltered.reduce((s, i) => s + Number(i.amount), 0)
 
     // Subscriptions (skip free trials whose billing date is within the trial period)
