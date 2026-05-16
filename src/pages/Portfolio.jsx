@@ -327,7 +327,15 @@ export default function Portfolio() {
                           return (
                             <tr key={tx.id} className="group border-b border-white/[0.02] bg-white/[0.015]">
                               <td className="pl-12 pr-4 py-2.5">
-                                <span className="text-xs text-white/40">{dateStr}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-white/40">{dateStr}</span>
+                                  {tx.label && (
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                      style={{ background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }}>
+                                      {tx.label}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-4 py-2.5 text-right tabular-nums text-xs text-white/50">
                                 {qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}

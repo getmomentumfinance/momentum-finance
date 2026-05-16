@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Trash2, RotateCcw, Pencil, Check } from 'lucide-react'
+import { Trash2, RotateCcw, Pencil, Check, Plus, X } from 'lucide-react'
+import { useUIPrefs } from '../../context/UIPrefContext'
 import { useAuth } from '../../context/AuthContext'
 import { DESIGNS, CUSTOM_DESIGN_VARS } from '../../constants/designs'
 import { useDesign } from '../../hooks/useDesign'
@@ -226,6 +227,89 @@ function ThemeRow({ theme, onApply, onDelete }) {
   )
 }
 
+
+const DEFAULT_TRADE_LABELS = ['Day Trade', 'Swing Trade', 'Long Term']
+
+function TradeLabelsSection() {
+  const { prefs, setPref } = useUIPrefs()
+  const labels = prefs['invest_labels'] ?? DEFAULT_TRADE_LABELS
+  const [adding, setAdding] = useState(false)
+  const [newLabel, setNewLabel] = useState('')
+  const [editIdx, setEditIdx] = useState(null)
+  const [editVal, setEditVal] = useState('')
+
+  function save(updated) { setPref('invest_labels', updated) }
+
+  function add() {
+    const v = newLabel.trim()
+    if (!v || labels.includes(v)) return
+    save([...labels, v]); setNewLabel(''); setAdding(false)
+  }
+
+  function remove(i) { save(labels.filter((_, idx) => idx !== i)) }
+
+  function startEdit(i) { setEditIdx(i); setEditVal(labels[i]) }
+
+  function confirmEdit() {
+    const v = editVal.trim()
+    if (!v) return
+    const updated = labels.map((l, i) => i === editIdx ? v : l)
+    save(updated); setEditIdx(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-sm font-medium text-white">Trade labels</h3>
+        <p className="text-xs text-muted mt-0.5">Labels you can assign to investment transactions — e.g. strategy or timeframe.</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {labels.map((label, i) => (
+          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            {editIdx === i ? (
+              <>
+                <input
+                  autoFocus
+                  value={editVal}
+                  onChange={e => setEditVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditIdx(null) }}
+                  className="flex-1 bg-transparent text-sm text-white outline-none"
+                />
+                <button onClick={confirmEdit} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
+                <button onClick={() => setEditIdx(null)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm text-white/80">{label}</span>
+                <button onClick={() => startEdit(i)} className="text-white/25 hover:text-white/60 transition-colors"><Pencil size={12} /></button>
+                <button onClick={() => remove(i)} className="text-white/25 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+              </>
+            )}
+          </div>
+        ))}
+        {adding ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <input
+              autoFocus
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') setAdding(false) }}
+              placeholder="Label name…"
+              className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25"
+            />
+            <button onClick={add} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
+            <button onClick={() => setAdding(false)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
+          </div>
+        ) : (
+          <button onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/70 transition-colors mt-1">
+            <Plus size={12} /> Add label
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function AppearanceTab() {
   const { user } = useAuth()
@@ -917,6 +1001,9 @@ export default function AppearanceTab() {
             <StrictnessColorRow id="strict" label="Negative" defaultColor={STRICTNESS_DEFAULTS.strict} />
           </div>
         </div>
+
+        {/* Trade labels */}
+        <TradeLabelsSection />
 
       </div>
 

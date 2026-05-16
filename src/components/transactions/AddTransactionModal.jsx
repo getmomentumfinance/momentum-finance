@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
+import { useUIPrefs } from '../../context/UIPrefContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar as SharedReceiverAvatar } from '../shared/ReceiverCombobox'
@@ -281,6 +282,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [toCardId,    setToCardId]    = useState('')
   const [savingsDir,  setSavingsDir]  = useState(transaction?.source === 'savings_out' ? 'out' : 'in')
   const [companionId, setCompanionId] = useState(null)
+  const [investLabel,   setInvestLabel]   = useState(transaction?.label    ?? '')
   const [ticker,        setTicker]        = useState(transaction?.ticker   ?? '')
   const [quantity,      setQuantity]      = useState(transaction?.quantity != null ? String(transaction.quantity) : '')
   const [pricePerUnit,  setPricePerUnit]  = useState(transaction?.price_per_unit != null ? String(transaction.price_per_unit) : '')
@@ -299,6 +301,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [pendingSplit, setPendingSplit] = useState(null) // transaction to split after save
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
   const { categories, receivers: sharedReceivers, balanceTxs } = useSharedData()
+  const { prefs: uiPrefs } = useUIPrefs()
+  const tradeLabels = uiPrefs['invest_labels'] ?? ['Day Trade', 'Swing Trade', 'Long Term']
   const [extraReceivers, setExtraReceivers] = useState([])
   const receivers = [...sharedReceivers, ...extraReceivers]
   const cardTxs   = balanceTxs
@@ -504,6 +508,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         card_id:          cardId || null,
         is_cash:          false,
         is_split_parent:  false,
+        label:            investLabel.trim() || null,
         category_id:      null,
         subcategory_id:   null,
         receiver_id:      null,
@@ -778,6 +783,25 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   </span>
                 </div>
               )}
+              {/* Trade label */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                  Trade label <span className="text-white/30 normal-case font-normal">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {tradeLabels.map(l => (
+                    <button key={l} type="button" onClick={() => setInvestLabel(investLabel === l ? '' : l)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                      style={{
+                        background: investLabel === l ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)' : 'rgba(255,255,255,0.05)',
+                        color: investLabel === l ? 'var(--color-accent)' : 'rgba(255,255,255,0.45)',
+                        border: `1px solid ${investLabel === l ? 'color-mix(in srgb, var(--color-accent) 40%, transparent)' : 'rgba(255,255,255,0.08)'}`,
+                      }}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 

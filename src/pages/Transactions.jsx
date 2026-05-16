@@ -188,7 +188,7 @@ export default function Transactions() {
         { data: receivers },
       ] = await Promise.all([
         supabase.from('transactions')
-          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance')
+          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance, label')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .gte('date', start)
