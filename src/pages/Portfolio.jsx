@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock } from 'lucide-react'
+import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2 } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
 import { usePreferences } from '../context/UserPreferencesContext'
@@ -86,6 +87,13 @@ export default function Portfolio() {
       }
     })
   }, [allTransactions, cachedPrices])
+
+  // ── Delete a single invest transaction ───────────────────────────────────
+  async function deleteTx(id) {
+    if (!window.confirm('Delete this investment entry?')) return
+    await supabase.from('transactions').update({ is_deleted: true }).eq('id', id)
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
+  }
 
   // ── Refresh — fetch live prices and cache them in prefs ───────────────────
   async function refresh() {
@@ -232,6 +240,7 @@ export default function Portfolio() {
                     <th className="text-right px-4 py-3 font-medium">{t('port.currentValue')}</th>
                     <th className="text-right px-4 py-3 font-medium">{t('port.gainLoss')}</th>
                     <th className="text-right px-5 py-3 font-medium">{t('port.return')}</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -291,6 +300,7 @@ export default function Portfolio() {
                               </span>
                             ) : '—'}
                           </td>
+                          <td className="px-4 py-3.5" />
                         </tr>
 
                         {/* Lot rows */}
@@ -303,7 +313,7 @@ export default function Portfolio() {
                           const lotColor   = lotGain == null ? '#9ca3af' : lotGain >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
                           const dateStr    = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                           return (
-                            <tr key={tx.id} className="border-b border-white/[0.02] bg-white/[0.015]">
+                            <tr key={tx.id} className="group border-b border-white/[0.02] bg-white/[0.015]">
                               <td className="pl-12 pr-4 py-2.5">
                                 <span className="text-xs text-white/40">{dateStr}</span>
                               </td>
@@ -328,6 +338,18 @@ export default function Portfolio() {
                               </td>
                               <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: lotColor }}>
                                 {lotGainPct != null ? fmtPct(lotGainPct) : '—'}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button type="button" onClick={e => { e.stopPropagation(); openTransactionModal(tx) }}
+                                    className="text-white/30 hover:text-white/70 transition-colors">
+                                    <Pencil size={12} />
+                                  </button>
+                                  <button type="button" onClick={e => { e.stopPropagation(); deleteTx(tx.id) }}
+                                    className="text-white/30 hover:text-red-400 transition-colors">
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           )
