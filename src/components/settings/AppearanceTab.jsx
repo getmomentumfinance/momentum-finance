@@ -756,40 +756,91 @@ export default function AppearanceTab() {
       )}
 
       {/* Color grid: Accent → Button style */}
-      <div className="flex flex-col gap-3">
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: 'Accent',       color: accentColor,        hook: accent,        handler: handleAccent,        gradients: true },
-            { label: 'Progress bar', color: progressColor,      hook: progress,      handler: handleProgress,      gradients: true },
-            { label: 'Alert',        color: alertColor,         hook: alert,         handler: handleAlert,         gradients: false },
-            { label: 'Warning',      color: warningColor,       hook: warning,       handler: handleWarning,       gradients: false },
-            { label: 'Line chart',   color: lineChartColor,     hook: lineChart,     handler: handleLineChart,     gradients: false },
-            { label: 'Bar chart',    color: barChartColor,      hook: barChart,      handler: handleBarChart,      gradients: true },
-            { label: 'Heatmap',      color: calendarHeatmapColor, hook: calendarHeatmap, handler: handleCalendarHeatmap, gradients: false },
-            { label: 'Button style', color: buttonStyle,        hook: button,        handler: handleButton,        gradients: true },
-          ].map(({ label, color, hook, handler, gradients }) => (
-            <div key={label} className="flex flex-col items-center gap-2">
-              <button
-                ref={hook.btnRef}
-                type="button"
-                onClick={() => hook.toggle(true)}
-                className="w-10 h-10 rounded-full border-2 border-white/15 hover:border-white/40 transition-colors shrink-0"
-                style={{ background: color }}
-                title={label}
-              />
-              <span className="text-[10px] text-muted text-center leading-tight">{label}</span>
-              {hook.open && (
-                <ColorPickerPopup
-                  popupRef={hook.popupRef}
-                  pos={hook.pos}
-                  selected={color}
-                  showGradients={gradients}
-                  onSelect={handler}
-                />
-              )}
+      <div className="grid grid-cols-4 gap-3">
+        {/* Accent */}
+        <button ref={accent.btnRef} type="button" onClick={() => accent.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <div className="w-8 h-8 rounded-full border-2 border-white/20" style={{ background: accentColor }} />
+          <span className="text-[11px] text-muted">Accent</span>
+        </button>
+        {accent.open && <ColorPickerPopup popupRef={accent.popupRef} pos={accent.pos} selected={accentColor} showGradients onSelect={handleAccent} />}
+
+        {/* Progress bar */}
+        <button ref={progress.btnRef} type="button" onClick={() => progress.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <div className="flex flex-col gap-1 w-full">
+            <div className="flex items-center justify-between text-[9px] text-white/30">
+              <span>10d left</span><span>Mar 28</span>
             </div>
-          ))}
-        </div>
+            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full rounded-full w-[55%]" style={{ background: progressColor }} />
+            </div>
+          </div>
+          <span className="text-[11px] text-muted">Progress bar</span>
+        </button>
+        {progress.open && <ColorPickerPopup popupRef={progress.popupRef} pos={progress.pos} selected={progressColor} showGradients onSelect={handleProgress} />}
+
+        {/* Alert */}
+        <button ref={alert.btnRef} type="button" onClick={() => alert.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <span className="text-sm font-medium" style={{ color: alertColor }}>2d overdue</span>
+          <span className="text-[11px] text-muted">Alert</span>
+        </button>
+        {alert.open && <ColorPickerPopup popupRef={alert.popupRef} pos={alert.pos} selected={alertColor} onSelect={handleAlert} />}
+
+        {/* Warning */}
+        <button ref={warning.btnRef} type="button" onClick={() => warning.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <span className="text-sm font-medium" style={{ color: warningColor }}>Due in 5d</span>
+          <span className="text-[11px] text-muted">Warning</span>
+        </button>
+        {warning.open && <ColorPickerPopup popupRef={warning.popupRef} pos={warning.pos} selected={warningColor} onSelect={handleWarning} />}
+
+        {/* Line chart */}
+        <button ref={lineChart.btnRef} type="button" onClick={lineChart.toggle}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <svg width="100%" height="24" viewBox="0 0 60 24" preserveAspectRatio="none">
+            <polyline points="0,20 10,14 20,16 30,6 40,10 50,4 60,8" fill="none" stroke={lineChartColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="text-[11px] text-muted">Line chart</span>
+        </button>
+        {lineChart.open && <ColorPickerPopup popupRef={lineChart.popupRef} pos={lineChart.pos} selected={lineChartColor} onSelect={handleLineChart} />}
+
+        {/* Bar chart */}
+        <button ref={barChart.btnRef} type="button" onClick={() => barChart.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <div className="flex items-end gap-0.5 h-6 w-full">
+            {[60, 40, 75, 50, 85, 30, 65].map((h, i) => (
+              <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: barChartColor }} />
+            ))}
+          </div>
+          <span className="text-[11px] text-muted">Bar chart</span>
+        </button>
+        {barChart.open && <ColorPickerPopup popupRef={barChart.popupRef} pos={barChart.pos} selected={barChartColor} showGradients onSelect={handleBarChart} />}
+
+        {/* Heatmap */}
+        <button ref={calendarHeatmap.btnRef} type="button" onClick={() => calendarHeatmap.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <div className="flex gap-0.5 h-6 w-full">
+            {[20, 50, 80, 35, 65, 90, 15].map((pct, i) => (
+              <div key={i} className="flex-1 rounded-sm"
+                style={{ background: `color-mix(in srgb, ${calendarHeatmapColor} ${pct}%, rgba(255,255,255,0.04))` }} />
+            ))}
+          </div>
+          <span className="text-[11px] text-muted">Heatmap</span>
+        </button>
+        {calendarHeatmap.open && <ColorPickerPopup popupRef={calendarHeatmap.popupRef} pos={calendarHeatmap.pos} selected={calendarHeatmapColor} onSelect={handleCalendarHeatmap} />}
+
+        {/* Button style */}
+        <button ref={button.btnRef} type="button" onClick={() => button.toggle(true)}
+          className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 transition-colors text-left">
+          <div className="h-7 w-full rounded-lg text-[11px] font-medium text-white flex items-center justify-center"
+            style={{ background: buttonStyle }}>
+            Add
+          </div>
+          <span className="text-[11px] text-muted">Button style</span>
+        </button>
+        {button.open && <ColorPickerPopup popupRef={button.popupRef} pos={button.pos} selected={buttonStyle} showGradients onSelect={handleButton} />}
       </div>
 
       {/* Importance flags + Transaction type colors + Income type colors + Limit strictness — side by side */}
