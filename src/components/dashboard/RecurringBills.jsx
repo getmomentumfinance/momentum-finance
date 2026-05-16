@@ -90,7 +90,8 @@ export default function RecurringBills({ currentDate }) {
   const [loading,    setLoading]    = useState(true)
   const [toggling,   setToggling]   = useState(new Set())
   const [collapsed, setCollapsed] = useCollapsed('RecurringBills')
-  const [filter, setFilter] = useState('all')
+  const filter    = prefs['bills-filter'] ?? 'all'
+  const setFilter = (f) => setPref('bills-filter', f)
   const [expandedId, setExpandedId] = useState(null)
   const [paidAmount, setPaidAmount] = useState('')
 
