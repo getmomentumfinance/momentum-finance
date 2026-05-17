@@ -14,10 +14,10 @@ const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const gc = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
 function PnlChip({ value, pct, fmt }) {
-  if (value == null) return <span className="text-white/20 font-mono text-xs">—</span>
+  if (value == null) return <span className="text-white/20 text-xs">—</span>
   const color = gc(value)
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
+    <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
       style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>
       {value >= 0 ? '+' : ''}{fmt(value)}
       {pct != null && <span className="opacity-60 text-[10px]">({fmtPct(pct)})</span>}
@@ -44,7 +44,7 @@ function InfoTip({ text }) {
 function TypeBadge({ direction }) {
   const isBuy = (direction ?? 'buy') === 'buy'
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded font-mono tracking-widest shrink-0"
+    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded tracking-widest shrink-0"
       style={{
         background: isBuy
           ? 'color-mix(in srgb, var(--color-accent) 18%, transparent)'
@@ -313,12 +313,12 @@ export default function Portfolio() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
               <span className="text-[10px] text-muted uppercase tracking-widest">Cost Basis</span>
-              <span className="text-xl font-bold font-mono tabular-nums">{fmt(totalInvested)}</span>
+              <span className="text-xl font-bold tabular-nums">{fmt(totalInvested)}</span>
               <span className="text-[11px] text-muted">{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
               <span className="text-[10px] text-muted uppercase tracking-widest">Market Value</span>
-              <span className="text-xl font-bold font-mono tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
+              <span className="text-xl font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
               <span className="text-[11px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
             </div>
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
@@ -327,12 +327,12 @@ export default function Portfolio() {
                 <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
               </span>
               {hasLive
-                ? <span className="text-xl font-bold font-mono tabular-nums" style={{ color: gc(totalUnrealized) }}>
+                ? <span className="text-xl font-bold tabular-nums" style={{ color: gc(totalUnrealized) }}>
                     {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
                   </span>
-                : <span className="text-xl font-bold font-mono text-white/20">—</span>}
+                : <span className="text-xl font-bold text-white/20">—</span>}
               {hasLive && totalInvested > 0 && (
-                <span className="text-[11px] font-mono" style={{ color: gc(totalUnrealized) }}>
+                <span className="text-[11px]" style={{ color: gc(totalUnrealized) }}>
                   {fmtPct((totalUnrealized / totalInvested) * 100)}
                 </span>
               )}
@@ -343,15 +343,15 @@ export default function Portfolio() {
                 <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
               </span>
               {closedTrades.length > 0
-                ? <span className="text-xl font-bold font-mono tabular-nums" style={{ color: gc(totalRealized) }}>
+                ? <span className="text-xl font-bold tabular-nums" style={{ color: gc(totalRealized) }}>
                     {totalRealized >= 0 ? '+' : ''}{fmt(totalRealized)}
                   </span>
-                : <span className="text-xl font-bold font-mono text-white/20">—</span>}
+                : <span className="text-xl font-bold text-white/20">—</span>}
               <span className="text-[11px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
             </div>
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
               <span className="text-[10px] text-muted uppercase tracking-widest">Win Rate</span>
-              <span className="text-xl font-bold font-mono tabular-nums"
+              <span className="text-xl font-bold tabular-nums"
                 style={{ color: winRate == null ? 'rgba(255,255,255,0.2)' : winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)' }}>
                 {winRate != null ? `${winRate}%` : '—'}
               </span>
@@ -411,27 +411,27 @@ export default function Portfolio() {
                                   {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                 </span>
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="font-bold font-mono tracking-wider text-white">{p.ticker}</span>
+                                  <span className="font-bold tracking-wider text-white">{p.ticker}</span>
                                   {p.name && <span className="text-[11px] text-white/40 truncate max-w-[160px]">{p.name}</span>}
                                   <span className="text-[10px] text-muted">{alloc.toFixed(1)}% · {p.transactions.length} trade{p.transactions.length !== 1 ? 's' : ''}</span>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono tabular-nums text-white/80">
+                            <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
                               {p.qty > 0.0001 ? p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : <span className="text-white/25 text-xs">Closed</span>}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono tabular-nums text-white/60">
+                            <td className="px-4 py-3.5 text-right tabular-nums text-white/60">
                               {p.avgCost > 0 ? fmt(p.avgCost) : '—'}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono tabular-nums">
+                            <td className="px-4 py-3.5 text-right tabular-nums">
                               {p.livePrice != null
                                 ? <span className="text-white">{fmt(p.livePrice)}</span>
                                 : <button onClick={e => { e.stopPropagation(); refresh() }} className="text-white/20 hover:text-accent text-xs transition-colors">Refresh</button>}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono tabular-nums text-white/55">
+                            <td className="px-4 py-3.5 text-right tabular-nums text-white/55">
                               {p.qty > 0.0001 ? fmt(p.cost) : <span className="text-white/20">—</span>}
                             </td>
-                            <td className="px-4 py-3.5 text-right font-mono tabular-nums">
+                            <td className="px-4 py-3.5 text-right tabular-nums">
                               {p.currentVal != null ? <span className="text-white font-semibold">{fmt(p.currentVal)}</span> : <span className="text-white/20">—</span>}
                             </td>
                             <td className="px-4 py-3.5 text-right">
@@ -461,7 +461,7 @@ export default function Portfolio() {
                                 <td className="pl-11 pr-4 py-2.5">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <TypeBadge direction={tx.direction} />
-                                    <span className="text-xs text-white/40 font-mono">{dateStr}</span>
+                                    <span className="text-xs text-white/40">{dateStr}</span>
                                     {tx.label && lc && (
                                       <span className="text-[9px] px-1.5 py-0.5 rounded-full"
                                         style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
@@ -470,15 +470,15 @@ export default function Portfolio() {
                                     )}
                                   </div>
                                 </td>
-                                <td className="px-4 py-2.5 text-right font-mono text-xs text-white/50 tabular-nums">
+                                <td className="px-4 py-2.5 text-right text-xs text-white/50 tabular-nums">
                                   {qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
                                 </td>
-                                <td className="px-4 py-2.5 text-right font-mono text-xs text-white/50 tabular-nums">{fmt(ppu)}</td>
+                                <td className="px-4 py-2.5 text-right text-xs text-white/50 tabular-nums">{fmt(ppu)}</td>
                                 <td className="px-4 py-2.5" />
-                                <td className="px-4 py-2.5 text-right font-mono text-xs text-white/40 tabular-nums">
+                                <td className="px-4 py-2.5 text-right text-xs text-white/40 tabular-nums">
                                   {isBuy ? fmt(lotCost) : <span className="text-white/20">—</span>}
                                 </td>
-                                <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums">
+                                <td className="px-4 py-2.5 text-right text-xs tabular-nums">
                                   {lotVal != null ? <span className="text-white/55">{fmt(lotVal)}</span> : <span className="text-white/20">—</span>}
                                 </td>
                                 <td className="px-4 py-2.5 text-right">
@@ -507,11 +507,11 @@ export default function Portfolio() {
               <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04] text-xs text-muted">
                 <span>{positions.length} ticker{positions.length !== 1 ? 's' : ''} · {investTxs.length} trade{investTxs.length !== 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-5">
-                  <span>Invested <span className="text-white font-mono font-medium ml-1">{fmt(totalInvested)}</span></span>
+                  <span>Invested <span className="text-white font-medium ml-1">{fmt(totalInvested)}</span></span>
                   {positions.some(p => p.totalFees > 0.005) && (
-                    <span>Fees <span className="text-white/50 font-mono ml-1">{fmt(positions.reduce((s, p) => s + p.totalFees, 0))}</span></span>
+                    <span>Fees <span className="text-white/50 ml-1">{fmt(positions.reduce((s, p) => s + p.totalFees, 0))}</span></span>
                   )}
-                  {hasLive && <span>Value <span className="text-white font-mono font-medium ml-1">{fmt(totalCurrentVal)}</span></span>}
+                  {hasLive && <span>Value <span className="text-white font-medium ml-1">{fmt(totalCurrentVal)}</span></span>}
                 </div>
               </div>
             </div>
@@ -548,11 +548,11 @@ export default function Portfolio() {
                           return (
                             <tr key={tx.id} className="group border-b border-white/[0.03]">
                               <td className="px-5 py-3">
-                                <span className="text-xs text-white/45 font-mono">{dateStr}</span>
+                                <span className="text-xs text-white/45">{dateStr}</span>
                               </td>
                               <td className="px-3 py-3 text-center"><TypeBadge direction={dir} /></td>
                               <td className="px-4 py-3">
-                                <span className="font-bold font-mono tracking-wider text-white">{tx.ticker?.toUpperCase()}</span>
+                                <span className="font-bold tracking-wider text-white">{tx.ticker?.toUpperCase()}</span>
                               </td>
                               <td className="px-3 py-3 text-center">
                                 {tx.label && lc
@@ -562,13 +562,13 @@ export default function Portfolio() {
                                     </span>
                                   : <span className="text-white/20 text-xs">—</span>}
                               </td>
-                              <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-white/65">
+                              <td className="px-4 py-3 text-right tabular-nums text-xs text-white/65">
                                 {qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : '—'}
                               </td>
-                              <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-white/65">
+                              <td className="px-4 py-3 text-right tabular-nums text-xs text-white/65">
                                 {ppu > 0 ? fmt(ppu) : '—'}
                               </td>
-                              <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-white/55">
+                              <td className="px-4 py-3 text-right tabular-nums text-xs text-white/55">
                                 {total > 0 ? fmt(total) : '—'}
                               </td>
                               <td className="px-5 py-3 text-right">
