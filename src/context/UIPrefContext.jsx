@@ -8,9 +8,13 @@ const UIPrefContext = createContext({
   deletePref: () => {}, deletePrefs: () => {},
 })
 
+function readLocalCache() {
+  try { return JSON.parse(localStorage.getItem('ui-prefs-cache') ?? '{}') } catch { return {} }
+}
+
 export function UIPrefProvider({ children }) {
   const { user } = useAuth()
-  const [prefs, setPrefsState] = useState({})
+  const [prefs, setPrefsState] = useState(readLocalCache)
   const [loaded, setLoaded]   = useState(false)
   const pendingRef = useRef({})
   const timerRef   = useRef(null)
@@ -27,10 +31,7 @@ export function UIPrefProvider({ children }) {
       .maybeSingle()
       .then(({ data }) => {
         const remote = data?.prefs ?? {}
-        // Seed localStorage — remote values win over local
-        Object.entries(remote).forEach(([k, v]) => {
-          try { localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)) } catch {}
-        })
+        try { localStorage.setItem('ui-prefs-cache', JSON.stringify(remote)) } catch {}
         setPrefsState(remote)
         setLoaded(true)
         window.dispatchEvent(new CustomEvent('ui-prefs-loaded', { detail: remote }))
@@ -39,6 +40,7 @@ export function UIPrefProvider({ children }) {
 
   function flush(next) {
     pendingRef.current = next
+    try { localStorage.setItem('ui-prefs-cache', JSON.stringify(next)) } catch {}
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(async () => {
       if (!userIdRef.current) return
