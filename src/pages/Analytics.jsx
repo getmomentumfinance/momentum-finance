@@ -1662,6 +1662,8 @@ export default function Analytics() {
   function handleHabitChartType(t) { setHabitChartType(t); setPref('analytics-habitChartType', t) }
 
   // ── Appearance settings ───────────────────────────────────────
+  const [showIncome,        setShowIncome]        = useState(true)
+  const [showExpense,       setShowExpense]       = useState(true)
   const [showDonuts,        setShowDonuts]        = useState(() => (localStorage.getItem('an-showDonuts')        ?? 'true') === 'true')
   const [showDeepDive,      setShowDeepDive]      = useState(() => (localStorage.getItem('an-showDeepDive')      ?? 'true') === 'true')
   const [showProjected,     setShowProjected]     = useState(() => (localStorage.getItem('an-showProjected')     ?? 'true') === 'true')
@@ -2248,8 +2250,34 @@ export default function Analytics() {
 
               {/* Line chart */}
               <div className="glass-card rounded-2xl p-5 flex flex-col flex-1" style={{ minHeight: 360 }}>
-              <h2 className="text-sm font-semibold mb-0.5">{range === 'month' || range === 'week' ? t('an.dailyBreakdown') : t('an.monthlyBreakdown')}</h2>
-              <p className="text-[11px] text-muted mb-4">{periodLabel} · {t('an.incomeVsExp')}</p>
+              <div className="flex items-start justify-between mb-0.5 gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">{range === 'month' || range === 'week' ? t('an.dailyBreakdown') : t('an.monthlyBreakdown')}</h2>
+                  <p className="text-[11px] text-muted mt-0.5 mb-4">{periodLabel}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                  <button type="button" onClick={() => setShowIncome(v => !v)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{
+                      background: showIncome ? `color-mix(in srgb, ${colors.income} 15%, transparent)` : 'rgba(255,255,255,0.05)',
+                      color: showIncome ? colors.income : 'rgba(255,255,255,0.35)',
+                      border: `1px solid ${showIncome ? `color-mix(in srgb, ${colors.income} 35%, transparent)` : 'rgba(255,255,255,0.08)'}`,
+                    }}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showIncome ? colors.income : 'rgba(255,255,255,0.2)' }} />
+                    {t('an.income')}
+                  </button>
+                  <button type="button" onClick={() => setShowExpense(v => !v)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{
+                      background: showExpense ? `color-mix(in srgb, ${colors.expense} 15%, transparent)` : 'rgba(255,255,255,0.05)',
+                      color: showExpense ? colors.expense : 'rgba(255,255,255,0.35)',
+                      border: `1px solid ${showExpense ? `color-mix(in srgb, ${colors.expense} 35%, transparent)` : 'rgba(255,255,255,0.08)'}`,
+                    }}>
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: showExpense ? colors.expense : 'rgba(255,255,255,0.2)' }} />
+                    {t('an.expenses').replace(/s$/, '')}
+                  </button>
+                </div>
+              </div>
               <div className="flex-1 min-h-0">
                 {periodData.length === 0
                   ? <div className="h-full flex items-center"><p className="text-sm text-muted">{t('an.noDataShort')}</p></div>
@@ -2268,10 +2296,14 @@ export default function Analytics() {
                       </defs>
                       <CartesianGrid vertical={false} stroke={GRID} />
                       <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      {(() => { const ya = niceYAxis(periodData, ['income','expense']); return <YAxis ticks={ya.ticks} domain={ya.domain} tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} allowDataOverflow /> })()}
+                      {(() => {
+                        const keys = [...(showIncome ? ['income'] : []), ...(showExpense ? ['expense'] : [])]
+                        const ya = niceYAxis(periodData, keys.length ? keys : ['income','expense'])
+                        return <YAxis ticks={ya.ticks} domain={ya.domain} tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} allowDataOverflow />
+                      })()}
                       <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'income' ? 'Income' : 'Expenses'} />} cursor={false} />
-                      <Area type="monotone" dataKey="income"  stroke={colors.income}  fill="url(#incomeGrad)"  strokeWidth={1.5} dot={false} />
-                      <Area type="monotone" dataKey="expense" stroke={colors.expense} fill="url(#expenseGrad)" strokeWidth={2}   dot={false} />
+                      {showIncome  && <Area type="monotone" dataKey="income"  stroke={colors.income}  fill="url(#incomeGrad)"  strokeWidth={1.5} dot={false} />}
+                      {showExpense && <Area type="monotone" dataKey="expense" stroke={colors.expense} fill="url(#expenseGrad)" strokeWidth={2}   dot={false} />}
                     </AreaChart>
                   </ResponsiveContainer>
                 )}
