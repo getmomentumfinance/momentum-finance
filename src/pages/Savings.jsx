@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  PiggyBank, Trophy, Flame, Percent, AlertTriangle,
+  PiggyBank, Trophy, Flame, Percent, AlertTriangle, Sparkles,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -416,7 +416,8 @@ export default function Savings() {
     ? { amount: monthlyTotals[bestIdx], label: new Date(year, bestIdx, 1).toLocaleDateString('en-US', { month: 'short' }) }
     : null
 
-  const targetPct = target > 0 ? Math.min((thisMonthIn / target) * 100, 100) : 0
+  const targetPct = target > 0 ? Math.min((netThisMonth / target) * 100, 100) : 0
+  const targetRatio = target > 0 ? netThisMonth / target : 0
 
   // Recent activity: savings transactions + goal allocations merged
   const recentTxs = allTxs
@@ -568,7 +569,7 @@ export default function Savings() {
           const dayOfMonth  = currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear()
             ? today.getDate() : daysInMonth
           const daysLeft    = daysInMonth - dayOfMonth
-          const remaining   = target > 0 ? Math.max(target - thisMonthIn, 0) : 0
+          const remaining   = target > 0 ? Math.max(target - netThisMonth, 0) : 0
           const dailyNeeded = daysLeft > 0 && remaining > 0 ? remaining / daysLeft : 0
           const onTrack     = target > 0 && dayOfMonth > 0 && (thisMonthIn / dayOfMonth) >= (target / daysInMonth)
           return (
@@ -577,7 +578,7 @@ export default function Savings() {
                 <div>
                   <h2 className="text-sm font-semibold">{t('sav.monthlyTarget')}</h2>
                   <p className="text-[11px] text-muted mt-0.5">
-                    {target > 0 ? t('sav.targetOf', { amount: fmt(thisMonthIn), target: fmt(target) }) : t('sav.noTargetSet')}
+                    {target > 0 ? t('sav.targetOf', { amount: fmt(netThisMonth), target: fmt(target) }) : t('sav.noTargetSet')}
                   </p>
                 </div>
                 <button
@@ -609,10 +610,30 @@ export default function Savings() {
                       style={{ width: `${targetPct}%`, background: targetPct >= 100 ? C_IN : 'var(--color-progress-bar)' }} />
                   </div>
                   <div className="flex flex-col gap-1.5">
+                    {targetPct >= 100 ? (
+                      <div className="flex flex-col gap-1 py-1">
+                        <div className="flex items-center gap-1.5" style={{ color: C_IN }}>
+                          <Sparkles size={12} />
+                          <span className="text-[11px] font-semibold">
+                            {targetRatio >= 2
+                              ? `Incredible — ${Math.round(targetRatio * 100)}% of goal saved!`
+                              : targetRatio >= 1.5
+                              ? `Crushing it — ${Math.round((targetRatio - 1) * 100)}% above target!`
+                              : 'Goal reached — great discipline!'}
+                          </span>
+                        </div>
+                        {netThisMonth > target && (
+                          <span className="text-[11px] text-muted">
+                            {fmt(netThisMonth - target)} extra saved this month
+                          </span>
+                        )}
+                      </div>
+                    ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] text-muted">{t('sav.progressLabel')}</span>
-                      <span className="text-[11px] font-semibold">{targetPct.toFixed(0)}%{targetPct >= 100 ? ' 🎉' : ''}</span>
+                      <span className="text-[11px] font-semibold">{targetPct.toFixed(0)}%</span>
                     </div>
+                    )}
                     {targetPct < 100 && (
                       <>
                         <div className="flex items-center justify-between">
