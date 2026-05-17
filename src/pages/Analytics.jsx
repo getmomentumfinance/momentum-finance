@@ -714,11 +714,12 @@ export default function Analytics() {
       const amt = Number(t.amount)
       // transfer and cash_out are stored as paired +/- rows — skip the negative counterpart
       if ((t.type === 'transfer' || t.type === 'cash_out') && amt < 0) return
-      // savings negative rows are counterparts; savings_out is subtracted to get net savings
+      // savings: only count rows with explicit source to avoid double-counting null-source rows
       if (t.type === 'savings') {
         if (amt <= 0) return
-        map['savings'] = (map['savings'] || 0) + (t.source === 'savings_out' ? -amt : amt)
-        return
+        if (t.source === 'savings_in')  { map['savings'] = (map['savings'] || 0) + amt;  return }
+        if (t.source === 'savings_out') { map['savings'] = (map['savings'] || 0) - amt;  return }
+        return // skip transactions without a source (old format)
       }
       map[t.type] = (map[t.type] || 0) + amt
     })

@@ -486,7 +486,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         ])
         if (r1.error || r2.error) { console.error('savings edit error:', r1.error?.message ?? r2.error?.message); setSaving(false); return }
       } else {
-        const base = { user_id: user.id, type: 'savings', date, comment: comment.trim() || null, status, is_cash: false, is_deleted: false, category_id: null, subcategory_id: null, receiver_id: null, source, description: savingsDesc }
+        const base = { user_id: user.id, type: 'savings', date, comment: comment.trim() || null, status, is_cash: false, is_deleted: false, is_split_parent: false, category_id: null, subcategory_id: null, receiver_id: null, source, description: savingsDesc }
         // outflow from source card (positive = deducted), inflow to dest card (negative = added via -(-x))
         const { error } = await supabase.from('transactions').insert([
           { ...base, card_id: cardId,   amount:  parsed },
