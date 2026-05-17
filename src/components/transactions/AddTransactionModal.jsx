@@ -293,6 +293,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [purchaseReceiverId, setPurchaseReceiverId] = useState('')
   const [purchaseImportance, setPurchaseImportance] = useState('')
   const [purchaseCardId,     setPurchaseCardId]     = useState('')
+  const [investDir,     setInvestDir]     = useState(transaction?.direction ?? defaults.direction ?? 'buy')
   const [investLabel,   setInvestLabel]   = useState(transaction?.label    ?? '')
   const [ticker,        setTicker]        = useState(transaction?.ticker   ?? '')
   const [quantity,      setQuantity]      = useState(transaction?.quantity != null ? String(transaction.quantity) : '')
@@ -540,9 +541,10 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       const qty      = parseFloat(quantity)
       const ppu      = parseFloat(pricePerUnit)
       const feeAmt   = parseFloat(fee) || 0
-      const computed = qty * ppu + feeAmt
+      const computed = investDir === 'sell' ? qty * ppu - feeAmt : qty * ppu + feeAmt
       const payload  = {
         type,
+        direction:        investDir,
         description:      ticker.trim().toUpperCase() || null,
         amount:           computed,
         ticker:           ticker.trim().toUpperCase() || null,
@@ -739,6 +741,32 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           {/* Invest fields: Ticker + Quantity + Price per unit + Fee */}
           {type === 'invest' && (
             <div className="flex flex-col gap-3">
+              {/* Buy / Sell toggle */}
+              <div className="flex gap-2">
+                {[
+                  { id: 'buy',  label: '↑ Buy' },
+                  { id: 'sell', label: '↓ Sell' },
+                ].map(({ id, label }) => (
+                  <button key={id} type="button" onClick={() => setInvestDir(id)}
+                    className="flex-1 py-2 rounded-xl border text-sm font-medium transition-all"
+                    style={{
+                      borderColor: investDir === id
+                        ? id === 'buy' ? 'var(--color-accent)' : 'var(--type-expense)'
+                        : 'rgba(255,255,255,0.08)',
+                      background: investDir === id
+                        ? id === 'buy'
+                          ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)'
+                          : 'color-mix(in srgb, var(--type-expense) 12%, transparent)'
+                        : 'rgba(255,255,255,0.02)',
+                      color: investDir === id
+                        ? id === 'buy' ? 'var(--color-accent)' : 'var(--type-expense)'
+                        : 'rgba(255,255,255,0.4)',
+                    }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
                   Ticker <span className="text-white/30 normal-case font-normal">(e.g. AAPL, BTC-USD, VWCE.AS)</span>
@@ -819,10 +847,16 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
               </div>
               {parseFloat(quantity) > 0 && parseFloat(pricePerUnit) > 0 && (
                 <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/8 text-xs">
-                  <span className="text-muted">{cardId ? 'Total deducted from card' : 'Total invested'}</span>
+                  <span className="text-muted">
+                    {investDir === 'sell'
+                      ? (cardId ? 'Net proceeds to card' : 'Net proceeds')
+                      : (cardId ? 'Total deducted from card' : 'Total invested')}
+                  </span>
                   <span className="text-white/60">
-                    €{(parseFloat(quantity) * parseFloat(pricePerUnit) + (parseFloat(fee) || 0))
-                      .toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    €{(investDir === 'sell'
+                      ? parseFloat(quantity) * parseFloat(pricePerUnit) - (parseFloat(fee) || 0)
+                      : parseFloat(quantity) * parseFloat(pricePerUnit) + (parseFloat(fee) || 0)
+                    ).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               )}
