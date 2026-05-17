@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List } from 'lucide-react'
+import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -21,6 +21,22 @@ function PnlChip({ value, pct, fmt }) {
       style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>
       {value >= 0 ? '+' : ''}{fmt(value)}
       {pct != null && <span className="opacity-60 text-[10px]">({fmtPct(pct)})</span>}
+    </span>
+  )
+}
+
+function InfoTip({ text }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="relative inline-flex items-center"
+      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <Info size={10} className="text-white/25 hover:text-white/50 cursor-help transition-colors ml-1" />
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-[var(--color-dash-card)] border border-white/15 rounded-xl px-3 py-2.5 text-[11px] text-white/55 leading-relaxed shadow-xl z-50 pointer-events-none">
+          {text}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white/10" />
+        </span>
+      )}
     </span>
   )
 }
@@ -130,13 +146,19 @@ export default function Portfolio() {
   const [priceError,   setPriceError]   = useState(false)
   const [expanded,     setExpanded]     = useState({})
   const [tab,          setTab]          = useState('positions')
-  const [labelFilter,  setLabelFilter]  = useState('')
+  const [labelTab,     setLabelTab]     = useState('all')
 
   const cachedPrices = prefs.portfolio_prices ?? {}
 
-  const investTxs = useMemo(() =>
+  const allInvestTxs = useMemo(() =>
     allTransactions.filter(tx => tx.type === 'invest' && tx.ticker),
     [allTransactions]
+  )
+
+  // Filter by label subtab — affects stats, positions, and trade log
+  const investTxs = useMemo(() =>
+    labelTab === 'all' ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab),
+    [allInvestTxs, labelTab]
   )
 
   const { positions, closedTrades } = useMemo(() =>
@@ -154,11 +176,6 @@ export default function Portfolio() {
     [investTxs]
   )
 
-  const filteredTrades = useMemo(() =>
-    labelFilter ? allTrades.filter(tx => tx.label === labelFilter) : allTrades,
-    [allTrades, labelFilter]
-  )
-
   async function deleteTx(id) {
     if (!window.confirm('Delete this trade?')) return
     await supabase.from('transactions').update({ is_deleted: true }).eq('id', id)
@@ -168,7 +185,7 @@ export default function Portfolio() {
   async function refresh() {
     if (!user?.id) return
     setRefreshing(true); setPriceError(false)
-    const tickers = [...new Set(investTxs.map(tx => tx.ticker.toUpperCase()))]
+    const tickers = [...new Set(allInvestTxs.map(tx => tx.ticker.toUpperCase()))]
     if (!tickers.length) { setRefreshing(false); return }
     let anyError = false
     const results = await Promise.all(tickers.map(async ticker => {
@@ -254,7 +271,7 @@ export default function Portfolio() {
         )}
 
         {/* Empty state */}
-        {loaded && investTxs.length === 0 && (
+        {loaded && allInvestTxs.length === 0 && (
           <div className="glass-card rounded-2xl flex flex-col items-center justify-center gap-4 py-20 text-center">
             <TrendingUp size={36} className="text-white/15" />
             <div>
@@ -268,7 +285,29 @@ export default function Portfolio() {
           </div>
         )}
 
-        {loaded && investTxs.length > 0 && <>
+        {loaded && allInvestTxs.length > 0 && <>
+
+          {/* Label subtabs */}
+          <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-5">
+            <button type="button" onClick={() => { setLabelTab('all'); setExpanded({}) }}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                background: labelTab === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                color:      labelTab === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
+              }}>
+              All
+            </button>
+            {tradeLabels.map(({ name, color }) => (
+              <button key={name} type="button" onClick={() => { setLabelTab(name); setExpanded({}) }}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background:  labelTab === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
+                  color:       labelTab === name ? color : 'rgba(255,255,255,0.4)',
+                }}>
+                {name}
+              </button>
+            ))}
+          </div>
 
           {/* Stats bar */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
@@ -283,7 +322,10 @@ export default function Portfolio() {
               <span className="text-[11px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
             </div>
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
-              <span className="text-[10px] text-muted uppercase tracking-widest">Unrealized P&L</span>
+              <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
+                Unrealized P&L
+                <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
+              </span>
               {hasLive
                 ? <span className="text-xl font-bold font-mono tabular-nums" style={{ color: gc(totalUnrealized) }}>
                     {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
@@ -296,7 +338,10 @@ export default function Portfolio() {
               )}
             </div>
             <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
-              <span className="text-[10px] text-muted uppercase tracking-widest">Realized P&L</span>
+              <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
+                Realized P&L
+                <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
+              </span>
               {closedTrades.length > 0
                 ? <span className="text-xl font-bold font-mono tabular-nums" style={{ color: gc(totalRealized) }}>
                     {totalRealized >= 0 ? '+' : ''}{fmt(totalRealized)}
@@ -316,48 +361,21 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Tab bar + label filter */}
-          <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-            <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit">
-              {[
-                { id: 'positions', label: 'Positions', Icon: BarChart2 },
-                { id: 'log',       label: 'Trade Log', Icon: List },
-              ].map(({ id, label, Icon }) => (
-                <button key={id} type="button" onClick={() => setTab(id)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    background: tab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    color:      tab === id ? '#fff' : 'rgba(255,255,255,0.4)',
-                  }}>
-                  <Icon size={13} />{label}
-                </button>
-              ))}
-            </div>
-
-            {tab === 'log' && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button type="button" onClick={() => setLabelFilter('')}
-                  className="text-[11px] px-2.5 py-1 rounded-lg border transition-colors"
-                  style={{
-                    background:   !labelFilter ? 'rgba(255,255,255,0.1)' : 'transparent',
-                    color:        !labelFilter ? '#fff' : 'rgba(255,255,255,0.35)',
-                    borderColor:  !labelFilter ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
-                  }}>
-                  All
-                </button>
-                {tradeLabels.map(({ name, color }) => (
-                  <button key={name} type="button" onClick={() => setLabelFilter(labelFilter === name ? '' : name)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg border transition-colors"
-                    style={{
-                      background:  labelFilter === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
-                      color:       labelFilter === name ? color : 'rgba(255,255,255,0.35)',
-                      borderColor: labelFilter === name ? `color-mix(in srgb, ${color} 40%, transparent)` : 'rgba(255,255,255,0.08)',
-                    }}>
-                    {name}
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* Tab bar */}
+          <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-3">
+            {[
+              { id: 'positions', label: 'Positions', Icon: BarChart2 },
+              { id: 'log',       label: 'Trade Log', Icon: List },
+            ].map(({ id, label, Icon }) => (
+              <button key={id} type="button" onClick={() => setTab(id)}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: tab === id ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  color:      tab === id ? '#fff' : 'rgba(255,255,255,0.4)',
+                }}>
+                <Icon size={13} />{label}
+              </button>
+            ))}
           </div>
 
           {/* ── Positions tab ── */}
@@ -517,9 +535,9 @@ export default function Portfolio() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTrades.length === 0
-                      ? <tr><td colSpan={8} className="text-center text-muted text-xs py-10">No trades match this filter.</td></tr>
-                      : filteredTrades.map(tx => {
+                    {allTrades.length === 0
+                      ? <tr><td colSpan={8} className="text-center text-muted text-xs py-10">No trades for this label yet.</td></tr>
+                      : allTrades.map(tx => {
                           const dir    = tx.direction ?? 'buy'
                           const qty    = Number(tx.quantity ?? 0)
                           const ppu    = Number(tx.price_per_unit ?? 0)
@@ -565,7 +583,7 @@ export default function Portfolio() {
                 </table>
               </div>
               <div className="px-5 py-3 border-t border-white/[0.04] text-xs text-muted">
-                {filteredTrades.length} trade{filteredTrades.length !== 1 ? 's' : ''}{labelFilter ? ` · filtered by ${labelFilter}` : ''}
+                {allTrades.length} trade{allTrades.length !== 1 ? 's' : ''}{labelTab !== 'all' ? ` · ${labelTab}` : ''}
               </div>
             </div>
           )}

@@ -242,6 +242,7 @@ function TradeLabelsSection() {
   const [editIdx, setEditIdx] = useState(null)
   const [editVal, setEditVal] = useState('')
   const [colorPickerIdx, setColorPickerIdx] = useState(null)
+  const [colorPickerPos, setColorPickerPos] = useState({ top: 0, left: 0 })
   const colorPickerRef = useRef(null)
   const colorBtnRefs = useRef([])
 
@@ -286,14 +287,24 @@ function TradeLabelsSection() {
               <button
                 ref={el => { colorBtnRefs.current[i] = el }}
                 type="button"
-                onClick={() => setColorPickerIdx(colorPickerIdx === i ? null : i)}
+                onClick={() => {
+                  if (colorPickerIdx === i) { setColorPickerIdx(null); return }
+                  const btn = colorBtnRefs.current[i]
+                  if (!btn) return
+                  const rect = btn.getBoundingClientRect()
+                  const popupH = 220, popupW = 288
+                  const top  = window.innerHeight - rect.bottom < popupH + 16 ? rect.top - popupH - 8 : rect.bottom + 8
+                  const left = Math.min(rect.left, window.innerWidth - popupW - 16)
+                  setColorPickerPos({ top, left })
+                  setColorPickerIdx(i)
+                }}
                 className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
                 style={{ background: label.color }}
               />
               {colorPickerIdx === i && (
                 <ColorPickerPopup
                   popupRef={colorPickerRef}
-                  pos={{ top: (colorBtnRefs.current[i]?.getBoundingClientRect().bottom ?? 0) + 8, left: colorBtnRefs.current[i]?.getBoundingClientRect().left ?? 0 }}
+                  pos={colorPickerPos}
                   selected={label.color}
                   onSelect={c => setColor(i, c)}
                 />
