@@ -13,7 +13,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
-import { ReceiverAvatar as SharedReceiverAvatar } from '../shared/ReceiverCombobox'
+import { ReceiverAvatar as SharedReceiverAvatar, ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { showToast } from '../shared/Toast'
 
 // ── Category custom select ────────────────────────────────────
@@ -282,6 +282,17 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [toCardId,    setToCardId]    = useState('')
   const [savingsDir,  setSavingsDir]  = useState(transaction?.source === 'savings_out' ? 'out' : 'in')
   const [companionId, setCompanionId] = useState(null)
+  // Savings-out extras
+  const [savingsFunds,       setSavingsFunds]       = useState([])
+  const [selectedFundId,     setSelectedFundId]     = useState('')
+  const [withdrawMode,       setWithdrawMode]       = useState('topup') // 'topup' | 'purchase'
+  const [purchaseTotal,      setPurchaseTotal]      = useState('')
+  const [purchaseDesc,       setPurchaseDesc]       = useState('')
+  const [purchaseCatId,      setPurchaseCatId]      = useState('')
+  const [purchaseSubId,      setPurchaseSubId]      = useState('')
+  const [purchaseReceiverId, setPurchaseReceiverId] = useState('')
+  const [purchaseImportance, setPurchaseImportance] = useState('')
+  const [purchaseCardId,     setPurchaseCardId]     = useState('')
   const [investLabel,   setInvestLabel]   = useState(transaction?.label    ?? '')
   const [ticker,        setTicker]        = useState(transaction?.ticker   ?? '')
   const [quantity,      setQuantity]      = useState(transaction?.quantity != null ? String(transaction.quantity) : '')
@@ -314,6 +325,12 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     supabase.from('tickers').select('id, symbol, name').eq('user_id', user.id).order('symbol')
       .then(({ data, error }) => { if (error) console.error('tickers load:', error.message); if (data) setTickers(data) })
   }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id || type !== 'savings') return
+    supabase.from('savings_goals').select('id, name, type, icon, color, allocated_amount').eq('user_id', user.id).order('created_at')
+      .then(({ data }) => setSavingsFunds(data ?? []))
+  }, [user?.id, type])
 
   async function handleAddReceiver(name, type = 'person') {
     const { data, error } = await supabase
@@ -493,6 +510,31 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           { ...base, card_id: toCardId, amount: -parsed },
         ])
         if (error) { console.error('savings error:', error.message); setSaving(false); return }
+      }
+      // Deduct from selected fund (savings_out only)
+      if (savingsDir === 'out' && selectedFundId) {
+        const fund = savingsFunds.find(f => f.id === selectedFundId)
+        if (fund) {
+          const deduction = Math.min(parsed, fund.allocated_amount ?? 0)
+          if (deduction > 0) {
+            await supabase.from('savings_goals').update({ allocated_amount: (fund.allocated_amount ?? 0) - deduction }).eq('id', selectedFundId)
+            window.dispatchEvent(new CustomEvent('savings-goal-updated'))
+          }
+        }
+      }
+      // Create purchase expense (savings_out purchase mode only)
+      if (savingsDir === 'out' && withdrawMode === 'purchase') {
+        const purchaseParsed = parseFloat(purchaseTotal.replace(',', '.'))
+        if (purchaseParsed > 0) {
+          const expCard = purchaseParsed > parsed ? (purchaseCardId || toCardId) : toCardId
+          await supabase.from('transactions').insert({
+            user_id: user.id, type: 'expense', description: purchaseDesc.trim() || null,
+            amount: purchaseParsed, category_id: purchaseCatId || null, subcategory_id: purchaseSubId || null,
+            receiver_id: purchaseReceiverId || null, card_id: expCard || null,
+            is_cash: false, is_split_parent: false, importance: purchaseImportance || null,
+            date, comment: null, status: 'completed',
+          })
+        }
       }
     } else if (type === 'invest') {
       const qty      = parseFloat(quantity)
@@ -809,23 +851,22 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           {/* Savings: In / Out + card selectors */}
           {type === 'savings' && (
             <div className="flex flex-col gap-3">
+              {/* Direction */}
               <div className="flex gap-2">
                 {['in', 'out'].map(dir => (
-                  <button
-                    key={dir}
-                    type="button"
-                    onClick={() => setSavingsDir(dir)}
+                  <button key={dir} type="button" onClick={() => setSavingsDir(dir)}
                     className="flex-1 py-2 rounded-xl border text-sm font-medium transition-all capitalize"
                     style={{
                       borderColor: savingsDir === dir ? activeType?.color : 'rgba(255,255,255,0.08)',
                       background:  savingsDir === dir ? `color-mix(in srgb, ${activeType?.color} 12%, transparent)` : 'rgba(255,255,255,0.02)',
                       color:       savingsDir === dir ? activeType?.color : 'rgba(255,255,255,0.4)',
-                    }}
-                  >
+                    }}>
                     {dir === 'in' ? '↓ Save (In)' : '↑ Withdraw (Out)'}
                   </button>
                 ))}
               </div>
+
+              {/* Card selectors */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
@@ -856,6 +897,145 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   </select>
                 </div>
               </div>
+
+              {/* Savings-out extras: fund + mode */}
+              {savingsDir === 'out' && (
+                <>
+                  {/* Fund selector */}
+                  {savingsFunds.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                        Deduct from fund <span className="text-white/30 normal-case font-normal">(optional)</span>
+                      </label>
+                      <select value={selectedFundId} onChange={e => setSelectedFundId(e.target.value)} className={sel}>
+                        <option value="">No fund — from unallocated savings</option>
+                        {savingsFunds.map(f => (
+                          <option key={f.id} value={f.id}>
+                            {f.name} · {fmt(f.allocated_amount ?? 0)} available
+                          </option>
+                        ))}
+                      </select>
+                      {selectedFundId && (() => {
+                        const fund = savingsFunds.find(f => f.id === selectedFundId)
+                        const parsed = parseFloat(amount.replace(',', '.')) || 0
+                        const fromFund = Math.min(parsed, fund?.allocated_amount ?? 0)
+                        const fromUnalloc = parsed - fromFund
+                        return fromUnalloc > 0 ? (
+                          <p className="text-[11px] text-muted">
+                            {fmt(fromFund)} from fund · {fmt(fromUnalloc)} from unallocated savings
+                          </p>
+                        ) : null
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Mode toggle */}
+                  <div className="flex gap-1.5 p-1 bg-white/5 rounded-xl">
+                    {[
+                      { id: 'topup',    label: 'Top-up',   desc: 'Transfer to debit card' },
+                      { id: 'purchase', label: 'Purchase', desc: 'Buy something directly' },
+                    ].map(m => (
+                      <button key={m.id} type="button" onClick={() => setWithdrawMode(m.id)}
+                        className="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-lg transition-colors"
+                        style={{
+                          background: withdrawMode === m.id ? 'rgba(255,255,255,0.12)' : 'transparent',
+                          color: withdrawMode === m.id ? '#fff' : 'rgba(255,255,255,0.35)',
+                        }}>
+                        <span className="text-sm font-semibold">{m.label}</span>
+                        <span className="text-[10px]" style={{ color: withdrawMode === m.id ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)' }}>
+                          {m.desc}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Purchase fields */}
+                  {withdrawMode === 'purchase' && (
+                    <div className="flex flex-col gap-3 pt-1 border-t border-white/[0.06]">
+                      <p className="text-[11px] text-muted">Purchase details — an expense will be created automatically.</p>
+
+                      {/* Total purchase amount */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-muted uppercase tracking-widest">Total purchase amount</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                          <input value={purchaseTotal} onChange={e => setPurchaseTotal(e.target.value.replace(/[^0-9.,]/g, ''))}
+                            type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+                        </div>
+                        {(() => {
+                          const total = parseFloat(purchaseTotal.replace(',', '.')) || 0
+                          const withdrawn = parseFloat(amount.replace(',', '.')) || 0
+                          const remainder = total - withdrawn
+                          return remainder > 0 ? (
+                            <p className="text-[11px] text-muted">{fmt(withdrawn)} from savings · {fmt(remainder)} from debit card</p>
+                          ) : null
+                        })()}
+                      </div>
+
+                      {/* Description */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-muted uppercase tracking-widest">Description</label>
+                        <input value={purchaseDesc} onChange={e => setPurchaseDesc(e.target.value)}
+                          placeholder="What did you buy?" className={inp} />
+                      </div>
+
+                      {/* Category */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-muted uppercase tracking-widest">Category</label>
+                        <CategorySelect value={purchaseCatId} onChange={v => { setPurchaseCatId(v); setPurchaseSubId('') }}
+                          options={topCategories} placeholder="Category…" />
+                        {purchaseCatId && categories.filter(c => c.parent_id === purchaseCatId).length > 0 && (
+                          <CategorySelect value={purchaseSubId} onChange={setPurchaseSubId}
+                            options={categories.filter(c => c.parent_id === purchaseCatId)} placeholder="Subcategory…" />
+                        )}
+                      </div>
+
+                      {/* Receiver */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                          Merchant <span className="text-white/30 normal-case font-normal">(optional)</span>
+                        </label>
+                        <ReceiverCombobox
+                          receiverId={purchaseReceiverId}
+                          onReceiverSelect={setPurchaseReceiverId}
+                          receivers={receivers}
+                          onAddReceiver={async (name, type) => {
+                            const { data } = await supabase.from('receivers').insert({ user_id: user.id, name, type: type ?? 'business' }).select().single()
+                            if (data) { setExtraReceivers(prev => [...prev, data]); setPurchaseReceiverId(data.id) }
+                          }}
+                          inputClass={inp}
+                        />
+                      </div>
+
+                      {/* Importance */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs text-muted uppercase tracking-widest">Importance</label>
+                        <ImportancePicker value={purchaseImportance} onChange={setPurchaseImportance} options={importanceOptions} />
+                      </div>
+
+                      {/* Debit card for remainder (if total > savings amount) */}
+                      {(() => {
+                        const total = parseFloat(purchaseTotal.replace(',', '.')) || 0
+                        const withdrawn = parseFloat(amount.replace(',', '.')) || 0
+                        const debitCards = cards.filter(c => c.type === 'debit' || c.type === 'credit')
+                        return total > withdrawn && debitCards.length > 0 ? (
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs text-muted uppercase tracking-widest">
+                              Pay remaining {fmt(total - withdrawn)} from
+                            </label>
+                            <select value={purchaseCardId} onChange={e => setPurchaseCardId(e.target.value)} className={sel}>
+                              <option value="">Same card as transfer destination</option>
+                              {debitCards.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}  ·  {fmt(cardBalance(c))}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : null
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
