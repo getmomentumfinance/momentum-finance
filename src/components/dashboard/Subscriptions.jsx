@@ -248,11 +248,11 @@ export default function Subscriptions({ currentDate = new Date() }) {
 
           {/* List */}
           {loading ? (
-            <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
+            <div className="flex flex-col px-1 py-1" style={{ minHeight: '150px' }}>{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
           ) : displayed.length === 0 ? (
             <p className="text-center text-muted text-sm py-6">{activeTab === 'trial' ? 'No free trials' : activeTab === 'active' ? t('subs.noActive') : t('subs.noCancelled')}</p>
           ) : (
-            <div className="flex flex-col divide-y divide-white/[0.04]">
+            <div className="content-reveal flex flex-col divide-y divide-white/[0.04]">
               {displayed.map(sub => {
                 const isPaid   = payments.some(p => p.subscription_id === sub.id && p.period === period)
                 const dueDate  = getDueDate(sub.billing_day, currentDate)

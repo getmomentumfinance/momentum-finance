@@ -198,11 +198,11 @@ export default function Wishlist({ currentDate = new Date() }) {
 
           {!collapsed && (<>
           {loading ? (
-            <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
+            <div className="flex flex-col px-1 py-1" style={{ minHeight: '150px' }}>{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
           ) : items.length === 0 ? (
             <p className="text-center text-muted text-sm py-4">{t('wish.empty')}</p>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="content-reveal flex flex-col gap-3">
               {visibleActive.map(item => {
                 const impKey = getImportanceKey(item, catMap)
                 return (

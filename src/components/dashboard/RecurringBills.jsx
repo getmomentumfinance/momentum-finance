@@ -249,11 +249,11 @@ export default function RecurringBills({ currentDate }) {
       {!collapsed && (<>
       {/* Content */}
       {loading ? (
-        <div className="flex flex-col px-1 py-1">{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
+        <div className="flex flex-col px-1 py-1" style={{ minHeight: '150px' }}>{[1,2,3].map(i => <SkeletonRow key={i} />)}</div>
       ) : bills.length === 0 ? (
         <p className="text-center text-muted text-sm py-6">{t('bills.noBills')}</p>
       ) : (
-        <div className="flex flex-col divide-y divide-white/[0.04]">
+        <div className="content-reveal flex flex-col divide-y divide-white/[0.04]">
           {[...bills].filter(bill => {
             if (filter === 'all') return true
             return bill.frequency === filter

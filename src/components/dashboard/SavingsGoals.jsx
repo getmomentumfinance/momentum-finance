@@ -182,7 +182,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" style={{ minHeight: '220px' }}>
             {[1,2,3].map(i => <SkeletonCard key={i} />)}
           </div>
         ) : goals.length === 0 ? (
@@ -191,7 +191,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
             <p className="text-muted text-sm">{t('savings.noGoals')}</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-8">
+          <div className="content-reveal flex flex-col gap-8">
             {goalItems.length > 0 && (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-2">
@@ -258,7 +258,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
 
           {!collapsed && (<>
             {loading ? (
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', minHeight: '220px' }}>
                 {[1,2,3].map(i => <SkeletonCard key={i} />)}
               </div>
             ) : goals.length === 0 ? (
@@ -267,7 +267,7 @@ export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlide
                 <p className="text-muted text-sm">{t('savings.noGoals')}</p>
               </div>
             ) : (
-              <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+              <div className="content-reveal grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
                 {goalCards}
               </div>
             )}

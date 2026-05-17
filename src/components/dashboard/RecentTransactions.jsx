@@ -158,11 +158,11 @@ export default function RecentTransactions({ currentDate }) {
       </div>
 
       {loading ? (
-        <div className="flex flex-col px-4 py-2 shrink-0">{[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}</div>
+        <div className="flex flex-col px-4 py-2 shrink-0" style={{ minHeight: '250px' }}>{[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}</div>
       ) : rows.length === 0 ? (
         <div className="py-10 text-center text-xs text-muted shrink-0">{t('rt.noTx')}</div>
       ) : (
-        <div className="divide-y divide-white/[0.03]">
+        <div className="content-reveal divide-y divide-white/[0.03]">
           {rows.slice(0, 9).map(row => {
             const typeInfo = TYPES_MAP[row.type] ?? null
             const showAvatar = row.type === 'expense' || row.type === 'income'
