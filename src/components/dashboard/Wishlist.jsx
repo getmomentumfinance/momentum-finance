@@ -74,7 +74,12 @@ export default function Wishlist({ currentDate = new Date() }) {
 
   const availableCards = (cards ?? []).filter(c => c.type !== 'savings' && c.type !== 'cash')
 
-  useEffect(() => { if (user?.id) load() }, [user?.id])
+  useEffect(() => {
+    if (!user?.id) return
+    load()
+    window.addEventListener('wishlist-saved', load)
+    return () => window.removeEventListener('wishlist-saved', load)
+  }, [user?.id])
 
   async function load() {
     setLoading(true)

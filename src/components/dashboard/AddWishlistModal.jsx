@@ -225,6 +225,7 @@ export default function AddWishlistModal({ onClose, onSaved, item = null }) {
       : await supabase.from('wishlist').insert({ ...payload, user_id: user.id, status: 'active' })
     if (error) { console.error('wishlist save error:', error.message); setSaving(false); return }
     setSaving(false)
+    window.dispatchEvent(new CustomEvent('wishlist-saved'))
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     onSaved()
     onClose()

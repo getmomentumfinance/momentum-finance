@@ -55,12 +55,11 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     const thisExpenses = sum(thisTxs, 'expense')
     const lastExpenses = sum(lastTxs, 'expense')
 
-    const hasSavingsTx = thisTxs.some(t => t.type === 'savings')
     const earnedIncome = thisTxs
       .filter(t => t.type === 'income' && t.is_earned)
       .reduce((s, t) => s + t.amount, 0)
 
-    const savingsRate  = (thisIncome > 0 && hasSavingsTx) ? Math.max(0, ((thisIncome - thisExpenses) / thisIncome) * 100) : null
+    const savingsRate  = thisIncome > 0 ? Math.max(0, ((thisIncome - thisExpenses) / thisIncome) * 100) : null
     const vsLastMonth  = lastExpenses >= 50 ? ((thisExpenses - lastExpenses) / lastExpenses) * 100 : null
     const totalSubCost = subscriptions.reduce((s, sub) => s + Number(sub.amount), 0)
 
@@ -141,7 +140,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
       Icon: TrendingUp,
       color: 'var(--color-alert)',
       title: t('fi.spike.title'),
-      desc: t('fi.spike.desc', { n: fmtPct(vsLastMonth) }),
+      desc: t('fi.spike.desc', { n: Math.abs(vsLastMonth).toFixed(0) }),
     })
   }
   if (vsLastMonth !== null && vsLastMonth < -10) {
@@ -149,7 +148,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
       Icon: TrendingDown,
       color: 'var(--color-progress-bar)',
       title: t('fi.down.title'),
-      desc: t('fi.down.desc', { n: fmtPct(-vsLastMonth) }),
+      desc: t('fi.down.desc', { n: Math.abs(vsLastMonth).toFixed(0) }),
     })
   }
   if (totalSubCost > 0 && earnedIncome > 0 && (totalSubCost / earnedIncome) > 0.1) {
