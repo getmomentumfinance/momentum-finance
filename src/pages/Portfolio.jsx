@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info } from 'lucide-react'
+import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -144,9 +144,18 @@ export default function Portfolio() {
   const [currentDate,  setCurrentDate]  = useState(new Date())
   const [refreshing,   setRefreshing]   = useState(false)
   const [priceError,   setPriceError]   = useState(false)
-  const [expanded,     setExpanded]     = useState({})
-  const [tab,          setTab]          = useState('positions')
-  const [labelTab,     setLabelTab]     = useState('all')
+  const [expanded,        setExpanded]        = useState({})
+  const [tab,             setTab]             = useState('positions')
+  const [labelTab,        setLabelTab]        = useState('all')
+  const [showTabSettings, setShowTabSettings] = useState(false)
+
+  const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
+  function toggleTabVisibility(name) {
+    const next = new Set(hiddenTabs)
+    if (next.has(name)) next.delete(name); else next.add(name)
+    if (labelTab === name) { setLabelTab('all'); setExpanded({}) }
+    setPref('hidden_label_tabs', [...next])
+  }
 
   const cachedPrices = prefs.portfolio_prices ?? {}
 
@@ -288,25 +297,58 @@ export default function Portfolio() {
         {loaded && allInvestTxs.length > 0 && <>
 
           {/* Label subtabs */}
-          <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-5">
-            <button type="button" onClick={() => { setLabelTab('all'); setExpanded({}) }}
-              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-              style={{
-                background: labelTab === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
-                color:      labelTab === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
-              }}>
-              All
-            </button>
-            {tradeLabels.map(({ name, color }) => (
-              <button key={name} type="button" onClick={() => { setLabelTab(name); setExpanded({}) }}
+          <div className="flex items-center gap-2 mb-5">
+            <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
+              <button type="button" onClick={() => { setLabelTab('all'); setExpanded({}) }}
                 className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
                 style={{
-                  background:  labelTab === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
-                  color:       labelTab === name ? color : 'rgba(255,255,255,0.4)',
+                  background: labelTab === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  color:      labelTab === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
                 }}>
-                {name}
+                All
               </button>
-            ))}
+              {tradeLabels.filter(({ name }) => !hiddenTabs.has(name)).map(({ name, color }) => (
+                <button key={name} type="button" onClick={() => { setLabelTab(name); setExpanded({}) }}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{
+                    background:  labelTab === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
+                    color:       labelTab === name ? color : 'rgba(255,255,255,0.4)',
+                  }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+
+            {/* Visibility settings */}
+            <div className="relative">
+              <button type="button" onClick={() => setShowTabSettings(v => !v)}
+                className="p-1.5 rounded-lg transition-colors hover:bg-white/8"
+                style={{ color: showTabSettings ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)' }}
+                title="Show / hide subtabs">
+                <SlidersHorizontal size={13} />
+              </button>
+              {showTabSettings && (
+                <div className="absolute top-full left-0 mt-1 glass-popup border border-white/10 rounded-xl overflow-hidden shadow-xl z-20 min-w-[160px]"
+                  onMouseLeave={() => setShowTabSettings(false)}>
+                  <p className="text-[10px] text-muted uppercase tracking-widest px-3 pt-2.5 pb-1">Subtab visibility</p>
+                  {tradeLabels.map(({ name, color }) => {
+                    const hidden = hiddenTabs.has(name)
+                    return (
+                      <button key={name} type="button" onClick={() => toggleTabVisibility(name)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                        <span className="flex-1 text-left text-xs" style={{ color: hidden ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.75)' }}>
+                          {name}
+                        </span>
+                        {hidden
+                          ? <EyeOff size={12} className="text-white/25 shrink-0" />
+                          : <Eye size={12} className="text-white/50 shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Stats bar */}
