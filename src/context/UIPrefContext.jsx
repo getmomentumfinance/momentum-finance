@@ -31,10 +31,22 @@ export function UIPrefProvider({ children }) {
       .maybeSingle()
       .then(({ data }) => {
         const remote = data?.prefs ?? {}
-        try { localStorage.setItem('ui-prefs-cache', JSON.stringify(remote)) } catch {}
-        setPrefsState(remote)
+        const local  = readLocalCache()
+        // Local cache may contain unsaved changes from before last refresh —
+        // merge with remote as base so nothing is lost
+        const merged = { ...remote, ...local }
+        try { localStorage.setItem('ui-prefs-cache', JSON.stringify(merged)) } catch {}
+        setPrefsState(merged)
         setLoaded(true)
-        window.dispatchEvent(new CustomEvent('ui-prefs-loaded', { detail: remote }))
+        // Push merged state back to Supabase if local had extra keys
+        if (Object.keys(local).some(k => JSON.stringify(local[k]) !== JSON.stringify(remote[k]))) {
+          pendingRef.current = merged
+          supabase.from('user_preferences').upsert(
+            { user_id: user.id, prefs: merged, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          )
+        }
+        window.dispatchEvent(new CustomEvent('ui-prefs-loaded', { detail: merged }))
       })
   }, [user?.id])
 
