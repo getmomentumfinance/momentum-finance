@@ -59,7 +59,9 @@ export default function FinancialInsights({ currentDate = new Date() }) {
       .filter(t => t.type === 'income' && t.is_earned)
       .reduce((s, t) => s + t.amount, 0)
 
-    const savingsRate  = thisIncome > 0 ? Math.max(0, ((thisIncome - thisExpenses) / thisIncome) * 100) : null
+    const thisSavingsIn  = thisTxs.filter(t => t.type === 'savings' && t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+    const thisSavingsOut = thisTxs.filter(t => t.type === 'savings' && t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+    const savingsRate    = thisIncome > 0 ? ((thisSavingsIn - thisSavingsOut) / thisIncome) * 100 : null
     const vsLastMonth  = lastExpenses >= 50 ? ((thisExpenses - lastExpenses) / lastExpenses) * 100 : null
     const totalSubCost = subscriptions.reduce((s, sub) => s + Number(sub.amount), 0)
 
