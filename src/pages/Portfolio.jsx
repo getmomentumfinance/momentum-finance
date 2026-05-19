@@ -420,7 +420,7 @@ export default function Portfolio() {
             ))}
           </div>
 
-          {/* ── Positions tab ── */}
+          {/* ── Positions tab (open positions only) ── */}
           {tab === 'positions' && (
             <div className="glass-card rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
@@ -439,13 +439,16 @@ export default function Portfolio() {
                     </tr>
                   </thead>
                   <tbody>
-                    {positions.map(p => {
+                    {openPositions.length === 0 && (
+                      <tr><td colSpan={9} className="text-center text-muted text-xs py-10">No open positions. Check the Trade Log for closed trades.</td></tr>
+                    )}
+                    {openPositions.map(p => {
                       const isOpen = !!expanded[p.ticker]
                       const alloc  = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
                       return (
                         <>
                           <tr key={p.ticker}
-                            className="border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02] transition-colors"
+                            className="group/row border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02] transition-colors"
                             onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}>
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-2">
@@ -460,7 +463,7 @@ export default function Portfolio() {
                               </div>
                             </td>
                             <td className="px-4 py-3.5 text-right tabular-nums text-white/80">
-                              {p.qty > 0.0001 ? p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : <span className="text-white/25 text-xs">Closed</span>}
+                              {p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 })}
                             </td>
                             <td className="px-4 py-3.5 text-right tabular-nums text-white/60">
                               {p.avgCost > 0 ? fmt(p.avgCost) : '—'}
@@ -471,7 +474,7 @@ export default function Portfolio() {
                                 : <button onClick={e => { e.stopPropagation(); refresh() }} className="text-white/20 hover:text-accent text-xs transition-colors">Refresh</button>}
                             </td>
                             <td className="px-4 py-3.5 text-right tabular-nums text-white/55">
-                              {p.qty > 0.0001 ? fmt(p.cost) : <span className="text-white/20">—</span>}
+                              {fmt(p.cost)}
                             </td>
                             <td className="px-4 py-3.5 text-right tabular-nums">
                               {p.currentVal != null ? <span className="text-white font-semibold">{fmt(p.currentVal)}</span> : <span className="text-white/20">—</span>}
@@ -484,7 +487,28 @@ export default function Portfolio() {
                                 ? <PnlChip value={p.realizedPnl} fmt={fmt} />
                                 : <span className="text-white/20 text-xs">—</span>}
                             </td>
-                            <td className="px-4 py-3.5" />
+                            <td className="px-4 py-3.5">
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  openTransactionModal({
+                                    type: 'invest',
+                                    direction: 'sell',
+                                    ticker: p.ticker,
+                                    quantity: p.qty,
+                                  })
+                                }}
+                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-[10px] font-semibold px-2 py-1 rounded-lg border"
+                                style={{
+                                  color: 'var(--type-expense)',
+                                  borderColor: 'color-mix(in srgb, var(--type-expense) 30%, transparent)',
+                                  background: 'color-mix(in srgb, var(--type-expense) 8%, transparent)',
+                                }}
+                              >
+                                Sell
+                              </button>
+                            </td>
                           </tr>
 
                           {/* Lot rows */}
@@ -547,7 +571,7 @@ export default function Portfolio() {
                 </table>
               </div>
               <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04] text-xs text-muted">
-                <span>{positions.length} ticker{positions.length !== 1 ? 's' : ''} · {investTxs.length} trade{investTxs.length !== 1 ? 's' : ''}</span>
+                <span>{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-5">
                   <span>Invested <span className="text-white font-medium ml-1">{fmt(totalInvested)}</span></span>
                   {positions.some(p => p.totalFees > 0.005) && (
