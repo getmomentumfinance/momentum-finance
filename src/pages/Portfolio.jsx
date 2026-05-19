@@ -231,6 +231,7 @@ export default function Portfolio() {
   const thSel = 'text-[10px] uppercase tracking-widest text-muted font-medium py-3'
 
   return (
+    <>
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar
         currentDate={currentDate}
@@ -660,5 +661,6 @@ export default function Portfolio() {
         onClose={() => setSellPosition(null)}
       />
     )}
+    </>
   )
 }
