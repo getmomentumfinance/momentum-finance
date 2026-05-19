@@ -9,6 +9,7 @@ import { useUIPrefs } from '../context/UIPrefContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
 import { fetchLivePrice } from '../lib/yahooFinance'
 import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
+import QuickSellModal from '../components/portfolio/QuickSellModal'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const gc = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
@@ -148,6 +149,7 @@ export default function Portfolio() {
   const [tab,             setTab]             = useState('positions')
   const [labelTab,        setLabelTab]        = useState('all')
   const [showTabSettings, setShowTabSettings] = useState(false)
+  const [sellPosition,    setSellPosition]    = useState(null)
 
   const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
   function toggleTabVisibility(name) {
@@ -490,15 +492,7 @@ export default function Portfolio() {
                             <td className="px-4 py-3.5">
                               <button
                                 type="button"
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  openTransactionModal({
-                                    type: 'invest',
-                                    direction: 'sell',
-                                    ticker: p.ticker,
-                                    quantity: p.qty,
-                                  })
-                                }}
+                                onClick={e => { e.stopPropagation(); setSellPosition(p) }}
                                 className="opacity-0 group-hover/row:opacity-100 transition-opacity text-[10px] font-semibold px-2 py-1 rounded-lg border"
                                 style={{
                                   color: 'var(--type-expense)',
@@ -659,5 +653,12 @@ export default function Portfolio() {
 
       </div>
     </div>
+
+    {sellPosition && (
+      <QuickSellModal
+        position={sellPosition}
+        onClose={() => setSellPosition(null)}
+      />
+    )}
   )
 }

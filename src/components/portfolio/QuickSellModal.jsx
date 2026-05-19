@@ -1,0 +1,232 @@
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { X, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../context/AuthContext'
+import { usePreferences } from '../../context/UserPreferencesContext'
+import { useUIPrefs } from '../../context/UIPrefContext'
+import { useCards } from '../../hooks/useCards'
+import { showToast } from '../shared/Toast'
+
+const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
+const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
+
+export default function QuickSellModal({ position, onClose }) {
+  const { user }       = useAuth()
+  const { fmt }        = usePreferences()
+  const { prefs }      = useUIPrefs()
+  const { cards }      = useCards()
+  const rawLabels      = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
+  const tradeLabels    = rawLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
+  const tradingCards   = cards.filter(c => c.type === 'trading')
+
+  const [sellQty,   setSellQty]   = useState(String(position.qty))
+  const [sellPrice, setSellPrice] = useState('')
+  const [fee,       setFee]       = useState('')
+  const [label,     setLabel]     = useState('')
+  const [cardId,    setCardId]    = useState(tradingCards[0]?.id ?? '')
+  const [date,      setDate]      = useState(new Date().toISOString().slice(0, 10))
+  const [saving,    setSaving]    = useState(false)
+
+  // Derived P&L preview
+  const qty      = parseFloat(sellQty)   || 0
+  const price    = parseFloat(sellPrice.replace(',', '.')) || 0
+  const feeAmt   = parseFloat(fee)       || 0
+  const proceeds = qty * price - feeAmt
+  const costOfSold = qty * position.avgCost
+  const realizedPnl = price > 0 ? proceeds - costOfSold : null
+  const realizedPct = realizedPnl != null && costOfSold > 0 ? (realizedPnl / costOfSold) * 100 : null
+  const isProfit = realizedPnl != null && realizedPnl >= 0
+
+  async function handleSell() {
+    if (!(qty > 0) || !(price > 0)) return
+    setSaving(true)
+    const { error } = await supabase.from('transactions').insert({
+      user_id:        user.id,
+      type:           'invest',
+      direction:      'sell',
+      ticker:         position.ticker,
+      description:    position.ticker,
+      quantity:       qty,
+      price_per_unit: price,
+      amount:         proceeds,
+      card_id:        cardId || null,
+      label:          label || null,
+      date,
+      is_cash:        false,
+      is_split_parent: false,
+      category_id:    null,
+      subcategory_id: null,
+      receiver_id:    null,
+      status:         'completed',
+    })
+    if (error) { console.error('sell error:', error.message); setSaving(false); return }
+    window.dispatchEvent(new CustomEvent('transaction-saved'))
+    showToast('Sell logged')
+    onClose()
+  }
+
+  const fmtPct = n => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+  const gc     = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+
+  return createPortal(
+    <div className="modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-white">Sell {position.ticker}</h2>
+            {position.name && <p className="text-[11px] text-muted mt-0.5">{position.name}</p>}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex flex-col gap-4 p-5 scrollbar-thin">
+
+          {/* Position summary → sell flow */}
+          <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            {/* Held */}
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted">Held</span>
+              <span className="text-white/70 tabular-nums">
+                {position.qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 })} shares
+                <span className="text-muted ml-2">@ {fmt(position.avgCost)} avg</span>
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted">Cost basis</span>
+              <span className="text-white/60 tabular-nums">{fmt(position.cost)}</span>
+            </div>
+            {position.livePrice != null && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted">Current price</span>
+                <span className="text-white/60 tabular-nums">{fmt(position.livePrice)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Arrow */}
+          <div className="flex justify-center">
+            <div className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+              <ArrowDown size={13} className="text-white/30" />
+            </div>
+          </div>
+
+          {/* Sell inputs */}
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] text-muted uppercase tracking-widest">Qty to sell</label>
+                <input value={sellQty} onChange={e => setSellQty(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  type="text" inputMode="decimal" placeholder="0" className={inp} />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] text-muted uppercase tracking-widest">Sell price</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                  <input value={sellPrice} onChange={e => setSellPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                    type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} autoFocus />
+                </div>
+              </div>
+            </div>
+
+            {/* Live P&L preview */}
+            {price > 0 && qty > 0 && (
+              <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border"
+                style={{
+                  background: `color-mix(in srgb, ${gc(realizedPnl ?? 0)} 6%, transparent)`,
+                  borderColor: `color-mix(in srgb, ${gc(realizedPnl ?? 0)} 20%, transparent)`,
+                }}>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-muted uppercase tracking-widest">Realized P&L</span>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: gc(realizedPnl ?? 0) }}>
+                    {realizedPnl != null ? `${realizedPnl >= 0 ? '+' : ''}${fmt(realizedPnl)}` : '—'}
+                    {realizedPct != null && <span className="text-xs opacity-70 ml-1.5">({fmtPct(realizedPct)})</span>}
+                  </span>
+                </div>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-[10px] text-muted uppercase tracking-widest">Proceeds</span>
+                  <span className="text-sm tabular-nums text-white/70">{fmt(proceeds)}</span>
+                </div>
+                {isProfit
+                  ? <TrendingUp size={18} style={{ color: gc(1) }} className="opacity-40 shrink-0" />
+                  : <TrendingDown size={18} style={{ color: gc(-1) }} className="opacity-40 shrink-0" />}
+              </div>
+            )}
+
+            {/* Fee */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-muted uppercase tracking-widest flex items-center gap-2">
+                Fee <span className="normal-case font-normal text-white/25">(optional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                <input value={fee} onChange={e => setFee(e.target.value.replace(/[^0-9.,]/g, ''))}
+                  type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+              </div>
+            </div>
+
+            {/* Label chips */}
+            {tradeLabels.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] text-muted uppercase tracking-widest flex items-center gap-2">
+                  Label <span className="normal-case font-normal text-white/25">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {tradeLabels.map(({ name, color }) => (
+                    <button key={name} type="button" onClick={() => setLabel(label === name ? '' : name)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+                      style={{
+                        background: label === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'rgba(255,255,255,0.05)',
+                        color:      label === name ? color : 'rgba(255,255,255,0.45)',
+                        border:     `1px solid ${label === name ? `color-mix(in srgb, ${color} 40%, transparent)` : 'rgba(255,255,255,0.08)'}`,
+                      }}>
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Date + Account row */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
+              </div>
+              {tradingCards.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-muted uppercase tracking-widest">Account</label>
+                  <select value={cardId} onChange={e => setCardId(e.target.value)} className={sel}>
+                    <option value="">No account</option>
+                    {tradingCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="btn-modal-cancel">Cancel</button>
+            <button type="button" onClick={handleSell}
+              disabled={saving || !(qty > 0) || !(price > 0)}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+              style={{
+                background: 'color-mix(in srgb, var(--type-expense) 15%, transparent)',
+                color: 'var(--type-expense)',
+                border: '1px solid color-mix(in srgb, var(--type-expense) 35%, transparent)',
+              }}>
+              {saving ? 'Saving…' : `Sell ${qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : ''} ${position.ticker}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
