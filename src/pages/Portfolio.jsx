@@ -10,6 +10,7 @@ import { useTransactionModal } from '../context/TransactionModalContext'
 import { fetchLivePrice } from '../lib/yahooFinance'
 import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
 import QuickSellModal from '../components/portfolio/QuickSellModal'
+import QuickBuyModal  from '../components/portfolio/QuickBuyModal'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const gc = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
@@ -150,6 +151,7 @@ export default function Portfolio() {
   const [labelTab,        setLabelTab]        = useState('all')
   const [showTabSettings, setShowTabSettings] = useState(false)
   const [sellPosition,    setSellPosition]    = useState(null)
+  const [showBuyModal,    setShowBuyModal]    = useState(false)
 
   const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
   function toggleTabVisibility(name) {
@@ -251,14 +253,13 @@ export default function Portfolio() {
             {lastUpdated && !refreshing && (
               <span className="flex items-center gap-1 text-xs text-muted"><Clock size={11} />{timeAgo(lastUpdated)}</span>
             )}
-            <button onClick={() => openTransactionModal({ type: 'invest', direction: 'buy' })}
+            <button onClick={() => setShowBuyModal(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent/15 border border-accent/30 text-accent text-sm hover:bg-accent/25 transition-colors">
               <Plus size={13} /> Buy
             </button>
-            <button onClick={() => openTransactionModal({ type: 'invest', direction: 'sell' })}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm hover:bg-white/5 transition-colors"
-              style={{ color: 'var(--type-expense)', borderColor: 'color-mix(in srgb, var(--type-expense) 30%, transparent)' }}>
-              Sell
+            <button onClick={() => openTransactionModal({ type: 'transfer' })}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-white/10 text-sm text-white/50 hover:text-white hover:border-white/20 transition-colors">
+              Fund broker
             </button>
             <button onClick={refresh} disabled={refreshing}
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-dash-card border border-border text-sm hover:border-accent transition-colors disabled:opacity-40">
@@ -655,6 +656,9 @@ export default function Portfolio() {
       </div>
     </div>
 
+    {showBuyModal && (
+      <QuickBuyModal onClose={() => setShowBuyModal(false)} />
+    )}
     {sellPosition && (
       <QuickSellModal
         position={sellPosition}
