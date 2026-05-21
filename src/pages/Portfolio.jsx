@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal } from 'lucide-react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -147,8 +148,8 @@ export default function Portfolio() {
   const { openTransactionModal } = useTransactionModal()
 
   const [currentDate,  setCurrentDate]  = useState(new Date())
-  const [refreshing,   setRefreshing]   = useState(false)
-  const [priceError,   setPriceError]   = useState(false)
+  const [refreshing,    setRefreshing]    = useState(false)
+  const [failedTickers, setFailedTickers] = useState([])
   const [expanded,        setExpanded]        = useState({})
   const [tab,             setTab]             = useState('positions')
   const [labelTab,        setLabelTab]        = useState('all')
@@ -201,16 +202,14 @@ export default function Portfolio() {
 
   async function refresh() {
     if (!user?.id) return
-    setRefreshing(true); setPriceError(false)
+    setRefreshing(true); setFailedTickers([])
     const tickers = [...new Set(allInvestTxs.map(tx => tx.ticker.toUpperCase()))]
     if (!tickers.length) { setRefreshing(false); return }
-    let anyError = false
     const results = await Promise.all(tickers.map(async ticker => {
       const r = await fetchLivePrice(ticker)
-      if (!r) { anyError = true; return { ticker, price: null, name: null } }
-      return { ticker, price: r.price, name: r.name }
+      return { ticker, price: r?.price ?? null, name: r?.name ?? null }
     }))
-    setPriceError(anyError)
+    setFailedTickers(results.filter(r => r.price == null).map(r => r.ticker))
     const next = { ...cachedPrices }
     const now = new Date().toISOString()
     for (const { ticker, price, name } of results) {
@@ -273,9 +272,11 @@ export default function Portfolio() {
           </div>
         </div>
 
-        {priceError && (
+        {failedTickers.length > 0 && (
           <div className="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs">
-            <AlertCircle size={13} />{t('port.priceError')}
+            <AlertCircle size={13} />
+            Could not fetch prices for: <span className="font-mono font-semibold">{failedTickers.join(', ')}</span>
+            <span className="opacity-60 ml-1">— check the ticker symbol matches Yahoo Finance format (e.g. VWCE.AS)</span>
           </div>
         )}
 
@@ -410,6 +411,81 @@ export default function Portfolio() {
               </span>
             </div>
           </div>
+
+          {/* Charts — shown when there are open positions with live prices */}
+          {openPositions.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+
+              {/* Allocation donut */}
+              <div className="glass-card rounded-2xl px-4 py-4">
+                <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
+                <div className="flex items-center gap-4">
+                  <ResponsiveContainer width={110} height={110}>
+                    <PieChart>
+                      <Pie data={openPositions.map(p => ({ name: p.ticker, value: p.cost }))}
+                        cx="50%" cy="50%" innerRadius={28} outerRadius={50}
+                        dataKey="value" strokeWidth={0}>
+                        {openPositions.map((p, i) => (
+                          <Cell key={p.ticker}
+                            fill={`hsl(${(i * 67) % 360}, 60%, 55%)`}
+                            opacity={0.85} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="flex flex-col gap-1.5 min-w-0">
+                    {openPositions.map((p, i) => {
+                      const alloc = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
+                      return (
+                        <div key={p.ticker} className="flex items-center gap-2 min-w-0">
+                          <span className="w-2 h-2 rounded-full shrink-0"
+                            style={{ background: `hsl(${(i * 67) % 360}, 60%, 55%)` }} />
+                          <span className="text-xs text-white/70 font-mono truncate">{p.ticker}</span>
+                          <span className="text-xs text-muted ml-auto tabular-nums">{alloc.toFixed(1)}%</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* P&L by position */}
+              <div className="glass-card rounded-2xl px-4 py-4">
+                <p className="text-[10px] text-muted uppercase tracking-widest mb-3">
+                  {hasLive ? 'Unrealized P&L by position' : 'Cost basis by position'}
+                </p>
+                <ResponsiveContainer width="100%" height={110}>
+                  <BarChart
+                    data={openPositions.map(p => ({
+                      ticker: p.ticker,
+                      value: hasLive && p.unrealizedPnl != null ? p.unrealizedPnl : p.cost,
+                      positive: !hasLive || (p.unrealizedPnl ?? 0) >= 0,
+                    }))}
+                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="ticker" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9 }} axisLine={false} tickLine={false}
+                      tickFormatter={v => `€${Math.abs(v) >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}`} />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                      contentStyle={{ background: 'var(--color-dash-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 11 }}
+                      formatter={v => [fmt(v), hasLive ? 'Unrealized P&L' : 'Cost']}
+                      labelStyle={{ color: 'rgba(255,255,255,0.5)' }} />
+                    {hasLive && <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />}
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {openPositions.map((p, i) => (
+                        <Cell key={p.ticker}
+                          fill={hasLive
+                            ? (p.unrealizedPnl ?? 0) >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+                            : `hsl(${(i * 67) % 360}, 60%, 55%)`}
+                          opacity={0.75} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+            </div>
+          )}
 
           {/* Tab bar */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-3">
