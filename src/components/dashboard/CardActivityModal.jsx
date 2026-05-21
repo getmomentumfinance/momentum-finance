@@ -121,7 +121,8 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
             <div className="divide-y divide-white/[0.03]">
               {rows.map(row => {
                 const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
-                const sign     = (row.type === 'income' || row.amount < 0) ? '+' : '−'
+                const isSell   = row.type === 'invest' && (row.direction ?? 'buy') === 'sell'
+                const sign     = (row.type === 'income' || row.amount < 0 || isSell) ? '+' : '−'
                 const deleted  = !!row.is_deleted
                 const running  = !deleted ? runningMap[row.id] : null
 
