@@ -38,7 +38,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       // Current month transactions (all, including deleted)
       let txQuery = supabase
         .from('transactions')
-        .select('id, type, description, amount, date, created_at, is_cash, is_deleted, receiver_id')
+        .select('id, type, description, amount, date, created_at, is_cash, is_deleted, receiver_id, direction')
         .eq('user_id', user.id)
         .gte('date', start)
         .lte('date', end)
@@ -48,7 +48,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       // All non-deleted transactions BEFORE this month (for base balance)
       let prevQuery = supabase
         .from('transactions')
-        .select('type, amount')
+        .select('type, amount, direction')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
         .lt('date', start)
