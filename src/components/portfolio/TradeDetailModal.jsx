@@ -23,10 +23,10 @@ export default function TradeDetailModal({ tx, realizedPnl, livePrice, cardName,
   const isSell   = dir === 'sell'
   const qty      = Number(tx.quantity ?? 0)
   const ppu      = Number(tx.price_per_unit ?? 0)
-  const feeAmt   = Number(tx.amount) - qty * ppu * (isSell ? -1 : 1)
-  const fee      = Math.abs(feeAmt) > 0.005 ? Math.abs(feeAmt) : null
   const total    = qty * ppu
-  const proceeds = isSell ? (Number(tx.amount)) : null
+  const feeAmt   = isSell ? total - Number(tx.amount) : Number(tx.amount) - total
+  const fee      = Math.max(0, feeAmt)
+  const proceeds = isSell ? Number(tx.amount) : null
   const dateStr  = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
   // Unrealized P&L for buys (if live price available)
@@ -69,8 +69,8 @@ export default function TradeDetailModal({ tx, realizedPnl, livePrice, cardName,
             <Row label="Quantity"       value={`${qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 })} shares`} />
             <Row label={isSell ? 'Sell price' : 'Buy price'} value={`${fmt(ppu)} / share`} />
             <Row label={isSell ? 'Gross proceeds' : 'Total cost'} value={fmt(total)} />
-            {fee != null && <Row label="Fee" value={fmt(fee)} color="rgba(255,255,255,0.4)" />}
-            {proceeds != null && fee != null && (
+            <Row label="Fee" value={fee > 0.005 ? fmt(fee) : '—'} color="rgba(255,255,255,0.4)" />
+            {proceeds != null && fee > 0.005 && (
               <Row label="Net proceeds" value={fmt(proceeds)} color="var(--type-income)" />
             )}
             {tx.label && (
