@@ -3,7 +3,7 @@ const PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
   url => `https://thingproxy.freeboard.io/fetch/${url}`,
-  url => url, // direct last (usually blocked but worth trying)
+  url => url,
 ]
 
 async function fetchUrl(url) {
@@ -26,7 +26,6 @@ function extractPrice(json, targetTs = null) {
   if (!result) return null
   const name = result.meta?.longName ?? result.meta?.shortName ?? null
 
-  // For historical queries, find the close price nearest to the target timestamp
   if (targetTs != null) {
     const timestamps = result.timestamp ?? []
     const closes     = result.indicators?.quote?.[0]?.close ?? []
@@ -39,26 +38,34 @@ function extractPrice(json, targetTs = null) {
     if (bestIdx !== -1) return { price: closes[bestIdx], name }
   }
 
-  // Live price fallback
+  // regularMarketPrice is the most reliable live value
+  // fall back to most recent close in the series (handles weekends/holidays)
   const price = result.meta?.regularMarketPrice
     ?? result.indicators?.quote?.[0]?.close?.findLast(v => v != null)
   return price != null ? { price, name } : null
 }
 
 async function tryTicker(ticker, params, targetTs = null) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?${params}`
-  const json = await fetchUrl(url)
-  if (!json) return null
-  const extracted = extractPrice(json, targetTs)
-  if (!extracted) return null
-  return { resolvedTicker: ticker, ...extracted }
+  // Try query1 and query2 — one may be rate-limited or blocked
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?${params}`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?${params}`,
+  ]
+  for (const url of urls) {
+    const json = await fetchUrl(url)
+    if (!json) continue
+    const extracted = extractPrice(json, targetTs)
+    if (extracted) return { resolvedTicker: ticker, ...extracted }
+  }
+  return null
 }
 
 export async function fetchLivePrice(ticker) {
   const base = ticker.toUpperCase()
   const suffixes = base.includes('.') ? [''] : EXCHANGE_SUFFIXES
+  // range=5d ensures we get data even on weekends/holidays (uses last close)
   for (const suffix of suffixes) {
-    const result = await tryTicker(base + suffix, 'interval=1d&range=1d')
+    const result = await tryTicker(base + suffix, 'interval=1d&range=5d')
     if (result) return result
   }
   return null

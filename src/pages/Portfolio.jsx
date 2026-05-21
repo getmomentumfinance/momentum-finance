@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal } from 'lucide-react'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import Navbar from '../components/dashboard/Navbar'
@@ -412,80 +412,99 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Charts — shown when there are open positions with live prices */}
-          {openPositions.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-
-              {/* Allocation donut */}
-              <div className="glass-card rounded-2xl px-4 py-4">
-                <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
-                <div className="flex items-center gap-4">
-                  <ResponsiveContainer width={110} height={110}>
-                    <PieChart>
-                      <Pie data={openPositions.map(p => ({ name: p.ticker, value: p.cost }))}
-                        cx="50%" cy="50%" innerRadius={28} outerRadius={50}
-                        dataKey="value" strokeWidth={0}>
-                        {openPositions.map((p, i) => (
-                          <Cell key={p.ticker}
-                            fill={`hsl(${(i * 67) % 360}, 60%, 55%)`}
-                            opacity={0.85} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="flex flex-col gap-1.5 min-w-0">
-                    {openPositions.map((p, i) => {
-                      const alloc = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
-                      return (
-                        <div key={p.ticker} className="flex items-center gap-2 min-w-0">
-                          <span className="w-2 h-2 rounded-full shrink-0"
-                            style={{ background: `hsl(${(i * 67) % 360}, 60%, 55%)` }} />
-                          <span className="text-xs text-white/70 font-mono truncate">{p.ticker}</span>
-                          <span className="text-xs text-muted ml-auto tabular-nums">{alloc.toFixed(1)}%</span>
-                        </div>
-                      )
-                    })}
-                  </div>
+          {/* Allocation donut — only when multiple open positions */}
+          {openPositions.length > 1 && (
+            <div className="glass-card rounded-2xl px-4 py-4 mb-5 w-fit">
+              <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
+              <div className="flex items-center gap-5">
+                <ResponsiveContainer width={100} height={100}>
+                  <PieChart>
+                    <Pie data={openPositions.map(p => ({ name: p.ticker, value: p.cost }))}
+                      cx="50%" cy="50%" innerRadius={26} outerRadius={46}
+                      dataKey="value" strokeWidth={0}>
+                      {openPositions.map((p, i) => (
+                        <Cell key={p.ticker} fill={`hsl(${(i * 67) % 360}, 60%, 55%)`} opacity={0.85} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  {openPositions.map((p, i) => {
+                    const alloc = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
+                    return (
+                      <div key={p.ticker} className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: `hsl(${(i * 67) % 360}, 60%, 55%)` }} />
+                        <span className="text-xs text-white/70 truncate">{p.ticker}</span>
+                        <span className="text-xs text-muted ml-3 tabular-nums">{alloc.toFixed(1)}%</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-
-              {/* P&L by position */}
-              <div className="glass-card rounded-2xl px-4 py-4">
-                <p className="text-[10px] text-muted uppercase tracking-widest mb-3">
-                  {hasLive ? 'Unrealized P&L by position' : 'Cost basis by position'}
-                </p>
-                <ResponsiveContainer width="100%" height={110}>
-                  <BarChart
-                    data={openPositions.map(p => ({
-                      ticker: p.ticker,
-                      value: hasLive && p.unrealizedPnl != null ? p.unrealizedPnl : p.cost,
-                      positive: !hasLive || (p.unrealizedPnl ?? 0) >= 0,
-                    }))}
-                    margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <XAxis dataKey="ticker" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9 }} axisLine={false} tickLine={false}
-                      tickFormatter={v => `€${Math.abs(v) >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}`} />
-                    <Tooltip
-                      cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-                      contentStyle={{ background: 'var(--color-dash-card)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 11 }}
-                      formatter={v => [fmt(v), hasLive ? 'Unrealized P&L' : 'Cost']}
-                      labelStyle={{ color: 'rgba(255,255,255,0.5)' }} />
-                    {hasLive && <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" strokeWidth={1} />}
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {openPositions.map((p, i) => (
-                        <Cell key={p.ticker}
-                          fill={hasLive
-                            ? (p.unrealizedPnl ?? 0) >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
-                            : `hsl(${(i * 67) % 360}, 60%, 55%)`}
-                          opacity={0.75} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
             </div>
           )}
+
+          {/* Strategy summary — shown when a label subtab is active */}
+          {labelTab !== 'all' && (() => {
+            const labelTrades   = allInvestTxs.filter(tx => tx.label === labelTab)
+            const labelSells    = closedTrades.filter(t => t.label === labelTab)
+            const labelWins     = labelSells.filter(t => (t.realizedPnl ?? 0) > 0).length
+            const labelWinRate  = labelSells.length > 0 ? Math.round((labelWins / labelSells.length) * 100) : null
+            const labelRealized = labelSells.reduce((s, t) => s + (t.realizedPnl ?? 0), 0)
+            const avgPnl        = labelSells.length > 0 ? labelRealized / labelSells.length : null
+            const best          = labelSells.length > 0 ? Math.max(...labelSells.map(t => t.realizedPnl ?? 0)) : null
+            const worst         = labelSells.length > 0 ? Math.min(...labelSells.map(t => t.realizedPnl ?? 0)) : null
+            const lc            = tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)'
+            const gc            = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+
+            return (
+              <div className="glass-card rounded-2xl px-4 py-4 mb-5 border"
+                style={{ borderColor: `color-mix(in srgb, ${lc} 25%, transparent)` }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
+                    {labelTab}
+                  </span>
+                  <span className="text-[10px] text-muted uppercase tracking-widest">Strategy summary</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                  {[
+                    { label: 'Total trades',   value: labelTrades.length },
+                    { label: 'Closed trades',  value: labelSells.length },
+                    { label: 'Win rate',        value: labelWinRate != null ? `${labelWinRate}%` : '—',
+                      color: labelWinRate != null ? gc(labelWinRate - 50) : undefined },
+                    { label: 'Realized P&L',   value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
+                      color: labelSells.length > 0 ? gc(labelRealized) : undefined },
+                    { label: 'Avg per trade',  value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
+                      color: avgPnl != null ? gc(avgPnl) : undefined },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-muted uppercase tracking-widest">{label}</span>
+                      <span className="text-sm font-semibold tabular-nums" style={color ? { color } : {}}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {best != null && (
+                  <div className="flex gap-4 mt-3 pt-3 border-t border-white/[0.05]">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-muted uppercase tracking-widest">Best trade</span>
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc(best) }}>
+                        {best >= 0 ? '+' : ''}{fmt(best)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-muted uppercase tracking-widest">Worst trade</span>
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc(worst ?? 0) }}>
+                        {(worst ?? 0) >= 0 ? '+' : ''}{fmt(worst ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Tab bar */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-3">
