@@ -632,7 +632,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xl max-h-[92vh] sm:max-h-[90vh] flex flex-col shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
           <h2 className="text-base font-semibold text-white">{effectiveIsEditing ? 'Edit Transaction' : 'Add Transaction'}</h2>
           <button
             onClick={onClose}
@@ -741,32 +741,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           {/* Invest fields: Ticker + Quantity + Price per unit + Fee */}
           {type === 'invest' && (
             <div className="flex flex-col gap-3">
-              {/* Buy / Sell toggle */}
-              <div className="flex gap-2">
-                {[
-                  { id: 'buy',  label: '↑ Buy' },
-                  { id: 'sell', label: '↓ Sell' },
-                ].map(({ id, label }) => (
-                  <button key={id} type="button" onClick={() => setInvestDir(id)}
-                    className="flex-1 py-2 rounded-xl border text-sm font-medium transition-all"
-                    style={{
-                      borderColor: investDir === id
-                        ? id === 'buy' ? 'var(--color-accent)' : 'var(--type-expense)'
-                        : 'rgba(255,255,255,0.08)',
-                      background: investDir === id
-                        ? id === 'buy'
-                          ? 'color-mix(in srgb, var(--color-accent) 12%, transparent)'
-                          : 'color-mix(in srgb, var(--type-expense) 12%, transparent)'
-                        : 'rgba(255,255,255,0.02)',
-                      color: investDir === id
-                        ? id === 'buy' ? 'var(--color-accent)' : 'var(--type-expense)'
-                        : 'rgba(255,255,255,0.4)',
-                    }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
                   Ticker <span className="text-white/30 normal-case font-normal">(e.g. AAPL, BTC-USD, VWCE.AS)</span>
@@ -860,25 +834,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   </span>
                 </div>
               )}
-              {/* Trade label */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                  Trade label <span className="text-white/30 normal-case font-normal">(optional)</span>
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {tradeLabels.map(({ name, color }) => (
-                    <button key={name} type="button" onClick={() => setInvestLabel(investLabel === name ? '' : name)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-                      style={{
-                        background: investLabel === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'rgba(255,255,255,0.05)',
-                        color: investLabel === name ? color : 'rgba(255,255,255,0.45)',
-                        border: `1px solid ${investLabel === name ? `color-mix(in srgb, ${color} 40%, transparent)` : 'rgba(255,255,255,0.08)'}`,
-                      }}>
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 

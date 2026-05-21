@@ -75,7 +75,7 @@ export default function QuickSellModal({ position, onClose }) {
       <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-white">Sell {position.ticker}</h2>
             {position.name && <p className="text-[11px] text-muted mt-0.5">{position.name}</p>}

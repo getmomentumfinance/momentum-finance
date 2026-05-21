@@ -34,7 +34,7 @@ export default function CardCustomizationPopup({
       style={{ top: pos.top, left: pos.left, background: 'color-mix(in srgb, var(--color-dash-card) 78%, transparent)', border: '1px solid var(--color-border)', backdropFilter: 'blur(var(--card-blur, 14px))', WebkitBackdropFilter: 'blur(var(--card-blur, 14px))' }}
     >
       {/* Header row */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/8">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
           <Toggle checked={enableColor} onChange={setEnableColor} />
           <span className="text-sm font-medium text-white">Enable Color</span>

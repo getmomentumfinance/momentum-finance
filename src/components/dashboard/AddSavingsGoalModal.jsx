@@ -125,7 +125,7 @@ export default function AddSavingsGoalModal({ goal = null, available, onClose, o
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md flex flex-col shadow-2xl">
 
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
           <h2 className="text-base font-semibold text-white">
             {isEdit ? `Edit ${goal?.type === 'fund' ? 'Fund' : 'Goal'}` : 'New Savings Goal'}
           </h2>

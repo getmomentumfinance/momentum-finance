@@ -153,7 +153,7 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
       <div className="glass-popup border border-white/10 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl flex flex-col">
 
         {/* Broker header */}
-        <div className="px-5 pt-5 pb-4 border-b border-white/8 shrink-0">
+        <div className="px-5 pt-5 pb-4 shrink-0">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold text-white">Buy</h2>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors">
