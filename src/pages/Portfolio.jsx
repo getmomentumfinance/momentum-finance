@@ -7,10 +7,12 @@ import { usePreferences } from '../context/UserPreferencesContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { useUIPrefs } from '../context/UIPrefContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
+import { useCards } from '../hooks/useCards'
 import { fetchLivePrice } from '../lib/yahooFinance'
 import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
 import QuickSellModal from '../components/portfolio/QuickSellModal'
-import QuickBuyModal  from '../components/portfolio/QuickBuyModal'
+import QuickBuyModal      from '../components/portfolio/QuickBuyModal'
+import TradeDetailModal   from '../components/portfolio/TradeDetailModal'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const gc = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
@@ -138,6 +140,7 @@ export default function Portfolio() {
   const { fmt, t }                  = usePreferences()
   const { allTransactions, loaded } = useSharedData()
   const { prefs, setPref }          = useUIPrefs()
+  const { cards }                   = useCards()
   const rawTradeLabels = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
   const tradeLabelMap  = Object.fromEntries(rawTradeLabels.map(l => typeof l === 'string' ? [l, '#a78bfa'] : [l.name, l.color]))
   const tradeLabels    = rawTradeLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
@@ -152,6 +155,7 @@ export default function Portfolio() {
   const [showTabSettings, setShowTabSettings] = useState(false)
   const [sellTarget,      setSellTarget]      = useState(null) // { position, lot }
   const [showBuyModal,    setShowBuyModal]    = useState(false)
+  const [detailTrade,     setDetailTrade]     = useState(null)
 
   const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
   function toggleTabVisibility(name) {
@@ -608,7 +612,9 @@ export default function Portfolio() {
                           const lc     = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
                           const realPnl = dir === 'sell' ? (closedPnlMap[tx.id] ?? null) : null
                           return (
-                            <tr key={tx.id} className="group border-b border-white/[0.03]">
+                            <tr key={tx.id}
+                              className="group border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02] transition-colors"
+                              onClick={() => setDetailTrade(tx)}>
                               <td className="px-5 py-3">
                                 <span className="text-xs text-white/45">{dateStr}</span>
                               </td>
@@ -640,9 +646,9 @@ export default function Portfolio() {
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button type="button" onClick={() => openTransactionModal(tx)}
+                                  <button type="button" onClick={e => { e.stopPropagation(); openTransactionModal(tx) }}
                                     className="text-white/30 hover:text-white/70 transition-colors"><Pencil size={12} /></button>
-                                  <button type="button" onClick={() => deleteTx(tx.id)}
+                                  <button type="button" onClick={e => { e.stopPropagation(); deleteTx(tx.id) }}
                                     className="text-white/30 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
                                 </div>
                               </td>
@@ -667,6 +673,23 @@ export default function Portfolio() {
     {showBuyModal && (
       <QuickBuyModal onClose={() => setShowBuyModal(false)} />
     )}
+    {detailTrade && (() => {
+      const pos      = positions.find(p => p.ticker === detailTrade.ticker?.toUpperCase())
+      const livePrice = pos?.livePrice ?? null
+      const realPnl  = closedPnlMap[detailTrade.id] ?? null
+      const card     = cards.find(c => c.id === detailTrade.card_id)
+      const lc       = detailTrade.label ? (tradeLabelMap[detailTrade.label] ?? 'var(--color-accent)') : null
+      return (
+        <TradeDetailModal
+          tx={detailTrade}
+          realizedPnl={realPnl}
+          livePrice={livePrice}
+          cardName={card?.name ?? null}
+          labelColor={lc}
+          onClose={() => setDetailTrade(null)}
+        />
+      )
+    })()}
     {sellTarget && (
       <QuickSellModal
         position={sellTarget.position}
