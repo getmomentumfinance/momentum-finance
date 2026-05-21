@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react'
+import { X, ArrowDown, TrendingUp, TrendingDown, Building2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { useCards } from '../../hooks/useCards'
+import { useSharedData } from '../../context/SharedDataContext'
 import { showToast } from '../shared/Toast'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
@@ -14,13 +15,14 @@ const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] r
 // position = aggregated position (for ticker, name, livePrice)
 // lot      = the specific buy transaction being sold (for exact cost basis)
 export default function QuickSellModal({ position, lot, onClose }) {
-  const { user }     = useAuth()
-  const { fmt }      = usePreferences()
-  const { prefs }    = useUIPrefs()
-  const { cards }    = useCards()
-  const rawLabels    = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
-  const tradeLabels  = rawLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
-  const tradingCards = cards.filter(c => c.type === 'trading')
+  const { user }       = useAuth()
+  const { fmt }        = usePreferences()
+  const { prefs }      = useUIPrefs()
+  const { cards }      = useCards()
+  const { balanceTxs } = useSharedData()
+  const rawLabels      = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
+  const tradeLabels    = rawLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
+  const tradingCards   = cards.filter(c => c.type === 'trading')
 
   const lotQty      = Number(lot.quantity ?? 0)
   const lotBuyPrice = Number(lot.price_per_unit ?? 0)
@@ -33,6 +35,18 @@ export default function QuickSellModal({ position, lot, onClose }) {
   const [cardId,    setCardId]    = useState(lot.card_id ?? tradingCards[0]?.id ?? '')
   const [date,      setDate]      = useState(new Date().toISOString().slice(0, 10))
   const [saving,    setSaving]    = useState(false)
+
+  const selectedCard  = cards.find(c => c.id === cardId)
+  const CREDIT        = new Set(['income'])
+  const brokerBalance = selectedCard ? (() => {
+    const delta = balanceTxs
+      .filter(t => t.card_id === cardId && !t.is_cash)
+      .reduce((s, t) => {
+        if (t.type === 'invest') return s + ((t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount)
+        return s + (CREDIT.has(t.type) ? t.amount : -t.amount)
+      }, 0)
+    return Number(selectedCard.initial_balance ?? 0) + delta
+  })() : null
 
   const qty      = parseFloat(sellQty)                      || 0
   const price    = parseFloat(sellPrice.replace(',', '.'))  || 0
@@ -203,21 +217,52 @@ export default function QuickSellModal({ position, lot, onClose }) {
               </div>
             )}
 
-            {/* Date + Account */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Broker — proceeds destination */}
+            {tradingCards.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
+                <label className="text-[10px] text-muted uppercase tracking-widest">Proceeds go to</label>
+                {tradingCards.length === 1 ? (
+                  <div className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/10">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center shrink-0">
+                        <Building2 size={11} className="text-accent" />
+                      </div>
+                      <span className="text-sm text-white">{selectedCard?.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {brokerBalance != null && proceeds > 0 && (
+                        <span className="text-muted tabular-nums">{fmt(brokerBalance)} →</span>
+                      )}
+                      {brokerBalance != null && proceeds > 0 && (
+                        <span className="tabular-nums font-medium" style={{ color: 'var(--type-income)' }}>
+                          {fmt(brokerBalance + proceeds)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    <select value={cardId} onChange={e => setCardId(e.target.value)} className={sel}>
+                      <option value="">No account</option>
+                      {tradingCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {selectedCard && brokerBalance != null && proceeds > 0 && (
+                      <div className="flex items-center justify-between px-3 py-1 text-xs">
+                        <span className="text-muted">Balance after sell</span>
+                        <span className="tabular-nums font-medium" style={{ color: 'var(--type-income)' }}>
+                          {fmt(brokerBalance)} → {fmt(brokerBalance + proceeds)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {tradingCards.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-muted uppercase tracking-widest">Account</label>
-                  <select value={cardId} onChange={e => setCardId(e.target.value)} className={sel}>
-                    <option value="">No account</option>
-                    {tradingCards.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
+            )}
+
+            {/* Date */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
             </div>
           </div>
 

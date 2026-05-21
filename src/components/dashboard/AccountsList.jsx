@@ -6,10 +6,15 @@ import { useSharedData } from '../../context/SharedDataContext'
 
 const CREDIT_TYPES = new Set(['income'])
 
+function txEffect(t) {
+  if (t.type === 'invest') return (t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount
+  return CREDIT_TYPES.has(t.type) ? t.amount : -t.amount
+}
+
 function computeBalance(card, transactions) {
   const delta = transactions
     .filter(t => t.card_id === card.id && !t.is_cash)
-    .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
+    .reduce((sum, t) => sum + txEffect(t), 0)
   return Number(card.initial_balance) + delta
 }
 

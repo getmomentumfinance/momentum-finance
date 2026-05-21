@@ -8,8 +8,8 @@ import { usePreferences } from '../../context/UserPreferencesContext'
 
 const CREDIT_TYPES = new Set(['income'])
 
-function effect(row, isTrading = false) {
-  if (isTrading && row.type === 'invest') return 0
+function effect(row) {
+  if (row.type === 'invest') return (row.direction ?? 'buy') === 'sell' ? row.amount : -row.amount
   return CREDIT_TYPES.has(row.type) ? row.amount : -row.amount
 }
 
@@ -69,7 +69,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
 
       // Base = initial_balance (cards only) + all previous transactions
       const initialBal = isCash ? 0 : Number(card.initial_balance ?? 0)
-      const prevSum    = (prevTxs ?? []).reduce((s, t) => s + effect(t, isTrading), 0)
+      const prevSum    = (prevTxs ?? []).reduce((s, t) => s + effect(t), 0)
       setBaseBalance(initialBal + prevSum)
 
       const receiverMap = Object.fromEntries((receivers ?? []).map(r => [r.id, r]))
@@ -80,14 +80,14 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
   }, [user?.id, card, currentDate, isCash])
 
   const activeRows = rows.filter(r => !r.is_deleted)
-  const monthlyNet = activeRows.reduce((s, r) => s + effect(r, isTrading), 0)
+  const monthlyNet = activeRows.reduce((s, r) => s + effect(r), 0)
 
   // Running balance per row: base + cumulative from oldest→newest
   const runningMap = useMemo(() => {
     const map = {}
     let acc = baseBalance
     ;[...activeRows].reverse().forEach(r => {
-      acc += effect(r, isTrading)
+      acc += effect(r)
       map[r.id] = acc
     })
     return map

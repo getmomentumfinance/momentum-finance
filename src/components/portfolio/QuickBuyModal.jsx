@@ -106,8 +106,11 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
   const brokerBalance = selectedCard ? (() => {
     const CREDIT = new Set(['income'])
     const delta = balanceTxs
-      .filter(t => t.card_id === cardId && !t.is_cash && t.type !== 'invest')
-      .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
+      .filter(t => t.card_id === cardId && !t.is_cash)
+      .reduce((s, t) => {
+        if (t.type === 'invest') return s + ((t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount)
+        return s + (CREDIT.has(t.type) ? t.amount : -t.amount)
+      }, 0)
     return Number(selectedCard.initial_balance ?? 0) + delta
   })() : null
 

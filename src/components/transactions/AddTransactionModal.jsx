@@ -423,10 +423,12 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const subcategories  = categories.filter(c => c.parent_id === categoryId)
   const CREDIT_TYPES = new Set(['income'])
   function cardBalance(card) {
-    const isTrading = card.type === 'trading'
     const delta = cardTxs
-      .filter(t => t.card_id === card.id && !t.is_cash && !(isTrading && t.type === 'invest'))
-      .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
+      .filter(t => t.card_id === card.id && !t.is_cash)
+      .reduce((s, t) => {
+        if (t.type === 'invest') return s + ((t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount)
+        return s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount)
+      }, 0)
     return Number(card.initial_balance) + delta
   }
 
