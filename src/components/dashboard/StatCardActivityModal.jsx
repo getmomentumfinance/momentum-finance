@@ -173,7 +173,7 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
                         className={`text-sm font-semibold tabular-nums ${deleted ? 'line-through' : ''} ${isParent ? 'text-white/40' : ''}`}
                         style={{ color: deleted ? '#9ca3af' : isParent ? undefined : rowColor }}
                       >
-                        {sign}{fmt(row.amount)}
+                        {sign}{fmt(Math.abs(row.amount))}
                       </span>
                       {running != null && (
                         <span className="text-[10px] tabular-nums text-white/25 mt-0.5">
@@ -200,7 +200,7 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted uppercase tracking-widest">Total</span>
               <span className={`text-sm font-semibold tabular-nums ${footerTotal < 0 ? 'text-red-400' : 'text-white'}`}>
-                {footerTotal < 0 ? '−' : ''}{fmt(footerTotal)}
+                {fmt(footerTotal)}
               </span>
             </div>
           </div>
