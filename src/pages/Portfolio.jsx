@@ -593,11 +593,12 @@ export default function Portfolio() {
                       <th className={`${thSel} text-right px-4`}>Price</th>
                       <th className={`${thSel} text-right px-4`}>Total</th>
                       <th className={`${thSel} text-right px-5`}>Realized P&L</th>
+                      <th className="py-3 px-4" />
                     </tr>
                   </thead>
                   <tbody>
                     {allTrades.length === 0
-                      ? <tr><td colSpan={8} className="text-center text-muted text-xs py-10">No trades for this label yet.</td></tr>
+                      ? <tr><td colSpan={9} className="text-center text-muted text-xs py-10">No trades for this label yet.</td></tr>
                       : allTrades.map(tx => {
                           const dir    = tx.direction ?? 'buy'
                           const qty    = Number(tx.quantity ?? 0)
@@ -636,6 +637,14 @@ export default function Portfolio() {
                                 {realPnl != null
                                   ? <PnlChip value={realPnl} fmt={fmt} />
                                   : <span className="text-white/20 text-xs">—</span>}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button type="button" onClick={() => openTransactionModal(tx)}
+                                    className="text-white/30 hover:text-white/70 transition-colors"><Pencil size={12} /></button>
+                                  <button type="button" onClick={() => deleteTx(tx.id)}
+                                    className="text-white/30 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
+                                </div>
                               </td>
                             </tr>
                           )
