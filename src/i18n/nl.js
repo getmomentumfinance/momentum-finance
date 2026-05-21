@@ -356,7 +356,7 @@ const nl = {
 
   // ── Transactions Page ────────────────────────────────────────
   'tx.title':        'Transacties',
-  'tx.searchPh':     'Ontvanger zoeken…',
+  'tx.searchPh':     'Omschrijving zoeken…',
   'tx.allTypes':     'Alle types',
   'tx.allCats':      'Alle categorieën',
   'tx.allSubs':      'Alle subcategorieën',

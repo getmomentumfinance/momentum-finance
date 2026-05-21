@@ -356,7 +356,7 @@ const en = {
 
   // ── Transactions Page ────────────────────────────────────────
   'tx.title':        'Transactions',
-  'tx.searchPh':     'Search receiver…',
+  'tx.searchPh':     'Search description…',
   'tx.allTypes':     'All types',
   'tx.allCats':      'All categories',
   'tx.allSubs':      'All subcategories',
