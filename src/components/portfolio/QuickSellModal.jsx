@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -11,32 +11,39 @@ import { showToast } from '../shared/Toast'
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
 
-export default function QuickSellModal({ position, onClose }) {
-  const { user }       = useAuth()
-  const { fmt }        = usePreferences()
-  const { prefs }      = useUIPrefs()
-  const { cards }      = useCards()
-  const rawLabels      = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
-  const tradeLabels    = rawLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
-  const tradingCards   = cards.filter(c => c.type === 'trading')
+// position = aggregated position (for ticker, name, livePrice)
+// lot      = the specific buy transaction being sold (for exact cost basis)
+export default function QuickSellModal({ position, lot, onClose }) {
+  const { user }     = useAuth()
+  const { fmt }      = usePreferences()
+  const { prefs }    = useUIPrefs()
+  const { cards }    = useCards()
+  const rawLabels    = prefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
+  const tradeLabels  = rawLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
+  const tradingCards = cards.filter(c => c.type === 'trading')
 
-  const [sellQty,   setSellQty]   = useState(String(position.qty))
+  const lotQty      = Number(lot.quantity ?? 0)
+  const lotBuyPrice = Number(lot.price_per_unit ?? 0)
+  const lotDate     = new Date(lot.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  const [sellQty,   setSellQty]   = useState(String(lotQty))
   const [sellPrice, setSellPrice] = useState('')
   const [fee,       setFee]       = useState('')
-  const [label,     setLabel]     = useState('')
-  const [cardId,    setCardId]    = useState(tradingCards[0]?.id ?? '')
+  const [label,     setLabel]     = useState(lot.label ?? '')
+  const [cardId,    setCardId]    = useState(lot.card_id ?? tradingCards[0]?.id ?? '')
   const [date,      setDate]      = useState(new Date().toISOString().slice(0, 10))
   const [saving,    setSaving]    = useState(false)
 
-  // Derived P&L preview
-  const qty      = parseFloat(sellQty)   || 0
-  const price    = parseFloat(sellPrice.replace(',', '.')) || 0
-  const feeAmt   = parseFloat(fee)       || 0
-  const proceeds = qty * price - feeAmt
-  const costOfSold = qty * position.avgCost
+  const qty      = parseFloat(sellQty)                      || 0
+  const price    = parseFloat(sellPrice.replace(',', '.'))  || 0
+  const feeAmt   = parseFloat(fee)                          || 0
+  const proceeds    = qty * price - feeAmt
+  const costOfSold  = qty * lotBuyPrice          // exact lot buy price, not avg
   const realizedPnl = price > 0 ? proceeds - costOfSold : null
   const realizedPct = realizedPnl != null && costOfSold > 0 ? (realizedPnl / costOfSold) * 100 : null
-  const isProfit = realizedPnl != null && realizedPnl >= 0
+
+  const fmtPct = n => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
+  const gc     = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
   async function handleSell() {
     if (!(qty > 0) || !(price > 0)) return
@@ -51,7 +58,7 @@ export default function QuickSellModal({ position, onClose }) {
       price_per_unit: price,
       amount:         proceeds,
       card_id:        cardId || null,
-      label:          label || null,
+      label:          label  || null,
       date,
       is_cash:        false,
       is_split_parent: false,
@@ -65,9 +72,6 @@ export default function QuickSellModal({ position, onClose }) {
     showToast('Sell logged')
     onClose()
   }
-
-  const fmtPct = n => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
-  const gc     = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
   return createPortal(
     <div className="modal-backdrop fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4"
@@ -87,24 +91,31 @@ export default function QuickSellModal({ position, onClose }) {
 
         <div className="overflow-y-auto flex flex-col gap-4 p-5 scrollbar-thin">
 
-          {/* Position summary → sell flow */}
+          {/* Lot being sold */}
           <div className="flex flex-col gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            {/* Held */}
+            <p className="text-[10px] text-muted uppercase tracking-widest">Lot being sold</p>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted">Held</span>
-              <span className="text-white/70 tabular-nums">
-                {position.qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 })} shares
-                <span className="text-muted ml-2">@ {fmt(position.avgCost)} avg</span>
-              </span>
+              <span className="text-muted">Bought</span>
+              <span className="text-white/70">{lotDate}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted">Cost basis</span>
-              <span className="text-white/60 tabular-nums">{fmt(position.cost)}</span>
+              <span className="text-muted">Quantity</span>
+              <span className="text-white/70 tabular-nums">{lotQty.toLocaleString('nl-BE', { maximumFractionDigits: 6 })} shares</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted">Buy price</span>
+              <span className="text-white/70 tabular-nums font-medium">{fmt(lotBuyPrice)} / share</span>
+            </div>
+            <div className="flex items-center justify-between text-xs border-t border-white/[0.05] pt-2 mt-0.5">
+              <span className="text-muted">Total cost</span>
+              <span className="text-white/60 tabular-nums">{fmt(lotQty * lotBuyPrice)}</span>
             </div>
             {position.livePrice != null && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted">Current price</span>
-                <span className="text-white/60 tabular-nums">{fmt(position.livePrice)}</span>
+                <span className="tabular-nums" style={{ color: position.livePrice >= lotBuyPrice ? 'var(--type-income)' : 'var(--type-expense)' }}>
+                  {fmt(position.livePrice)} / share
+                </span>
               </div>
             )}
           </div>
@@ -138,7 +149,7 @@ export default function QuickSellModal({ position, onClose }) {
             {price > 0 && qty > 0 && (
               <div className="flex items-center justify-between px-3 py-2.5 rounded-xl border"
                 style={{
-                  background: `color-mix(in srgb, ${gc(realizedPnl ?? 0)} 6%, transparent)`,
+                  background:  `color-mix(in srgb, ${gc(realizedPnl ?? 0)} 6%, transparent)`,
                   borderColor: `color-mix(in srgb, ${gc(realizedPnl ?? 0)} 20%, transparent)`,
                 }}>
                 <div className="flex flex-col gap-0.5">
@@ -152,9 +163,9 @@ export default function QuickSellModal({ position, onClose }) {
                   <span className="text-[10px] text-muted uppercase tracking-widest">Proceeds</span>
                   <span className="text-sm tabular-nums text-white/70">{fmt(proceeds)}</span>
                 </div>
-                {isProfit
+                {realizedPnl != null && (realizedPnl >= 0
                   ? <TrendingUp size={18} style={{ color: gc(1) }} className="opacity-40 shrink-0" />
-                  : <TrendingDown size={18} style={{ color: gc(-1) }} className="opacity-40 shrink-0" />}
+                  : <TrendingDown size={18} style={{ color: gc(-1) }} className="opacity-40 shrink-0" />)}
               </div>
             )}
 
@@ -192,7 +203,7 @@ export default function QuickSellModal({ position, onClose }) {
               </div>
             )}
 
-            {/* Date + Account row */}
+            {/* Date + Account */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
@@ -218,12 +229,13 @@ export default function QuickSellModal({ position, onClose }) {
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
               style={{
                 background: 'color-mix(in srgb, var(--type-expense) 15%, transparent)',
-                color: 'var(--type-expense)',
-                border: '1px solid color-mix(in srgb, var(--type-expense) 35%, transparent)',
+                color:       'var(--type-expense)',
+                border:      '1px solid color-mix(in srgb, var(--type-expense) 35%, transparent)',
               }}>
               {saving ? 'Saving…' : `Sell ${qty > 0 ? qty.toLocaleString('nl-BE', { maximumFractionDigits: 6 }) : ''} ${position.ticker}`}
             </button>
           </div>
+
         </div>
       </div>
     </div>,

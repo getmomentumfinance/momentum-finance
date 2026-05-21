@@ -150,7 +150,7 @@ export default function Portfolio() {
   const [tab,             setTab]             = useState('positions')
   const [labelTab,        setLabelTab]        = useState('all')
   const [showTabSettings, setShowTabSettings] = useState(false)
-  const [sellPosition,    setSellPosition]    = useState(null)
+  const [sellTarget,      setSellTarget]      = useState(null) // { position, lot }
   const [showBuyModal,    setShowBuyModal]    = useState(false)
 
   const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
@@ -491,20 +491,7 @@ export default function Portfolio() {
                                 ? <PnlChip value={p.realizedPnl} fmt={fmt} />
                                 : <span className="text-white/20 text-xs">—</span>}
                             </td>
-                            <td className="px-4 py-3.5">
-                              <button
-                                type="button"
-                                onClick={e => { e.stopPropagation(); setSellPosition(p) }}
-                                className="opacity-0 group-hover/row:opacity-100 transition-opacity text-[10px] font-semibold px-2 py-1 rounded-lg border"
-                                style={{
-                                  color: 'var(--type-expense)',
-                                  borderColor: 'color-mix(in srgb, var(--type-expense) 30%, transparent)',
-                                  background: 'color-mix(in srgb, var(--type-expense) 8%, transparent)',
-                                }}
-                              >
-                                Sell
-                              </button>
-                            </td>
+                            <td className="px-4 py-3.5" />
                           </tr>
 
                           {/* Lot rows */}
@@ -551,6 +538,18 @@ export default function Portfolio() {
                                 </td>
                                 <td className="px-4 py-2.5">
                                   <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    {isBuy && (
+                                      <button type="button"
+                                        onClick={e => { e.stopPropagation(); setSellTarget({ position: p, lot: tx }) }}
+                                        className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors"
+                                        style={{
+                                          color: 'var(--type-expense)',
+                                          background: 'color-mix(in srgb, var(--type-expense) 12%, transparent)',
+                                          border: '1px solid color-mix(in srgb, var(--type-expense) 25%, transparent)',
+                                        }}>
+                                        SELL
+                                      </button>
+                                    )}
                                     <button type="button" onClick={e => { e.stopPropagation(); openTransactionModal(tx) }}
                                       className="text-white/30 hover:text-white/70 transition-colors"><Pencil size={11} /></button>
                                     <button type="button" onClick={e => { e.stopPropagation(); deleteTx(tx.id) }}
@@ -659,10 +658,11 @@ export default function Portfolio() {
     {showBuyModal && (
       <QuickBuyModal onClose={() => setShowBuyModal(false)} />
     )}
-    {sellPosition && (
+    {sellTarget && (
       <QuickSellModal
-        position={sellPosition}
-        onClose={() => setSellPosition(null)}
+        position={sellTarget.position}
+        lot={sellTarget.lot}
+        onClose={() => setSellTarget(null)}
       />
     )}
     </>
