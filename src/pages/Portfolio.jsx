@@ -1,5 +1,10 @@
 import { useState, useMemo } from 'react'
-import { Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Clock, Pencil, Trash2, BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal } from 'lucide-react'
+import {
+  Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle,
+  ChevronDown, ChevronRight, Clock, Pencil, Trash2,
+  BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal,
+  Search, ArrowUpDown, ArrowUp, ArrowDown,
+} from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,12 +16,37 @@ import { useTransactionModal } from '../context/TransactionModalContext'
 import { useCards } from '../hooks/useCards'
 import { fetchLivePrice } from '../lib/yahooFinance'
 import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
-import QuickSellModal from '../components/portfolio/QuickSellModal'
-import QuickBuyModal      from '../components/portfolio/QuickBuyModal'
-import TradeDetailModal   from '../components/portfolio/TradeDetailModal'
+import QuickSellModal    from '../components/portfolio/QuickSellModal'
+import QuickBuyModal     from '../components/portfolio/QuickBuyModal'
+import TradeDetailModal  from '../components/portfolio/TradeDetailModal'
 
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
-const gc = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+const gc     = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+
+function fmtDays(d) {
+  if (d == null) return '—'
+  if (d === 0) return '< 1d'
+  if (d < 7) return `${d}d`
+  const w = Math.floor(d / 7), r = d % 7
+  if (d < 30) return r > 0 ? `${w}w ${r}d` : `${w}w`
+  return `~${Math.floor(d / 30)}mo`
+}
+
+function computeAvgHoldDays(sells, allTxs, label) {
+  const days = sells.map(sell => {
+    const ticker = sell.ticker?.toUpperCase()
+    const buys = allTxs.filter(tx =>
+      tx.ticker?.toUpperCase() === ticker &&
+      tx.label === label &&
+      (tx.direction ?? 'buy') === 'buy' &&
+      tx.date <= sell.date
+    )
+    if (!buys.length) return null
+    const first = buys.reduce((a, b) => a.date <= b.date ? a : b)
+    return Math.round((new Date(sell.date + 'T00:00:00') - new Date(first.date + 'T00:00:00')) / 86400000)
+  }).filter(d => d != null && d >= 0)
+  return days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : null
+}
 
 function PnlChip({ value, pct, fmt }) {
   if (value == null) return <span className="text-white/20 text-xs">—</span>
@@ -72,6 +102,24 @@ function timeAgo(isoStr) {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+function SortTh({ label, col, sort, onSort, className = '', align = 'right' }) {
+  const active = sort.col === col
+  return (
+    <th
+      className={`text-[10px] uppercase tracking-widest text-muted font-medium py-3 cursor-pointer select-none group/th transition-colors hover:text-white/60 ${className}`}
+      onClick={() => onSort(col)}>
+      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end w-full' : ''}`}>
+        {label}
+        {active
+          ? sort.dir === 'asc'
+            ? <ArrowUp size={9} className="opacity-60" />
+            : <ArrowDown size={9} className="opacity-60" />
+          : <ArrowUpDown size={9} className="opacity-20 group-hover/th:opacity-40 transition-opacity" />}
+      </span>
+    </th>
+  )
+}
+
 function computePortfolio(investTxs, cachedPrices) {
   const grouped = {}
   const closedTrades = []
@@ -83,34 +131,34 @@ function computePortfolio(investTxs, cachedPrices) {
   for (const tx of sorted) {
     const sym = tx.ticker.toUpperCase()
     if (!grouped[sym]) grouped[sym] = { qty: 0, cost: 0, txs: [] }
-    const g = grouped[sym]
+    const g   = grouped[sym]
     const qty = Number(tx.quantity ?? 0)
     const ppu = Number(tx.price_per_unit ?? 0)
     const dir = tx.direction ?? 'buy'
 
     if (dir === 'sell') {
       const avgCostAtSell = g.qty > 0 ? g.cost / g.qty : 0
-      const realizedPnl = (ppu - avgCostAtSell) * qty
-      g.qty = Math.max(0, g.qty - qty)
+      const realizedPnl   = (ppu - avgCostAtSell) * qty
+      g.qty  = Math.max(0, g.qty - qty)
       g.cost = Math.max(0, g.cost - avgCostAtSell * qty)
       const enriched = { ...tx, direction: 'sell', realizedPnl, avgCostAtSell }
       closedTrades.push(enriched)
       g.txs.push(enriched)
     } else {
-      g.qty += qty
+      g.qty  += qty
       g.cost += qty * ppu
       g.txs.push({ ...tx, direction: 'buy' })
     }
   }
 
   const positions = Object.entries(grouped).map(([ticker, g]) => {
-    const cached = cachedPrices[ticker]
-    const livePrice = cached?.price ?? null
-    const avgCost = g.qty > 0.0001 ? g.cost / g.qty : 0
-    const currentVal = livePrice != null && g.qty > 0.0001 ? livePrice * g.qty : null
+    const cached       = cachedPrices[ticker]
+    const livePrice    = cached?.price ?? null
+    const avgCost      = g.qty > 0.0001 ? g.cost / g.qty : 0
+    const currentVal   = livePrice != null && g.qty > 0.0001 ? livePrice * g.qty : null
     const unrealizedPnl = currentVal != null ? currentVal - g.cost : null
     const unrealizedPct = unrealizedPnl != null && g.cost > 0 ? (unrealizedPnl / g.cost) * 100 : null
-    const totalFees = g.txs.filter(t => t.direction === 'buy').reduce((s, t) => {
+    const totalFees    = g.txs.filter(t => t.direction === 'buy').reduce((s, t) => {
       const pure = Number(t.quantity ?? 0) * Number(t.price_per_unit ?? 0)
       return s + Math.max(Number(t.amount) - pure, 0)
     }, 0)
@@ -147,23 +195,34 @@ export default function Portfolio() {
   const tradeLabels    = rawTradeLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
   const { openTransactionModal } = useTransactionModal()
 
-  const [currentDate,  setCurrentDate]  = useState(new Date())
-  const [refreshing,    setRefreshing]    = useState(false)
-  const [failedTickers, setFailedTickers] = useState([])
+  const [currentDate,     setCurrentDate]     = useState(new Date())
+  const [refreshing,      setRefreshing]      = useState(false)
+  const [failedTickers,   setFailedTickers]   = useState([])
   const [expanded,        setExpanded]        = useState({})
   const [tab,             setTab]             = useState('positions')
   const [labelTab,        setLabelTab]        = useState('all')
   const [showTabSettings, setShowTabSettings] = useState(false)
-  const [sellTarget,      setSellTarget]      = useState(null) // { position, lot }
+  const [sellTarget,      setSellTarget]      = useState(null)
   const [showBuyModal,    setShowBuyModal]    = useState(false)
   const [detailTrade,     setDetailTrade]     = useState(null)
+  const [posSort,         setPosSort]         = useState({ col: null, dir: 'asc' })
+  const [logSort,         setLogSort]         = useState({ col: 'date', dir: 'desc' })
+  const [tradeSearch,     setTradeSearch]     = useState('')
+  const [showClosed,      setShowClosed]      = useState(false)
 
-  const hiddenTabs    = new Set(prefs.hidden_label_tabs ?? [])
+  const hiddenTabs = new Set(prefs.hidden_label_tabs ?? [])
   function toggleTabVisibility(name) {
     const next = new Set(hiddenTabs)
     if (next.has(name)) next.delete(name); else next.add(name)
     if (labelTab === name) { setLabelTab('all'); setExpanded({}) }
     setPref('hidden_label_tabs', [...next])
+  }
+
+  function handlePosSort(col) {
+    setPosSort(prev => ({ col, dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc' }))
+  }
+  function handleLogSort(col) {
+    setLogSort(prev => ({ col, dir: prev.col === col && prev.dir === 'asc' ? 'desc' : 'asc' }))
   }
 
   const cachedPrices = prefs.portfolio_prices ?? {}
@@ -173,7 +232,6 @@ export default function Portfolio() {
     [allTransactions]
   )
 
-  // Filter by label subtab — affects stats, positions, and trade log
   const investTxs = useMemo(() =>
     labelTab === 'all' ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab),
     [allInvestTxs, labelTab]
@@ -194,6 +252,69 @@ export default function Portfolio() {
     [investTxs]
   )
 
+  const openPositions = positions.filter(p => p.qty > 0.0001)
+
+  const sortedOpenPositions = useMemo(() => {
+    if (!posSort.col) return openPositions
+    return [...openPositions].sort((a, b) => {
+      const d = posSort.dir === 'asc' ? 1 : -1
+      switch (posSort.col) {
+        case 'ticker':        return a.ticker.localeCompare(b.ticker) * d
+        case 'qty':           return (a.qty - b.qty) * d
+        case 'avgCost':       return (a.avgCost - b.avgCost) * d
+        case 'livePrice':     return ((a.livePrice ?? -Infinity) - (b.livePrice ?? -Infinity)) * d
+        case 'cost':          return (a.cost - b.cost) * d
+        case 'currentVal':    return ((a.currentVal ?? -Infinity) - (b.currentVal ?? -Infinity)) * d
+        case 'unrealizedPnl': return ((a.unrealizedPnl ?? -Infinity) - (b.unrealizedPnl ?? -Infinity)) * d
+        case 'realizedPnl':   return (a.realizedPnl - b.realizedPnl) * d
+        default: return 0
+      }
+    })
+  }, [openPositions, posSort])
+
+  const closedPositions = useMemo(() =>
+    positions
+      .filter(p => p.qty <= 0.0001 && p.transactions.length > 0)
+      .map(p => {
+        const buys  = p.transactions.filter(t => (t.direction ?? 'buy') === 'buy')
+        const sells = p.transactions.filter(t => t.direction === 'sell')
+        const entryDate = buys.length  ? buys.reduce((a, b) => a.date <= b.date ? a : b).date  : null
+        const exitDate  = sells.length ? sells.reduce((a, b) => a.date >= b.date ? a : b).date : null
+        const holdingDays = entryDate && exitDate
+          ? Math.round((new Date(exitDate + 'T00:00:00') - new Date(entryDate + 'T00:00:00')) / 86400000)
+          : null
+        return { ...p, entryDate, exitDate, holdingDays }
+      }),
+    [positions]
+  )
+
+  const filteredTrades = useMemo(() => {
+    let trades = allTrades
+    if (tradeSearch.trim()) {
+      const q = tradeSearch.trim().toLowerCase()
+      trades = trades.filter(tx => tx.ticker?.toLowerCase().includes(q))
+    }
+    if (!logSort.col) return trades
+    return [...trades].sort((a, b) => {
+      const d    = logSort.dir === 'asc' ? 1 : -1
+      const totA = Number(a.quantity ?? 0) * Number(a.price_per_unit ?? 0)
+      const totB = Number(b.quantity ?? 0) * Number(b.price_per_unit ?? 0)
+      switch (logSort.col) {
+        case 'date':   return (a.date.localeCompare(b.date) || (a.created_at ?? '').localeCompare(b.created_at ?? '')) * d
+        case 'ticker': return (a.ticker ?? '').localeCompare(b.ticker ?? '') * d
+        case 'qty':    return (Number(a.quantity ?? 0) - Number(b.quantity ?? 0)) * d
+        case 'price':  return (Number(a.price_per_unit ?? 0) - Number(b.price_per_unit ?? 0)) * d
+        case 'total':  return (totA - totB) * d
+        case 'pnl': {
+          const ap = (a.direction ?? 'buy') === 'sell' ? (closedPnlMap[a.id] ?? -Infinity) : -Infinity
+          const bp = (b.direction ?? 'buy') === 'sell' ? (closedPnlMap[b.id] ?? -Infinity) : -Infinity
+          return (ap - bp) * d
+        }
+        default: return 0
+      }
+    })
+  }, [allTrades, tradeSearch, logSort, closedPnlMap])
+
   async function deleteTx(id) {
     if (!window.confirm('Delete this trade?')) return
     await supabase.from('transactions').update({ is_deleted: true }).eq('id', id)
@@ -211,7 +332,7 @@ export default function Portfolio() {
     }))
     setFailedTickers(results.filter(r => r.price == null).map(r => r.ticker))
     const next = { ...cachedPrices }
-    const now = new Date().toISOString()
+    const now  = new Date().toISOString()
     for (const { ticker, price, name } of results) {
       if (price != null) next[ticker] = { price, name, updatedAt: now }
     }
@@ -219,7 +340,6 @@ export default function Portfolio() {
     setRefreshing(false)
   }
 
-  const openPositions   = positions.filter(p => p.qty > 0.0001)
   const totalInvested   = openPositions.reduce((s, p) => s + p.cost, 0)
   const hasLive         = openPositions.some(p => p.currentVal != null)
   const totalCurrentVal = openPositions.filter(p => p.currentVal != null).reduce((s, p) => s + p.currentVal, 0)
@@ -280,7 +400,6 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Skeleton */}
         {!loaded && (
           <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
             <div className="grid grid-cols-5 gap-4">{[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
@@ -288,7 +407,6 @@ export default function Portfolio() {
           </div>
         )}
 
-        {/* Empty state */}
         {loaded && allInvestTxs.length === 0 && (
           <div className="glass-card rounded-2xl flex flex-col items-center justify-center gap-4 py-20 text-center">
             <TrendingUp size={36} className="text-white/15" />
@@ -328,7 +446,6 @@ export default function Portfolio() {
               ))}
             </div>
 
-            {/* Visibility settings */}
             <div className="relative">
               <button type="button" onClick={() => setShowTabSettings(v => !v)}
                 className="p-1.5 rounded-lg transition-colors hover:bg-white/8"
@@ -412,7 +529,7 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Allocation donut — only when multiple open positions */}
+          {/* Allocation donut */}
           {openPositions.length > 1 && (
             <div className="glass-card rounded-2xl px-4 py-4 mb-5 w-fit">
               <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
@@ -444,7 +561,7 @@ export default function Portfolio() {
             </div>
           )}
 
-          {/* Strategy summary — shown when a label subtab is active */}
+          {/* Strategy summary */}
           {labelTab !== 'all' && (() => {
             const labelTrades   = allInvestTxs.filter(tx => tx.label === labelTab)
             const labelSells    = closedTrades.filter(t => t.label === labelTab)
@@ -454,8 +571,9 @@ export default function Portfolio() {
             const avgPnl        = labelSells.length > 0 ? labelRealized / labelSells.length : null
             const best          = labelSells.length > 0 ? Math.max(...labelSells.map(t => t.realizedPnl ?? 0)) : null
             const worst         = labelSells.length > 0 ? Math.min(...labelSells.map(t => t.realizedPnl ?? 0)) : null
+            const avgHold       = computeAvgHoldDays(labelSells, allInvestTxs, labelTab)
             const lc            = tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)'
-            const gc            = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+            const gc2           = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
             return (
               <div className="glass-card rounded-2xl px-4 py-4 mb-5 border"
@@ -467,16 +585,18 @@ export default function Portfolio() {
                   </span>
                   <span className="text-[10px] text-muted uppercase tracking-widest">Strategy summary</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                   {[
                     { label: 'Total trades',   value: labelTrades.length },
                     { label: 'Closed trades',  value: labelSells.length },
                     { label: 'Win rate',        value: labelWinRate != null ? `${labelWinRate}%` : '—',
-                      color: labelWinRate != null ? gc(labelWinRate - 50) : undefined },
+                      color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined },
                     { label: 'Realized P&L',   value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
-                      color: labelSells.length > 0 ? gc(labelRealized) : undefined },
+                      color: labelSells.length > 0 ? gc2(labelRealized) : undefined },
                     { label: 'Avg per trade',  value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
-                      color: avgPnl != null ? gc(avgPnl) : undefined },
+                      color: avgPnl != null ? gc2(avgPnl) : undefined },
+                    { label: 'Avg hold time',  value: fmtDays(avgHold),
+                      color: avgHold != null ? 'rgba(255,255,255,0.7)' : undefined },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="flex flex-col gap-0.5">
                       <span className="text-[10px] text-muted uppercase tracking-widest">{label}</span>
@@ -490,13 +610,13 @@ export default function Portfolio() {
                   <div className="flex gap-4 mt-3 pt-3 border-t border-white/[0.05]">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] text-muted uppercase tracking-widest">Best trade</span>
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc(best) }}>
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc2(best) }}>
                         {best >= 0 ? '+' : ''}{fmt(best)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] text-muted uppercase tracking-widest">Worst trade</span>
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc(worst ?? 0) }}>
+                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc2(worst ?? 0) }}>
                         {(worst ?? 0) >= 0 ? '+' : ''}{fmt(worst ?? 0)}
                       </span>
                     </div>
@@ -523,21 +643,81 @@ export default function Portfolio() {
             ))}
           </div>
 
-          {/* ── Positions tab (open positions only) ── */}
+          {/* ── Positions tab ── */}
           {tab === 'positions' && (
+            <>
             <div className="glass-card rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
+
+              {/* Mobile cards */}
+              <div className="sm:hidden divide-y divide-white/[0.04]">
+                {openPositions.length === 0 && (
+                  <p className="text-center text-muted text-xs py-10">No open positions.</p>
+                )}
+                {openPositions.map(p => {
+                  const isOpen = !!expanded[p.ticker]
+                  return (
+                    <div key={p.ticker}>
+                      <div
+                        className="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-white/[0.02]"
+                        onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-white/30 shrink-0">
+                            {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                          </span>
+                          <div className="min-w-0">
+                            <span className="font-bold tracking-wider text-white">{p.ticker}</span>
+                            {p.name && <span className="text-[11px] text-white/40 ml-2 truncate">{p.name}</span>}
+                            <div className="text-[10px] text-muted mt-0.5">
+                              {p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })} shares · {fmt(p.cost)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="shrink-0 ml-3">
+                          <PnlChip value={p.unrealizedPnl} pct={p.unrealizedPct} fmt={fmt} />
+                        </div>
+                      </div>
+                      {isOpen && p.transactions.map(tx => {
+                        const isBuy  = tx.direction === 'buy'
+                        const qty    = Number(tx.quantity ?? 0)
+                        const ppu    = Number(tx.price_per_unit ?? 0)
+                        const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+                        const lc     = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
+                        return (
+                          <div key={tx.id} className="flex items-center justify-between px-4 py-2.5 bg-white/[0.015] border-t border-white/[0.03]">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <TypeBadge direction={tx.direction} />
+                              <span className="text-[10px] text-white/40">{dateStr}</span>
+                              {tx.label && lc && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full"
+                                  style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
+                                  {tx.label}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-white/45 tabular-nums">
+                              {qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })} @ {fmt(ppu)}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm border-collapse">
                   <thead>
                     <tr className="border-b border-white/[0.04]">
-                      <th className={`${thSel} text-left px-5`}>Ticker</th>
-                      <th className={`${thSel} text-right px-4`}>Qty</th>
-                      <th className={`${thSel} text-right px-4`}>Avg Cost</th>
-                      <th className={`${thSel} text-right px-4`}>Live Price</th>
-                      <th className={`${thSel} text-right px-4`}>Cost Basis</th>
-                      <th className={`${thSel} text-right px-4`}>Market Value</th>
-                      <th className={`${thSel} text-right px-4`}>Unrealized P&L</th>
-                      <th className={`${thSel} text-right px-4`}>Realized P&L</th>
+                      <SortTh label="Ticker"         col="ticker"       sort={posSort} onSort={handlePosSort} className="text-left px-5" align="left" />
+                      <SortTh label="Qty"            col="qty"          sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Avg Cost"       col="avgCost"      sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Live Price"     col="livePrice"    sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Cost Basis"     col="cost"         sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Market Value"   col="currentVal"   sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Unrealized P&L" col="unrealizedPnl" sort={posSort} onSort={handlePosSort} className="px-4" />
+                      <SortTh label="Realized P&L"  col="realizedPnl"  sort={posSort} onSort={handlePosSort} className="px-4" />
                       <th className="py-3 px-4" />
                     </tr>
                   </thead>
@@ -545,7 +725,7 @@ export default function Portfolio() {
                     {openPositions.length === 0 && (
                       <tr><td colSpan={9} className="text-center text-muted text-xs py-10">No open positions. Check the Trade Log for closed trades.</td></tr>
                     )}
-                    {openPositions.map(p => {
+                    {sortedOpenPositions.map(p => {
                       const isOpen = !!expanded[p.ticker]
                       const alloc  = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
                       return (
@@ -576,9 +756,7 @@ export default function Portfolio() {
                                 ? <span className="text-white">{fmt(p.livePrice)}</span>
                                 : <button onClick={e => { e.stopPropagation(); refresh() }} className="text-white/20 hover:text-accent text-xs transition-colors">Refresh</button>}
                             </td>
-                            <td className="px-4 py-3.5 text-right tabular-nums text-white/55">
-                              {fmt(p.cost)}
-                            </td>
+                            <td className="px-4 py-3.5 text-right tabular-nums text-white/55">{fmt(p.cost)}</td>
                             <td className="px-4 py-3.5 text-right tabular-nums">
                               {p.currentVal != null ? <span className="text-white font-semibold">{fmt(p.currentVal)}</span> : <span className="text-white/20">—</span>}
                             </td>
@@ -593,7 +771,6 @@ export default function Portfolio() {
                             <td className="px-4 py-3.5" />
                           </tr>
 
-                          {/* Lot rows */}
                           {isOpen && p.transactions.map(tx => {
                             const isBuy    = tx.direction === 'buy'
                             const qty      = Number(tx.quantity ?? 0)
@@ -664,6 +841,7 @@ export default function Portfolio() {
                   </tbody>
                 </table>
               </div>
+
               <div className="flex items-center justify-between px-5 py-3 border-t border-white/[0.04] text-xs text-muted">
                 <span>{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
                 <div className="flex items-center gap-5">
@@ -675,36 +853,173 @@ export default function Portfolio() {
                 </div>
               </div>
             </div>
+
+            {/* Closed positions */}
+            {closedPositions.length > 0 && (
+              <div className="glass-card rounded-2xl overflow-hidden mt-3">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+                  onClick={() => setShowClosed(v => !v)}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-white/55">Closed Positions</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-white/[0.06] text-white/35 tabular-nums">{closedPositions.length}</span>
+                  </div>
+                  {showClosed ? <ChevronDown size={14} className="text-white/30" /> : <ChevronRight size={14} className="text-white/30" />}
+                </button>
+
+                {showClosed && (
+                  <>
+                  {/* Mobile */}
+                  <div className="sm:hidden border-t border-white/[0.04] divide-y divide-white/[0.03]">
+                    {closedPositions.map(p => (
+                      <div key={p.ticker} className="px-4 py-3.5">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold tracking-wider text-white/70">{p.ticker}</span>
+                          <PnlChip value={p.realizedPnl} fmt={fmt} />
+                        </div>
+                        <div className="text-[10px] text-white/30">
+                          {p.transactions.length} trade{p.transactions.length !== 1 ? 's' : ''}
+                          {p.holdingDays != null && <> · {fmtDays(p.holdingDays)} held</>}
+                          {p.exitDate && <> · Closed {new Date(p.exitDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop */}
+                  <div className="hidden sm:block border-t border-white/[0.04] overflow-x-auto">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/[0.04]">
+                          <th className={`${thSel} text-left px-5`}>Ticker</th>
+                          <th className={`${thSel} text-right px-4`}>Trades</th>
+                          <th className={`${thSel} text-right px-4`}>Entry</th>
+                          <th className={`${thSel} text-right px-4`}>Exit</th>
+                          <th className={`${thSel} text-right px-4`}>Held</th>
+                          <th className={`${thSel} text-right px-5`}>Realized P&L</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {closedPositions.map(p => {
+                          const entryStr = p.entryDate ? new Date(p.entryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'
+                          const exitStr  = p.exitDate  ? new Date(p.exitDate  + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'
+                          return (
+                            <tr key={p.ticker} className="border-b border-white/[0.03] last:border-0">
+                              <td className="px-5 py-3">
+                                <span className="font-bold tracking-wider text-white/70">{p.ticker}</span>
+                                {p.name && <span className="text-[11px] text-white/35 ml-2">{p.name}</span>}
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs text-white/40 tabular-nums">{p.transactions.length}</td>
+                              <td className="px-4 py-3 text-right text-xs text-white/40">{entryStr}</td>
+                              <td className="px-4 py-3 text-right text-xs text-white/40">{exitStr}</td>
+                              <td className="px-4 py-3 text-right text-xs text-white/40 tabular-nums">{fmtDays(p.holdingDays)}</td>
+                              <td className="px-5 py-3 text-right">
+                                <PnlChip value={p.realizedPnl} fmt={fmt} />
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  </>
+                )}
+              </div>
+            )}
+            </>
           )}
 
           {/* ── Trade Log tab ── */}
           {tab === 'log' && (
             <div className="glass-card rounded-2xl overflow-hidden">
-              <div className="overflow-x-auto">
+
+              {/* Search bar */}
+              <div className="px-4 pt-3.5 pb-2 border-b border-white/[0.04]">
+                <div className="relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search ticker…"
+                    value={tradeSearch}
+                    onChange={e => setTradeSearch(e.target.value)}
+                    className="w-full sm:w-56 bg-white/[0.04] border border-white/[0.08] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white/80 placeholder-white/25 outline-none focus:border-white/20 transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="sm:hidden divide-y divide-white/[0.03]">
+                {filteredTrades.length === 0 && (
+                  <p className="text-center text-muted text-xs py-10">
+                    {tradeSearch ? 'No trades match that ticker.' : 'No trades for this label yet.'}
+                  </p>
+                )}
+                {filteredTrades.map(tx => {
+                  const dir     = tx.direction ?? 'buy'
+                  const qty     = Number(tx.quantity ?? 0)
+                  const ppu     = Number(tx.price_per_unit ?? 0)
+                  const total   = qty * ppu
+                  const realPnl = dir === 'sell' ? (closedPnlMap[tx.id] ?? null) : null
+                  const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
+                  const lc      = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
+                  return (
+                    <div key={tx.id}
+                      className="flex items-center justify-between px-4 py-3 cursor-pointer active:bg-white/[0.02]"
+                      onClick={() => setDetailTrade(tx)}>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <TypeBadge direction={dir} />
+                          <span className="font-bold tracking-wider text-white">{tx.ticker?.toUpperCase()}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-white/35 flex-wrap">
+                          <span>{dateStr}</span>
+                          {tx.label && lc && (
+                            <><span>·</span>
+                            <span style={{ color: lc }}>{tx.label}</span></>
+                          )}
+                          <span>·</span>
+                          <span>{qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })} @ {fmt(ppu)}</span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 ml-3">
+                        {realPnl != null
+                          ? <PnlChip value={realPnl} fmt={fmt} />
+                          : <span className="text-xs text-white/40 tabular-nums">{fmt(total)}</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full min-w-[600px] text-sm border-collapse">
                   <thead>
                     <tr className="border-b border-white/[0.04]">
-                      <th className={`${thSel} text-left px-5`}>Date</th>
+                      <SortTh label="Date"        col="date"   sort={logSort} onSort={handleLogSort} className="text-left px-5" align="left" />
                       <th className={`${thSel} text-center px-3`}>Type</th>
-                      <th className={`${thSel} text-left px-4`}>Ticker</th>
+                      <SortTh label="Ticker"      col="ticker" sort={logSort} onSort={handleLogSort} className="text-left px-4" align="left" />
                       <th className={`${thSel} text-center px-3`}>Label</th>
-                      <th className={`${thSel} text-right px-4`}>Qty</th>
-                      <th className={`${thSel} text-right px-4`}>Price</th>
-                      <th className={`${thSel} text-right px-4`}>Total</th>
-                      <th className={`${thSel} text-right px-5`}>Realized P&L</th>
+                      <SortTh label="Qty"         col="qty"    sort={logSort} onSort={handleLogSort} className="px-4" />
+                      <SortTh label="Price"       col="price"  sort={logSort} onSort={handleLogSort} className="px-4" />
+                      <SortTh label="Total"       col="total"  sort={logSort} onSort={handleLogSort} className="px-4" />
+                      <SortTh label="Realized P&L" col="pnl"  sort={logSort} onSort={handleLogSort} className="px-5" />
                       <th className="py-3 px-4" />
                     </tr>
                   </thead>
                   <tbody>
-                    {allTrades.length === 0
-                      ? <tr><td colSpan={9} className="text-center text-muted text-xs py-10">No trades for this label yet.</td></tr>
-                      : allTrades.map(tx => {
-                          const dir    = tx.direction ?? 'buy'
-                          const qty    = Number(tx.quantity ?? 0)
-                          const ppu    = Number(tx.price_per_unit ?? 0)
-                          const total  = qty * ppu
+                    {filteredTrades.length === 0
+                      ? <tr><td colSpan={9} className="text-center text-muted text-xs py-10">
+                          {tradeSearch ? 'No trades match that ticker.' : 'No trades for this label yet.'}
+                        </td></tr>
+                      : filteredTrades.map(tx => {
+                          const dir     = tx.direction ?? 'buy'
+                          const qty     = Number(tx.quantity ?? 0)
+                          const ppu     = Number(tx.price_per_unit ?? 0)
+                          const total   = qty * ppu
                           const dateStr = new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
-                          const lc     = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
+                          const lc      = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
                           const realPnl = dir === 'sell' ? (closedPnlMap[tx.id] ?? null) : null
                           return (
                             <tr key={tx.id}
@@ -753,8 +1068,11 @@ export default function Portfolio() {
                   </tbody>
                 </table>
               </div>
+
               <div className="px-5 py-3 border-t border-white/[0.04] text-xs text-muted">
-                {allTrades.length} trade{allTrades.length !== 1 ? 's' : ''}{labelTab !== 'all' ? ` · ${labelTab}` : ''}
+                {filteredTrades.length} trade{filteredTrades.length !== 1 ? 's' : ''}
+                {tradeSearch && ` matching "${tradeSearch}"`}
+                {!tradeSearch && labelTab !== 'all' && ` · ${labelTab}`}
               </div>
             </div>
           )}
