@@ -61,8 +61,7 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
     ? c.selectedColor
     : FALLBACK_GRADIENTS[idx % FALLBACK_GRADIENTS.length]
 
-  // 3D tilt + glare state
-  const [tilt,  setTilt]  = useState({ x: 0, y: 0 })
+  // Glare-only state (no 3D tilt)
   const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 })
   const cardRef = useRef(null)
 
@@ -70,9 +69,6 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
     if (!interactive) return
     const rect = cardRef.current?.getBoundingClientRect()
     if (!rect) return
-    const dx = (e.clientX - rect.left - rect.width  / 2) / (rect.width  / 2) // -1 to 1
-    const dy = (e.clientY - rect.top  - rect.height / 2) / (rect.height / 2) // -1 to 1
-    setTilt({ x: dy * -7, y: dx * 7 })
     setGlare({
       x: ((e.clientX - rect.left) / rect.width)  * 100,
       y: ((e.clientY - rect.top)  / rect.height) * 100,
@@ -81,7 +77,6 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
   }, [interactive])
 
   const handleMouseLeave = useCallback(() => {
-    setTilt({ x: 0, y: 0 })
     setGlare({ x: 50, y: 50, opacity: 0 })
   }, [])
 
@@ -94,23 +89,16 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
 
   return (
     <>
-      <div className="flex flex-col gap-2 group" style={{ perspective: 800 }}>
+      <div className="flex flex-col gap-2 group">
         {/* Visual credit card */}
         <div
           ref={setRefs}
           className="relative select-none"
           style={{
             width: 260, height: 163, borderRadius: 18, padding: '18px 22px', overflow: 'hidden',
-            boxShadow: tilt.x !== 0 || tilt.y !== 0
-              ? '0 40px 70px rgba(0,0,0,0.55)'
-              : '0 28px 56px rgba(0,0,0,0.4)',
+            boxShadow: '0 28px 56px rgba(0,0,0,0.4)',
             border: c.showBorder ? '1px solid var(--color-border)' : 'none',
             cursor: interactive ? 'pointer' : 'default',
-            transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-            transition: tilt.x === 0 && tilt.y === 0
-              ? 'transform 0.5s cubic-bezier(0.23,1,0.32,1), box-shadow 0.5s'
-              : 'transform 0.08s linear, box-shadow 0.08s',
-            willChange: 'transform',
           }}
           onClick={interactive ? c.toggleOpen : undefined}
           onMouseMove={handleMouseMove}

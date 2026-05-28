@@ -53,7 +53,7 @@ function PnlChip({ value, pct, fmt }) {
   const color = gc(value)
   return (
     <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
-      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}>
+      style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color, boxShadow: `0 2px 10px color-mix(in srgb, ${color} 25%, transparent)` }}>
       {value >= 0 ? '+' : ''}{fmt(value)}
       {pct != null && <span className="opacity-60 text-[10px]">({fmtPct(pct)})</span>}
     </span>
@@ -354,6 +354,10 @@ export default function Portfolio() {
   }, [cachedPrices])
 
   const thSel = 'text-[10px] uppercase tracking-widest text-muted font-medium py-3'
+  const tickerColorMap = useMemo(() =>
+    Object.fromEntries(openPositions.map((p, i) => [p.ticker, `hsl(${(i * 67) % 360}, 60%, 58%)`])),
+    [openPositions]
+  )
 
   return (
     <>
@@ -489,7 +493,8 @@ export default function Portfolio() {
               <span className="text-lg font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
               <span className="text-[10px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
             </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
+              style={hasLive && totalUnrealized !== 0 ? { background: `color-mix(in srgb, ${gc(totalUnrealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
               <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
                 Unrealized P&L
                 <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
@@ -505,7 +510,8 @@ export default function Portfolio() {
                 </span>
               )}
             </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
+              style={closedTrades.length > 0 ? { background: `color-mix(in srgb, ${gc(totalRealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
               <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
                 Realized P&L
                 <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
@@ -517,7 +523,8 @@ export default function Portfolio() {
                 : <span className="text-lg font-bold text-white/20">—</span>}
               <span className="text-[10px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
             </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
+              style={winRate != null ? { background: `color-mix(in srgb, ${winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)'} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
               <span className="text-[10px] text-muted uppercase tracking-widest">Win Rate</span>
               <span className="text-lg font-bold tabular-nums"
                 style={{ color: winRate == null ? 'rgba(255,255,255,0.2)' : winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)' }}>
@@ -757,20 +764,21 @@ export default function Portfolio() {
                   </thead>
                   <tbody>
                     {sortedOpenPositions.map(p => {
-                      const isOpen = !!expanded[p.ticker]
-                      const alloc  = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
+                      const isOpen    = !!expanded[p.ticker]
+                      const alloc     = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
+                      const tickerCol = tickerColorMap[p.ticker]
                       return (
                         <>
                           <tr key={p.ticker}
                             className="group/row border-b border-white/[0.03] cursor-pointer hover:bg-white/[0.02] transition-colors"
                             onClick={() => setExpanded(e => ({ ...e, [p.ticker]: !e[p.ticker] }))}>
-                            <td className="px-5 py-3.5">
+                            <td className="px-5 py-3.5" style={{ boxShadow: `inset 3px 0 0 ${tickerCol}` }}>
                               <div className="flex items-center gap-2">
-                                <span className="text-white/30 shrink-0">
+                                <span className="shrink-0" style={{ color: tickerCol, opacity: 0.7 }}>
                                   {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                 </span>
                                 <div className="flex flex-col gap-0.5">
-                                  <span className="font-bold tracking-wider text-white">{p.ticker}</span>
+                                  <span className="font-bold tracking-wider" style={{ color: tickerCol }}>{p.ticker}</span>
                                   {p.name && <span className="text-[11px] text-white/40 truncate max-w-[160px]">{p.name}</span>}
                                   <span className="text-[10px] text-muted">{alloc.toFixed(1)}% · {p.transactions.length} trade{p.transactions.length !== 1 ? 's' : ''}</span>
                                 </div>
@@ -814,7 +822,7 @@ export default function Portfolio() {
                             const lc       = tx.label ? (tradeLabelMap[tx.label] ?? 'var(--color-accent)') : null
                             return (
                               <tr key={tx.id} className="group border-b border-white/[0.02] bg-white/[0.012]">
-                                <td className="pl-11 pr-4 py-2.5">
+                                <td className="pl-11 pr-4 py-2.5" style={{ boxShadow: `inset 3px 0 0 color-mix(in srgb, ${tickerCol} 40%, transparent)` }}>
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <TypeBadge direction={tx.direction} />
                                     <span className="text-xs text-white/40">{dateStr}</span>
