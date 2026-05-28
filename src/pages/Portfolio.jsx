@@ -646,13 +646,56 @@ export default function Portfolio() {
           {/* ── Positions tab ── */}
           {tab === 'positions' && (
             <>
-            <div className="glass-card rounded-2xl overflow-hidden">
+            {/* Rich empty state */}
+            {openPositions.length === 0 && (() => {
+              const avgHold = closedPositions.length > 0
+                ? Math.round(closedPositions.reduce((s, p) => s + (p.holdingDays ?? 0), 0) / closedPositions.filter(p => p.holdingDays != null).length)
+                : null
+              return (
+                <div className="glass-card rounded-2xl px-6 py-10 flex flex-col items-center gap-6 text-center mb-3">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mb-1">
+                      <BarChart2 size={20} className="text-white/20" />
+                    </div>
+                    <p className="text-sm font-medium text-white/60">No open positions</p>
+                    <p className="text-xs text-white/25">
+                      {closedTrades.length > 0 ? 'All your trades are currently closed.' : 'Buy something to open your first position.'}
+                    </p>
+                  </div>
+
+                  {closedTrades.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-lg">
+                      {[
+                        { label: 'Total trades',  value: allTrades.length },
+                        { label: 'Realized P&L',  value: `${totalRealized >= 0 ? '+' : ''}${fmt(totalRealized)}`,
+                          color: gc(totalRealized) },
+                        { label: 'Win rate',      value: winRate != null ? `${winRate}%` : '—',
+                          color: winRate != null ? (winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)') : undefined },
+                        { label: 'Avg hold',      value: fmtDays(avgHold) },
+                      ].map(({ label, value, color }) => (
+                        <div key={label} className="flex flex-col gap-1 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.05]">
+                          <span className="text-[10px] text-muted uppercase tracking-widest">{label}</span>
+                          <span className="text-base font-bold tabular-nums" style={color ? { color } : {}}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setTab('log')}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/10 text-sm text-white/50 hover:text-white hover:border-white/25 transition-colors">
+                    <List size={13} /> View Trade Log
+                  </button>
+                </div>
+              )
+            })()}
+
+            {/* Table (only when there are open positions) */}
+            {openPositions.length > 0 && <div className="glass-card rounded-2xl overflow-hidden">
 
               {/* Mobile cards */}
               <div className="sm:hidden divide-y divide-white/[0.04]">
-                {openPositions.length === 0 && (
-                  <p className="text-center text-muted text-xs py-10">No open positions.</p>
-                )}
                 {openPositions.map(p => {
                   const isOpen = !!expanded[p.ticker]
                   return (
@@ -722,9 +765,6 @@ export default function Portfolio() {
                     </tr>
                   </thead>
                   <tbody>
-                    {openPositions.length === 0 && (
-                      <tr><td colSpan={9} className="text-center text-muted text-xs py-10">No open positions. Check the Trade Log for closed trades.</td></tr>
-                    )}
                     {sortedOpenPositions.map(p => {
                       const isOpen = !!expanded[p.ticker]
                       const alloc  = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
@@ -852,7 +892,7 @@ export default function Portfolio() {
                   {hasLive && <span>Value <span className="text-white font-medium ml-1">{fmt(totalCurrentVal)}</span></span>}
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* Closed positions */}
             {closedPositions.length > 0 && (
