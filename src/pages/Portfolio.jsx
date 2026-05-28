@@ -481,64 +481,128 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Stats bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
-              <span className="text-[10px] text-muted uppercase tracking-widest">Cost Basis</span>
-              <span className="text-lg font-bold tabular-nums">{fmt(totalInvested)}</span>
-              <span className="text-[10px] text-muted">{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
-              <span className="text-[10px] text-muted uppercase tracking-widest">Market Value</span>
-              <span className="text-lg font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
-              <span className="text-[10px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
-            </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
-              style={hasLive && totalUnrealized !== 0 ? { background: `color-mix(in srgb, ${gc(totalUnrealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
-              <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
-                Unrealized P&L
-                <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
-              </span>
-              {hasLive
-                ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalUnrealized) }}>
-                    {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
-                  </span>
-                : <span className="text-lg font-bold text-white/20">—</span>}
-              {hasLive && totalInvested > 0 && (
-                <span className="text-[10px]" style={{ color: gc(totalUnrealized) }}>
-                  {fmtPct((totalUnrealized / totalInvested) * 100)}
+          {/* Stats + Summary combined layout */}
+          {(() => {
+            const isAll         = labelTab === 'all'
+            const labelTrades   = isAll ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab)
+            const labelSells    = isAll ? closedTrades  : closedTrades.filter(t => t.label === labelTab)
+            const hasSummary    = labelTrades.length > 0
+            const labelWins     = labelSells.filter(t => (t.realizedPnl ?? 0) > 0).length
+            const labelWinRate  = labelSells.length > 0 ? Math.round((labelWins / labelSells.length) * 100) : null
+            const labelRealized = labelSells.reduce((s, t) => s + (t.realizedPnl ?? 0), 0)
+            const avgPnl        = labelSells.length > 0 ? labelRealized / labelSells.length : null
+            const best          = labelSells.length > 0 ? Math.max(...labelSells.map(t => t.realizedPnl ?? 0)) : null
+            const worst         = labelSells.length > 0 ? Math.min(...labelSells.map(t => t.realizedPnl ?? 0)) : null
+            const avgHold       = computeAvgHoldDays(labelSells, allInvestTxs, isAll ? null : labelTab)
+            const lc            = isAll ? 'var(--color-accent)' : (tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)')
+            const gc2           = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
+
+            const statCards = <>
+              <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
+                <span className="text-[10px] text-muted uppercase tracking-widest">Cost Basis</span>
+                <span className="text-lg font-bold tabular-nums">{fmt(totalInvested)}</span>
+                <span className="text-[10px] text-muted">{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
+                <span className="text-[10px] text-muted uppercase tracking-widest">Market Value</span>
+                <span className="text-lg font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
+                <span className="text-[10px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
+              </div>
+              <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
+                style={hasLive && totalUnrealized !== 0 ? { background: `color-mix(in srgb, ${gc(totalUnrealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
+                <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
+                  Unrealized P&L
+                  <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
                 </span>
-              )}
-            </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
-              style={closedTrades.length > 0 ? { background: `color-mix(in srgb, ${gc(totalRealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
-              <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
-                Realized P&L
-                <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
-              </span>
-              {closedTrades.length > 0
-                ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalRealized) }}>
-                    {totalRealized >= 0 ? '+' : ''}{fmt(totalRealized)}
+                {hasLive
+                  ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalUnrealized) }}>
+                      {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
+                    </span>
+                  : <span className="text-lg font-bold text-white/20">—</span>}
+                {hasLive && totalInvested > 0 && (
+                  <span className="text-[10px]" style={{ color: gc(totalUnrealized) }}>
+                    {fmtPct((totalUnrealized / totalInvested) * 100)}
                   </span>
-                : <span className="text-lg font-bold text-white/20">—</span>}
-              <span className="text-[10px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
-            </div>
-            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
-              style={winRate != null ? { background: `color-mix(in srgb, ${winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)'} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
-              <span className="text-[10px] text-muted uppercase tracking-widest">Win Rate</span>
-              <span className="text-lg font-bold tabular-nums"
-                style={{ color: winRate == null ? 'rgba(255,255,255,0.2)' : winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)' }}>
-                {winRate != null ? `${winRate}%` : '—'}
-              </span>
-              <span className="text-[10px] text-muted">
-                {closedTrades.length > 0 ? `${winCount} / ${closedTrades.length} winning` : 'No sells yet'}
-              </span>
-            </div>
-          </div>
+                )}
+              </div>
+              <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5"
+                style={closedTrades.length > 0 ? { background: `color-mix(in srgb, ${gc(totalRealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
+                <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
+                  Realized P&L
+                  <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
+                </span>
+                {closedTrades.length > 0
+                  ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalRealized) }}>
+                      {totalRealized >= 0 ? '+' : ''}{fmt(totalRealized)}
+                    </span>
+                  : <span className="text-lg font-bold text-white/20">—</span>}
+                <span className="text-[10px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
+              </div>
+              <div className={`glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5 ${hasSummary ? 'col-span-2' : ''}`}
+                style={winRate != null ? { background: `color-mix(in srgb, ${winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)'} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` } : {}}>
+                <span className="text-[10px] text-muted uppercase tracking-widest">Win Rate</span>
+                <span className="text-lg font-bold tabular-nums"
+                  style={{ color: winRate == null ? 'rgba(255,255,255,0.2)' : winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)' }}>
+                  {winRate != null ? `${winRate}%` : '—'}
+                </span>
+                <span className="text-[10px] text-muted">
+                  {closedTrades.length > 0 ? `${winCount} / ${closedTrades.length} winning` : 'No sells yet'}
+                </span>
+              </div>
+            </>
+
+            if (!hasSummary) return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">{statCards}</div>
+            )
+
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4 items-stretch">
+                {/* Left 50%: summary */}
+                <div className="glass-card rounded-xl px-4 py-4 border flex flex-col gap-4"
+                  style={{ borderColor: `color-mix(in srgb, ${lc} 22%, transparent)` }}>
+                  <div className="flex items-center gap-2">
+                    {!isAll && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
+                        {labelTab}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-muted uppercase tracking-widest">
+                      {isAll ? 'Portfolio summary' : 'Strategy summary'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 flex-1">
+                    {[
+                      { label: 'Trades',        value: labelTrades.length },
+                      { label: 'Closed',        value: labelSells.length },
+                      { label: 'Win rate',      value: labelWinRate != null ? `${labelWinRate}%` : '—',
+                        color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined },
+                      { label: 'Realized P&L',  value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
+                        color: labelSells.length > 0 ? gc2(labelRealized) : undefined },
+                      { label: 'Avg per trade', value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
+                        color: avgPnl != null ? gc2(avgPnl) : undefined },
+                      { label: 'Avg hold',      value: fmtDays(avgHold) },
+                      ...(best != null ? [
+                        { label: 'Best',  value: `${best >= 0 ? '+' : ''}${fmt(best)}`,      color: gc2(best) },
+                        { label: 'Worst', value: `${(worst ?? 0) >= 0 ? '+' : ''}${fmt(worst ?? 0)}`, color: gc2(worst ?? 0) },
+                      ] : []),
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-muted uppercase tracking-widest whitespace-nowrap">{label}</span>
+                        <span className="text-base font-semibold tabular-nums" style={color ? { color } : {}}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Right 50%: stat cards in 2-col grid */}
+                <div className="grid grid-cols-2 gap-2.5">{statCards}</div>
+              </div>
+            )
+          })()}
 
           {/* Allocation donut */}
           {openPositions.length > 1 && (
-            <div className="glass-card rounded-2xl px-4 py-4 mb-5 w-fit">
+            <div className="glass-card rounded-2xl px-4 py-4 mb-4 w-fit">
               <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
               <div className="flex items-center gap-5">
                 <ResponsiveContainer width={100} height={100}>
@@ -567,62 +631,6 @@ export default function Portfolio() {
               </div>
             </div>
           )}
-
-          {/* Strategy / portfolio summary — shown for all subtabs */}
-          {(() => {
-            const isAll         = labelTab === 'all'
-            const labelTrades   = isAll ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab)
-            const labelSells    = isAll ? closedTrades  : closedTrades.filter(t => t.label === labelTab)
-            if (!labelTrades.length) return null
-            const labelWins     = labelSells.filter(t => (t.realizedPnl ?? 0) > 0).length
-            const labelWinRate  = labelSells.length > 0 ? Math.round((labelWins / labelSells.length) * 100) : null
-            const labelRealized = labelSells.reduce((s, t) => s + (t.realizedPnl ?? 0), 0)
-            const avgPnl        = labelSells.length > 0 ? labelRealized / labelSells.length : null
-            const best          = labelSells.length > 0 ? Math.max(...labelSells.map(t => t.realizedPnl ?? 0)) : null
-            const worst         = labelSells.length > 0 ? Math.min(...labelSells.map(t => t.realizedPnl ?? 0)) : null
-            const avgHold       = computeAvgHoldDays(labelSells, allInvestTxs, isAll ? null : labelTab)
-            const lc            = isAll ? 'var(--color-accent)' : (tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)')
-            const gc2           = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
-
-            return (
-              <div className="glass-card rounded-xl px-4 py-3.5 mb-4 border w-fit"
-                style={{ borderColor: `color-mix(in srgb, ${lc} 22%, transparent)` }}>
-                <div className="flex items-center gap-2 mb-3">
-                  {!isAll && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
-                      {labelTab}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-muted uppercase tracking-widest">
-                    {isAll ? 'Portfolio summary' : 'Strategy summary'}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-x-6 gap-y-3">
-                  {[
-                    { label: 'Trades',        value: labelTrades.length },
-                    { label: 'Closed',        value: labelSells.length },
-                    { label: 'Win rate',      value: labelWinRate != null ? `${labelWinRate}%` : '—',
-                      color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined },
-                    { label: 'Realized P&L',  value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
-                      color: labelSells.length > 0 ? gc2(labelRealized) : undefined },
-                    { label: 'Avg per trade', value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
-                      color: avgPnl != null ? gc2(avgPnl) : undefined },
-                    { label: 'Avg hold',      value: fmtDays(avgHold) },
-                    ...(best != null ? [
-                      { label: 'Best',  value: `${best >= 0 ? '+' : ''}${fmt(best)}`,      color: gc2(best) },
-                      { label: 'Worst', value: `${(worst ?? 0) >= 0 ? '+' : ''}${fmt(worst ?? 0)}`, color: gc2(worst ?? 0) },
-                    ] : []),
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-muted uppercase tracking-widest whitespace-nowrap">{label}</span>
-                      <span className="text-sm font-semibold tabular-nums" style={color ? { color } : {}}>{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
 
           {/* Tab bar */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-3">
