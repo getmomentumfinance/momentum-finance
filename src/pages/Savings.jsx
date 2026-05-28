@@ -547,12 +547,16 @@ export default function Savings() {
                   {dipsCount}×
                 </p>
                 <div className="flex flex-col gap-1.5">
-                  {dipsCount > 0 && monthWithdrawals.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-b border-white/5 last:border-0">
-                      <span className="text-[11px] text-muted">{t.date}</span>
-                      <span className="text-[11px] font-semibold tabular-nums" style={{ color: ALERT }}>−{fmt(t.amount)}</span>
+                  {dipsCount > 0 && (
+                    <div className={monthWithdrawals.length > 5 ? 'max-h-[155px] overflow-y-auto scrollbar-thin' : ''}>
+                      {monthWithdrawals.map((t, i) => (
+                        <div key={i} className="flex items-center justify-between py-1 border-b border-white/5 last:border-0">
+                          <span className="text-[11px] text-muted">{t.date}</span>
+                          <span className="text-[11px] font-semibold tabular-nums" style={{ color: ALERT }}>−{fmt(t.amount)}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                   <div className="flex items-center justify-between py-1 border-b border-white/5">
                     <span className="text-[11px] text-muted">{t('sav.cleanStreak')}</span>
                     <span className="text-[11px] font-semibold" style={{ color: cleanStreak > 0 ? C_IN : undefined }}>{cleanStreak} mo</span>
@@ -689,7 +693,7 @@ export default function Savings() {
           ) : recent.length === 0 ? (
             <div className="px-5 py-4 text-xs text-muted">{t('sav.noTxYet')}</div>
           ) : (
-            <div className="overflow-y-auto">
+            <div className={`overflow-y-auto ${recent.length > 8 ? 'max-h-[352px]' : ''}`}>
               {recent.map((item, i) => {
                 if (item.kind === 'alloc') {
                   const goalColor = item.goalColor ?? '#a78bfa'
