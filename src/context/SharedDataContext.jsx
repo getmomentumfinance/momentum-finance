@@ -70,7 +70,7 @@ export function SharedDataProvider({ children }) {
       supabase.from('categories').select('id, name, color, icon, importance, parent_id').eq('user_id', user.id),
       supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
-      supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id').eq('user_id', user.id).order('created_at'),
+      supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id, card_number').eq('user_id', user.id).order('created_at'),
       supabase.from('transactions').select('id, card_id, type, source, amount, reimbursable_amount, is_cash, split_parent_id, is_split_parent, date, category_id, subcategory_id, receiver_id, importance, is_earned, ticker, quantity, price_per_unit, label, direction').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
       supabase.from('transactions').select('card_id, type, amount, is_cash, direction').eq('user_id', user.id).eq('is_deleted', false).is('split_parent_id', null),
       supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),

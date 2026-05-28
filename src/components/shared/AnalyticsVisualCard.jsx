@@ -143,10 +143,10 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
             </div>
           </div>
 
-          {/* Card number */}
+          {/* Card number — last 4 digits only */}
           {card.card_number && (
             <p className="relative z-10" style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.6)', margin: '0 0 10px', fontFamily: 'monospace' }}>
-              {card.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()}
+              {'•••• ' + card.card_number.replace(/\s/g, '').slice(-4)}
             </p>
           )}
 
