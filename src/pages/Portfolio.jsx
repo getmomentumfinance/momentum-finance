@@ -37,7 +37,7 @@ function computeAvgHoldDays(sells, allTxs, label) {
     const ticker = sell.ticker?.toUpperCase()
     const buys = allTxs.filter(tx =>
       tx.ticker?.toUpperCase() === ticker &&
-      tx.label === label &&
+      (label === null || tx.label === label) &&
       (tx.direction ?? 'buy') === 'buy' &&
       tx.date <= sell.date
     )
@@ -478,52 +478,52 @@ export default function Portfolio() {
           </div>
 
           {/* Stats bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
-            <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted uppercase tracking-widest">Cost Basis</span>
-              <span className="text-xl font-bold tabular-nums">{fmt(totalInvested)}</span>
-              <span className="text-[11px] text-muted">{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
+              <span className="text-lg font-bold tabular-nums">{fmt(totalInvested)}</span>
+              <span className="text-[10px] text-muted">{openPositions.length} open position{openPositions.length !== 1 ? 's' : ''}</span>
             </div>
-            <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted uppercase tracking-widest">Market Value</span>
-              <span className="text-xl font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
-              <span className="text-[11px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
+              <span className="text-lg font-bold tabular-nums">{hasLive ? fmt(totalCurrentVal) : '—'}</span>
+              <span className="text-[10px] text-muted">{lastUpdated ? timeAgo(lastUpdated) : 'Refresh prices'}</span>
             </div>
-            <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
                 Unrealized P&L
                 <InfoTip text="Profit or loss on positions you still hold. Calculated as (current price − avg cost) × quantity. Updates when you refresh live prices." />
               </span>
               {hasLive
-                ? <span className="text-xl font-bold tabular-nums" style={{ color: gc(totalUnrealized) }}>
+                ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalUnrealized) }}>
                     {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
                   </span>
-                : <span className="text-xl font-bold text-white/20">—</span>}
+                : <span className="text-lg font-bold text-white/20">—</span>}
               {hasLive && totalInvested > 0 && (
-                <span className="text-[11px]" style={{ color: gc(totalUnrealized) }}>
+                <span className="text-[10px]" style={{ color: gc(totalUnrealized) }}>
                   {fmtPct((totalUnrealized / totalInvested) * 100)}
                 </span>
               )}
             </div>
-            <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted uppercase tracking-widest flex items-center">
                 Realized P&L
                 <InfoTip text="Profit or loss you've locked in by selling. Calculated as (sell price − avg cost at time of sale) × quantity sold. This is money actually made or lost." />
               </span>
               {closedTrades.length > 0
-                ? <span className="text-xl font-bold tabular-nums" style={{ color: gc(totalRealized) }}>
+                ? <span className="text-lg font-bold tabular-nums" style={{ color: gc(totalRealized) }}>
                     {totalRealized >= 0 ? '+' : ''}{fmt(totalRealized)}
                   </span>
-                : <span className="text-xl font-bold text-white/20">—</span>}
-              <span className="text-[11px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
+                : <span className="text-lg font-bold text-white/20">—</span>}
+              <span className="text-[10px] text-muted">{closedTrades.length > 0 ? `${closedTrades.length} sell${closedTrades.length !== 1 ? 's' : ''}` : 'No sells yet'}</span>
             </div>
-            <div className="glass-card rounded-2xl px-4 py-3.5 flex flex-col gap-1">
+            <div className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5">
               <span className="text-[10px] text-muted uppercase tracking-widest">Win Rate</span>
-              <span className="text-xl font-bold tabular-nums"
+              <span className="text-lg font-bold tabular-nums"
                 style={{ color: winRate == null ? 'rgba(255,255,255,0.2)' : winRate >= 50 ? 'var(--type-income)' : 'var(--type-expense)' }}>
                 {winRate != null ? `${winRate}%` : '—'}
               </span>
-              <span className="text-[11px] text-muted">
+              <span className="text-[10px] text-muted">
                 {closedTrades.length > 0 ? `${winCount} / ${closedTrades.length} winning` : 'No sells yet'}
               </span>
             </div>
@@ -561,67 +561,58 @@ export default function Portfolio() {
             </div>
           )}
 
-          {/* Strategy summary */}
-          {labelTab !== 'all' && (() => {
-            const labelTrades   = allInvestTxs.filter(tx => tx.label === labelTab)
-            const labelSells    = closedTrades.filter(t => t.label === labelTab)
+          {/* Strategy / portfolio summary — shown for all subtabs */}
+          {(() => {
+            const isAll         = labelTab === 'all'
+            const labelTrades   = isAll ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab)
+            const labelSells    = isAll ? closedTrades  : closedTrades.filter(t => t.label === labelTab)
+            if (!labelTrades.length) return null
             const labelWins     = labelSells.filter(t => (t.realizedPnl ?? 0) > 0).length
             const labelWinRate  = labelSells.length > 0 ? Math.round((labelWins / labelSells.length) * 100) : null
             const labelRealized = labelSells.reduce((s, t) => s + (t.realizedPnl ?? 0), 0)
             const avgPnl        = labelSells.length > 0 ? labelRealized / labelSells.length : null
             const best          = labelSells.length > 0 ? Math.max(...labelSells.map(t => t.realizedPnl ?? 0)) : null
             const worst         = labelSells.length > 0 ? Math.min(...labelSells.map(t => t.realizedPnl ?? 0)) : null
-            const avgHold       = computeAvgHoldDays(labelSells, allInvestTxs, labelTab)
-            const lc            = tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)'
+            const avgHold       = computeAvgHoldDays(labelSells, allInvestTxs, isAll ? null : labelTab)
+            const lc            = isAll ? 'var(--color-accent)' : (tradeLabels.find(l => l.name === labelTab)?.color ?? 'var(--color-accent)')
             const gc2           = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
             return (
-              <div className="glass-card rounded-2xl px-4 py-4 mb-5 border"
-                style={{ borderColor: `color-mix(in srgb, ${lc} 25%, transparent)` }}>
+              <div className="glass-card rounded-xl px-4 py-3.5 mb-4 border w-fit"
+                style={{ borderColor: `color-mix(in srgb, ${lc} 22%, transparent)` }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
-                    {labelTab}
+                  {!isAll && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
+                      {labelTab}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-muted uppercase tracking-widest">
+                    {isAll ? 'Portfolio summary' : 'Strategy summary'}
                   </span>
-                  <span className="text-[10px] text-muted uppercase tracking-widest">Strategy summary</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
                   {[
-                    { label: 'Total trades',   value: labelTrades.length },
-                    { label: 'Closed trades',  value: labelSells.length },
-                    { label: 'Win rate',        value: labelWinRate != null ? `${labelWinRate}%` : '—',
+                    { label: 'Trades',        value: labelTrades.length },
+                    { label: 'Closed',        value: labelSells.length },
+                    { label: 'Win rate',      value: labelWinRate != null ? `${labelWinRate}%` : '—',
                       color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined },
-                    { label: 'Realized P&L',   value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
+                    { label: 'Realized P&L',  value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
                       color: labelSells.length > 0 ? gc2(labelRealized) : undefined },
-                    { label: 'Avg per trade',  value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
+                    { label: 'Avg per trade', value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
                       color: avgPnl != null ? gc2(avgPnl) : undefined },
-                    { label: 'Avg hold time',  value: fmtDays(avgHold),
-                      color: avgHold != null ? 'rgba(255,255,255,0.7)' : undefined },
+                    { label: 'Avg hold',      value: fmtDays(avgHold) },
+                    ...(best != null ? [
+                      { label: 'Best',  value: `${best >= 0 ? '+' : ''}${fmt(best)}`,      color: gc2(best) },
+                      { label: 'Worst', value: `${(worst ?? 0) >= 0 ? '+' : ''}${fmt(worst ?? 0)}`, color: gc2(worst ?? 0) },
+                    ] : []),
                   ].map(({ label, value, color }) => (
                     <div key={label} className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-muted uppercase tracking-widest">{label}</span>
-                      <span className="text-sm font-semibold tabular-nums" style={color ? { color } : {}}>
-                        {value}
-                      </span>
+                      <span className="text-[10px] text-muted uppercase tracking-widest whitespace-nowrap">{label}</span>
+                      <span className="text-sm font-semibold tabular-nums" style={color ? { color } : {}}>{value}</span>
                     </div>
                   ))}
                 </div>
-                {best != null && (
-                  <div className="flex gap-4 mt-3 pt-3 border-t border-white/[0.05]">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-muted uppercase tracking-widest">Best trade</span>
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc2(best) }}>
-                        {best >= 0 ? '+' : ''}{fmt(best)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-muted uppercase tracking-widest">Worst trade</span>
-                      <span className="text-xs font-semibold tabular-nums" style={{ color: gc2(worst ?? 0) }}>
-                        {(worst ?? 0) >= 0 ? '+' : ''}{fmt(worst ?? 0)}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
             )
           })()}
