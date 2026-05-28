@@ -132,7 +132,7 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
           }} />
 
           {/* Row 1: chip left, bank logo + circles right */}
-          <div className="relative z-10" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <div className="relative z-10" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: card.card_number ? 10 : 18 }}>
             <div style={{ width: 34, height: 26, borderRadius: 5, background: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.3)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)' }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {bank && <BankLogo bank={bank} size={20} />}
@@ -143,8 +143,15 @@ export default function AnalyticsVisualCard({ card, bank, exp, inc, balance, per
             </div>
           </div>
 
+          {/* Card number */}
+          {card.card_number && (
+            <p className="relative z-10" style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.6)', margin: '0 0 10px', fontFamily: 'monospace' }}>
+              {card.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()}
+            </p>
+          )}
+
           {/* Main amount — balance if available, else monthly expense */}
-          <p className="relative z-10" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', color: 'rgba(255,255,255,0.95)', margin: '0 0 14px' }}>
+          <p className="relative z-10" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.02em', color: 'rgba(255,255,255,0.95)', margin: `0 0 ${card.card_number ? '8px' : '14px'}` }}>
             {balance != null ? fmt(balance, 2) : fmt(exp, 0)}
           </p>
 

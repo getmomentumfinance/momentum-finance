@@ -99,16 +99,17 @@ function IconPicker({ value, onChange }) {
 // ── Card add / edit form ──────────────────────────────────────
 function CardForm({ type, banks, initial, onSave, onCancel }) {
   const isCash = type === 'cash'
-  const [name,    setName]    = useState(initial?.name            ?? '')
-  const [bankId,  setBankId]  = useState(initial?.bank_id         ?? '')
-  const [icon,    setIcon]    = useState(initial?.icon            ?? 'credit-card')
-  const [balance, setBalance] = useState(initial?.initial_balance ?? '')
+  const [name,       setName]       = useState(initial?.name            ?? '')
+  const [bankId,     setBankId]     = useState(initial?.bank_id         ?? '')
+  const [icon,       setIcon]       = useState(initial?.icon            ?? 'credit-card')
+  const [balance,    setBalance]    = useState(initial?.initial_balance ?? '')
+  const [cardNumber, setCardNumber] = useState(initial?.card_number     ?? '')
 
   function handleSubmit(e) {
     e?.preventDefault()
     const resolvedName = isCash ? 'Cash Wallet' : name.trim()
     if (!resolvedName) return
-    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0 })
+    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0, card_number: cardNumber.trim() || null })
   }
 
   return (
@@ -143,6 +144,15 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
           <option value="">No bank</option>
           {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
+      )}
+
+      {!isCash && (
+        <input
+          value={cardNumber}
+          onChange={e => setCardNumber(e.target.value)}
+          placeholder="Card number (optional, e.g. BE12 3456 7890 1234)"
+          className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 font-mono placeholder:font-sans placeholder:text-white/25"
+        />
       )}
 
       <IconPicker value={icon} onChange={setIcon} />
@@ -192,6 +202,9 @@ function CardRow({ card, banks, canBeMain, balance, onUpdate, onDelete, onSetMai
           {bank && <BankAvatar bank={bank} size={14} />}
           {bank && <span className="text-xs text-muted">{bank.name} ·</span>}
           <span className="text-xs text-muted">{fmt(Number(balance ?? card.initial_balance))}</span>
+          {card.card_number && (
+            <span className="text-xs text-muted/60 font-mono">· {card.card_number.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim()}</span>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
