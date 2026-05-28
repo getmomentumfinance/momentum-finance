@@ -34,18 +34,14 @@ function computeCurrentValues(cards, allTxs, currentDate) {
   const savOut         = allTxs.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const savings        = savingsInitial + savIn - savOut
 
-  let invest = 0
-  for (const card of cards) {
-    if (card.type !== 'invest') continue
-    const delta = allTxs
-      .filter(t => t.card_id === card.id && !t.is_cash)
-      .reduce((s, t) => s + (CREDIT.has(t.type) ? t.amount : -t.amount), 0)
-    invest += Number(card.initial_balance) + delta
-  }
-
   const y = currentDate.getFullYear(), m = currentDate.getMonth()
   const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
   const monthEnd   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+
+  const invest = allTxs
+    .filter(t => t.type === 'invest' && t.date >= monthStart && t.date <= monthEnd)
+    .reduce((s, t) => s + ((t.direction ?? 'buy') === 'buy' ? t.amount : -t.amount), 0)
+
   const income = allTxs
     .filter(t => t.type === 'income' && t.date >= monthStart && t.date <= monthEnd)
     .reduce((s, t) => s + t.amount, 0)
