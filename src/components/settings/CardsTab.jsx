@@ -149,8 +149,12 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
       {!isCash && (
         <input
           value={cardNumber}
-          onChange={e => setCardNumber(e.target.value)}
-          placeholder="Card number (optional, e.g. BE12 3456 7890 1234)"
+          onChange={e => {
+            const stripped = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+            const limited  = stripped.startsWith('BE') ? stripped.slice(0, 16) : stripped
+            setCardNumber(limited.replace(/(.{4})/g, '$1 ').trim())
+          }}
+          placeholder="BEXX XXXX XXXX XXXX"
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 font-mono placeholder:font-sans placeholder:text-white/25"
         />
       )}
