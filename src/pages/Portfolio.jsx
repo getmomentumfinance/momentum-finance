@@ -558,9 +558,10 @@ export default function Portfolio() {
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 mb-4 items-stretch">
                 {/* Left 50%: summary */}
-                <div className="glass-card rounded-xl px-4 py-4 border flex flex-col gap-4"
+                <div className="rounded-xl border flex flex-col gap-2.5 overflow-hidden"
                   style={{ borderColor: `color-mix(in srgb, ${lc} 22%, transparent)` }}>
-                  <div className="flex items-center gap-2">
+                  {/* Header */}
+                  <div className="flex items-center gap-2 px-4 pt-3.5 pb-0">
                     {!isAll && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                         style={{ background: `color-mix(in srgb, ${lc} 18%, transparent)`, color: lc }}>
@@ -571,25 +572,28 @@ export default function Portfolio() {
                       {isAll ? 'Portfolio summary' : 'Strategy summary'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-4 flex-1">
+                  {/* Stats as mini tiles matching the right-side cards */}
+                  <div className="grid grid-cols-2 gap-2.5 px-2.5 pb-2.5 flex-1">
                     {[
                       { label: 'Trades',        value: labelTrades.length },
                       { label: 'Closed',        value: labelSells.length },
                       { label: 'Win rate',      value: labelWinRate != null ? `${labelWinRate}%` : '—',
-                        color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined },
+                        color: labelWinRate != null ? gc2(labelWinRate - 50) : undefined,
+                        bg: labelWinRate != null ? `color-mix(in srgb, ${gc2(labelWinRate - 50)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` : undefined },
                       { label: 'Realized P&L',  value: labelSells.length > 0 ? `${labelRealized >= 0 ? '+' : ''}${fmt(labelRealized)}` : '—',
-                        color: labelSells.length > 0 ? gc2(labelRealized) : undefined },
+                        color: labelSells.length > 0 ? gc2(labelRealized) : undefined,
+                        bg: labelSells.length > 0 ? `color-mix(in srgb, ${gc2(labelRealized)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` : undefined },
                       { label: 'Avg per trade', value: avgPnl != null ? `${avgPnl >= 0 ? '+' : ''}${fmt(avgPnl)}` : '—',
                         color: avgPnl != null ? gc2(avgPnl) : undefined },
                       { label: 'Avg hold',      value: fmtDays(avgHold) },
                       ...(best != null ? [
-                        { label: 'Best',  value: `${best >= 0 ? '+' : ''}${fmt(best)}`,      color: gc2(best) },
-                        { label: 'Worst', value: `${(worst ?? 0) >= 0 ? '+' : ''}${fmt(worst ?? 0)}`, color: gc2(worst ?? 0) },
+                        { label: 'Best',  value: `${best >= 0 ? '+' : ''}${fmt(best)}`,      color: gc2(best),      bg: `color-mix(in srgb, ${gc2(best)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` },
+                        { label: 'Worst', value: `${(worst ?? 0) >= 0 ? '+' : ''}${fmt(worst ?? 0)}`, color: gc2(worst ?? 0), bg: `color-mix(in srgb, ${gc2(worst ?? 0)} 9%, var(--color-dash-card, rgba(255,255,255,0.03)))` },
                       ] : []),
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="flex flex-col gap-0.5">
+                    ].map(({ label, value, color, bg }) => (
+                      <div key={label} className="glass-card rounded-xl px-3.5 py-3 flex flex-col gap-0.5" style={bg ? { background: bg } : {}}>
                         <span className="text-[10px] text-muted uppercase tracking-widest whitespace-nowrap">{label}</span>
-                        <span className="text-base font-semibold tabular-nums" style={color ? { color } : {}}>{value}</span>
+                        <span className="text-lg font-bold tabular-nums" style={color ? { color } : {}}>{value}</span>
                       </div>
                     ))}
                   </div>
