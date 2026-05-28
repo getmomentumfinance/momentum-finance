@@ -114,9 +114,9 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
     return Number(selectedCard.initial_balance ?? 0) + delta
   })() : null
 
-  const qty      = parseFloat(quantity)                    || 0
-  const ppu      = parseFloat(pricePerUnit.replace(',', '.')) || 0
-  const feeAmt   = parseFloat(fee)                         || 0
+  const qty      = parseFloat(quantity.replace(',', '.'))      || 0
+  const ppu      = parseFloat(pricePerUnit.replace(',', '.'))  || 0
+  const feeAmt   = parseFloat(fee.replace(',', '.'))           || 0
   const totalCost = qty * ppu + feeAmt
   const remaining = brokerBalance != null && totalCost > 0 ? brokerBalance - totalCost : null
   const canAfford = remaining == null || remaining >= 0

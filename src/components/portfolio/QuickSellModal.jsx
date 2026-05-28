@@ -48,9 +48,9 @@ export default function QuickSellModal({ position, lot, onClose }) {
     return Number(selectedCard.initial_balance ?? 0) + delta
   })() : null
 
-  const qty      = parseFloat(sellQty)                      || 0
+  const qty      = parseFloat(sellQty.replace(',', '.'))     || 0
   const price    = parseFloat(sellPrice.replace(',', '.'))  || 0
-  const feeAmt   = parseFloat(fee)                          || 0
+  const feeAmt   = parseFloat(fee.replace(',', '.'))        || 0
   const proceeds    = qty * price - feeAmt
   const costOfSold  = qty * lotBuyPrice          // exact lot buy price, not avg
   const realizedPnl = price > 0 ? proceeds - costOfSold : null
