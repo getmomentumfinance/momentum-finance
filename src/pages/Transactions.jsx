@@ -307,12 +307,22 @@ export default function Transactions() {
     setFilterImportance(new Set()); setFilterCard(''); setDatePreset('month')
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(tx) {
     if (!window.confirm(t('tx.deleteConfirm'))) return
-    const { error } = await supabase.from('transactions').update({ is_deleted: true }).eq('id', id)
+    const { error } = await supabase.from('transactions').update({ is_deleted: true }).eq('id', tx.id)
     if (error) { console.error('Delete failed:', error); return }
-    // Also soft-delete any split children so they don't become orphaned
-    await supabase.from('transactions').update({ is_deleted: true }).eq('split_parent_id', id)
+    // Also soft-delete split children
+    await supabase.from('transactions').update({ is_deleted: true }).eq('split_parent_id', tx.id)
+    // Soft-delete the paired companion row for savings/transfer/cash_out
+    if (tx.type === 'savings' || tx.type === 'transfer' || tx.type === 'cash_out') {
+      await supabase.from('transactions')
+        .update({ is_deleted: true })
+        .eq('user_id', user.id)
+        .eq('type', tx.type)
+        .eq('date', tx.date)
+        .eq('amount', -tx.amount)
+        .neq('id', tx.id)
+    }
     window.dispatchEvent(new CustomEvent('transaction-saved'))
   }
 
@@ -537,7 +547,7 @@ export default function Transactions() {
                         <Pencil size={13} />
                       </button>
                     )}
-                    <button onClick={() => handleDelete(row.id)} className="p-1.5 rounded-lg text-white/25 hover:text-red-400 transition-colors">
+                    <button onClick={() => handleDelete(row)} className="p-1.5 rounded-lg text-white/25 hover:text-red-400 transition-colors">
                       <Trash2 size={13} />
                     </button>
                   </div>
@@ -782,7 +792,7 @@ export default function Transactions() {
                               </button>
                             )}
                             <button
-                              onClick={() => handleDelete(row.id)}
+                              onClick={() => handleDelete(row)}
                               className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                             >
                               <Trash2 size={13} />
