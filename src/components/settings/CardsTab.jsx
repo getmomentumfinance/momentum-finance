@@ -150,11 +150,20 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
         <input
           value={cardNumber}
           onChange={e => {
-            const stripped = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
-            const limited  = stripped.startsWith('BE') ? stripped.slice(0, 16) : stripped
-            setCardNumber(limited.replace(/(.{4})/g, '$1 ').trim())
+            const s = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+            if (s.startsWith('BE')) {
+              setCardNumber(s.slice(0, 16).replace(/(.{4})/g, '$1 ').trim())
+            } else if (s.startsWith('DE')) {
+              setCardNumber(s.slice(0, 22).replace(/(.{4})/g, '$1 ').trim())
+            } else if (s.length > 16) {
+              // Belgian credit card 5-4-4-4 (17 digits)
+              const t = s.slice(0, 17)
+              setCardNumber([t.slice(0,5), t.slice(5,9), t.slice(9,13), t.slice(13,17)].filter(Boolean).join(' '))
+            } else {
+              setCardNumber(s.replace(/(.{4})/g, '$1 ').trim())
+            }
           }}
-          placeholder="BEXX XXXX XXXX XXXX"
+          placeholder="BE/DE IBAN or card number"
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/30 font-mono placeholder:font-sans placeholder:text-white/25"
         />
       )}
