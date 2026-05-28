@@ -78,11 +78,13 @@ function amountColor(type, source) {
   return '#9ca3af'  // transfer, savings — neutral (moving between own accounts)
 }
 
-function amountSign(type, source) {
+function amountSign(type, source, amount = 0) {
   if (type === 'income') return '+'
   if (type === 'expense') return '−'
   if (type === 'cash_out') return source === 'cash' ? '+' : '−'
-  return ''  // transfer, savings — no sign
+  // Negative-amount companion row = money arriving at this card
+  if ((type === 'savings' || type === 'transfer') && amount < 0) return '+'
+  return ''  // outgoing side — no sign
 }
 
 // ── Receiver / logo avatar ────────────────────────────────────
@@ -210,7 +212,6 @@ export default function Transactions() {
       setAllCards(cards ?? [])
 
       setRows(txs
-        .filter(t => (t.type === 'transfer' || t.type === 'savings' || t.type === 'cash_out') ? t.amount > 0 : true)
         .map(t => ({
         ...t,
         category:    catMap[t.category_id]    ?? null,
@@ -246,6 +247,13 @@ export default function Transactions() {
 
   const filteredRows = useMemo(() => {
     let result = sortedRows
+    // Without a card filter, hide the receiver-side companion rows (negative amount)
+    // to avoid every savings/transfer appearing twice in the full list
+    if (!filterCard) {
+      result = result.filter(r =>
+        (r.type === 'transfer' || r.type === 'savings' || r.type === 'cash_out') ? r.amount > 0 : true
+      )
+    }
     if (search)                    result = result.filter(r => r.description?.toLowerCase().includes(search.toLowerCase()))
     if (filterCat)                 result = result.filter(r => r.category_id === filterCat)
     if (filterSub)                 result = result.filter(r => r.subcategory_id === filterSub)
@@ -539,8 +547,8 @@ export default function Transactions() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-sm font-semibold tabular-nums" style={{ color: isParent ? 'rgba(255,255,255,0.2)' : amountColor(row.type, row.source) }}>
-                      {isParent ? <span className="line-through">{amountSign(row.type, row.source)}{fmt(row.amount)}</span>
-                        : <>{amountSign(row.type, row.source)}{fmt(row.amount)}</>}
+                      {isParent ? <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
+                        : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>}
                     </span>
                     {!isChild && (
                       <button onClick={() => setEditingTx(row)} className="p-1.5 rounded-lg text-white/25 hover:text-white transition-colors">
@@ -690,9 +698,9 @@ export default function Transactions() {
                         {isParent
                           ? <span className="flex items-center justify-end gap-1.5">
                               <Scissors size={10} className="opacity-60" />
-                              <span className="line-through">{amountSign(row.type, row.source)}{fmt(row.amount)}</span>
+                              <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
                             </span>
-                          : <>{amountSign(row.type, row.source)}{fmt(row.amount)}</>
+                          : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>
                         }
                       </td>
 
