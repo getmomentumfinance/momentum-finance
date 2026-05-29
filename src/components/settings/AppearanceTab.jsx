@@ -234,6 +234,67 @@ const DEFAULT_TRADE_LABELS = [
   { name: 'Long Term',   color: '#34d399' },
 ]
 
+function TickerColorsSection() {
+  const { prefs, setPref } = useUIPrefs()
+  const { user } = useAuth()
+  const [tickers, setTickers] = useState([])
+  const colors = prefs['ticker_colors'] ?? {}
+
+  useEffect(() => {
+    if (!user?.id) return
+    import('../../lib/supabase').then(({ supabase }) => {
+      supabase.from('tickers').select('id, symbol').eq('user_id', user.id).order('symbol')
+        .then(({ data }) => { if (data) setTickers(data) })
+    })
+  }, [user?.id])
+
+  if (!tickers.length) return null
+
+  function setColor(symbol, color) {
+    setPref('ticker_colors', { ...colors, [symbol]: color })
+  }
+
+  function resetColor(symbol) {
+    const next = { ...colors }
+    delete next[symbol]
+    setPref('ticker_colors', next)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-sm font-medium text-white">Ticker colors</h3>
+        <p className="text-xs text-muted mt-0.5">Custom colors for each ticker in the portfolio view.</p>
+      </div>
+      <div className="flex flex-col gap-2">
+        {tickers.map(t => {
+          const custom = colors[t.symbol]
+          return (
+            <div key={t.id} className="flex items-center justify-between py-1.5">
+              <span className="text-sm text-white/80 font-mono">{t.symbol}</span>
+              <div className="flex items-center gap-2">
+                {custom && (
+                  <button type="button" onClick={() => resetColor(t.symbol)}
+                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors">
+                    Reset
+                  </button>
+                )}
+                <input
+                  type="color"
+                  value={custom || '#a78bfa'}
+                  onChange={e => setColor(t.symbol, e.target.value)}
+                  className="w-8 h-8 rounded-full cursor-pointer border-2 border-white/20 hover:border-white/40 transition-colors bg-transparent"
+                  style={{ padding: 1 }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function TradeLabelsSection() {
   const { prefs, setPref } = useUIPrefs()
   const labels = prefs['invest_labels'] ?? DEFAULT_TRADE_LABELS
@@ -919,6 +980,9 @@ export default function AppearanceTab() {
 
         {/* Trade labels */}
         <TradeLabelsSection />
+
+        {/* Ticker colors */}
+        <TickerColorsSection />
 
       </div>
 

@@ -380,9 +380,13 @@ export default function Portfolio() {
   }, [cachedPrices])
 
   const thSel = 'text-[10px] uppercase tracking-widest text-muted font-medium py-3'
+  const customTickerColors = prefs.ticker_colors ?? {}
   const tickerColorMap = useMemo(() =>
-    Object.fromEntries(openPositions.map((p, i) => [p.ticker, `hsl(${(i * 67) % 360}, 60%, 58%)`])),
-    [openPositions]
+    Object.fromEntries(openPositions.map((p, i) => [
+      p.ticker,
+      customTickerColors[p.ticker] ?? `hsl(${(i * 67) % 360}, 60%, 58%)`,
+    ])),
+    [openPositions, customTickerColors]
   )
 
   return (
@@ -592,8 +596,78 @@ export default function Portfolio() {
             ))}
           </div>
 
-          {/* Overview tab: nothing extra — hero above is the overview */}
-          {portfolioView === 'overview' && null}
+          {/* Overview tab: performance table */}
+          {portfolioView === 'overview' && (
+            <div className="glass-card rounded-2xl overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-white/[0.04] flex items-center justify-between">
+                <span className="text-xs font-medium text-white/60 uppercase tracking-widest">All positions</span>
+                <span className="text-[10px] text-muted">{positions.length} position{positions.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="divide-y divide-white/[0.04]">
+                {positions.length === 0 && (
+                  <p className="text-center text-muted text-xs py-10">No positions yet.</p>
+                )}
+                {[...openPositions, ...closedPositions].map(p => {
+                  const color   = tickerColorMap[p.ticker] ?? 'rgba(255,255,255,0.3)'
+                  const isOpen  = p.qty > 0.0001
+                  const pnl     = isOpen ? p.unrealizedPnl : p.realizedPnl
+                  const pnlPct  = isOpen ? p.unrealizedPct : (p.realizedPnl != null && p.cost > 0 ? (p.realizedPnl / p.cost) * 100 : null)
+                  const value   = isOpen ? (p.currentVal ?? p.cost) : null
+                  return (
+                    <div key={p.ticker} className="flex items-center gap-4 px-5 py-3.5"
+                      style={{ boxShadow: `inset 3px 0 0 ${color}` }}>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                          style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
+                          {p.ticker.slice(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold" style={{ color }}>{p.ticker}</span>
+                            {!isOpen && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/35 uppercase tracking-wider">Closed</span>
+                            )}
+                          </div>
+                          {p.name && <p className="text-[10px] text-white/35 truncate">{p.name}</p>}
+                        </div>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-8 text-right shrink-0">
+                        {isOpen && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-muted">Qty</span>
+                            <span className="text-xs tabular-nums text-white/70">
+                              {p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] text-muted">{isOpen ? 'Avg cost' : 'Cost basis'}</span>
+                          <span className="text-xs tabular-nums text-white/70">{fmt(p.avgCost || p.cost)}</span>
+                        </div>
+                        {isOpen && p.livePrice != null && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-muted">Live</span>
+                            <span className="text-xs tabular-nums text-white">{fmt(p.livePrice)}</span>
+                          </div>
+                        )}
+                        {value != null && (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] text-muted">Value</span>
+                            <span className="text-sm font-semibold tabular-nums text-white">{fmt(value)}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0 min-w-[90px] text-right">
+                        {pnl != null ? (
+                          <PnlChip value={pnl} pct={pnlPct} fmt={fmt} />
+                        ) : <span className="text-white/20 text-xs">—</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Management tab: existing full management UI */}
           {portfolioView === 'management' && <>
