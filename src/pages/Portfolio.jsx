@@ -463,7 +463,7 @@ export default function Portfolio() {
             fmt={fmt}
           />
 
-          {/* Portfolio hero */}
+          {/* Portfolio hero — always visible */}
           {(() => {
             const heroTotal = openPositions.reduce((s, p) => s + (p.currentVal ?? p.cost), 0)
             return (
@@ -489,14 +489,12 @@ export default function Portfolio() {
                   {openPositions.length > 0 && (
                     <div className="flex flex-col gap-3">
                       <span className="text-[10px] text-muted uppercase tracking-widest">Where your money is invested</span>
-                      {/* Stacked allocation bar */}
                       <div className="flex rounded-full overflow-hidden h-2.5 gap-px">
                         {openPositions.map(p => {
                           const pct = heroTotal > 0 ? ((p.currentVal ?? p.cost) / heroTotal) * 100 : 0
                           return <div key={p.ticker} style={{ width: `${pct}%`, background: tickerColorMap[p.ticker], minWidth: pct > 1 ? 4 : 0 }} />
                         })}
                       </div>
-                      {/* Legend */}
                       <div className="flex flex-col gap-2">
                         {openPositions.map(p => {
                           const color = tickerColorMap[p.ticker]
@@ -521,156 +519,49 @@ export default function Portfolio() {
                   )}
                 </div>
 
-                {/* Right: position cards overview */}
-                <div className="lg:col-span-3 flex flex-col gap-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {openPositions.map(p => {
-                      const color = tickerColorMap[p.ticker]
+                {/* Right: positions overview table */}
+                <div className="glass-card rounded-2xl overflow-hidden lg:col-span-3">
+                  <div className="px-5 py-3 border-b border-white/[0.04] flex items-center justify-between">
+                    <span className="text-[10px] text-muted uppercase tracking-widest">Positions</span>
+                    <span className="text-[10px] text-muted">{positions.length} total</span>
+                  </div>
+                  <div className="divide-y divide-white/[0.04]">
+                    {[...openPositions, ...closedPositions].map(p => {
+                      const color  = tickerColorMap[p.ticker] ?? 'rgba(255,255,255,0.3)'
+                      const isOpen = p.qty > 0.0001
+                      const pnl    = isOpen ? p.unrealizedPnl : p.realizedPnl
+                      const pnlPct = isOpen ? p.unrealizedPct : (p.realizedPnl != null && p.cost > 0 ? (p.realizedPnl / p.cost) * 100 : null)
+                      const value  = isOpen ? (p.currentVal ?? p.cost) : null
                       return (
-                        <div key={p.ticker} className="glass-card rounded-2xl p-4 flex flex-col gap-3 border"
-                          style={{ borderColor: `color-mix(in srgb, ${color} 22%, transparent)` }}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                                style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
-                                {p.ticker.slice(0, 2)}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold leading-tight" style={{ color }}>{p.ticker}</p>
-                                {p.name && <p className="text-[10px] text-white/35 truncate">{p.name}</p>}
-                              </div>
-                            </div>
-                            {p.unrealizedPct != null && (
-                              <span className="text-[10px] font-bold tabular-nums shrink-0"
-                                style={{ color: gc(p.unrealizedPct) }}>
-                                {fmtPct(p.unrealizedPct)}
-                              </span>
-                            )}
+                        <div key={p.ticker} className="flex items-center gap-3 px-4 py-3"
+                          style={{ boxShadow: `inset 3px 0 0 ${color}` }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                            style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
+                            {p.ticker.slice(0, 2)}
                           </div>
-                          <div>
-                            <p className="text-lg font-bold tabular-nums">
-                              {p.currentVal != null ? fmt(p.currentVal) : fmt(p.cost)}
-                            </p>
-                            <p className="text-[10px] text-white/35 mt-0.5 tabular-nums">
-                              {p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })} · avg {fmt(p.avgCost)}
-                            </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold" style={{ color }}>{p.ticker}</span>
+                              {!isOpen && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/35 uppercase tracking-wider">Closed</span>}
+                            </div>
+                            {p.name && <p className="text-[10px] text-white/35 truncate">{p.name}</p>}
+                          </div>
+                          <div className="hidden sm:flex items-center gap-5 shrink-0 text-right">
+                            {value != null && <span className="text-sm font-semibold tabular-nums text-white">{fmt(value)}</span>}
+                            {isOpen && p.livePrice != null && <span className="text-xs tabular-nums text-white/50">{fmt(p.livePrice)}</span>}
+                          </div>
+                          <div className="shrink-0">
+                            {pnl != null ? <PnlChip value={pnl} pct={pnlPct} fmt={fmt} /> : <span className="text-white/20 text-xs">—</span>}
                           </div>
                         </div>
                       )
                     })}
+                    {positions.length === 0 && <p className="text-center text-muted text-xs py-8">No positions yet.</p>}
                   </div>
-                  {closedPositions.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {closedPositions.map(p => (
-                        <div key={p.ticker} className="glass-card rounded-2xl p-4 flex flex-col gap-2 opacity-45 border border-white/[0.06]">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-bold text-white/50">{p.ticker}</span>
-                            <span className="text-[10px] text-white/30">Closed</span>
-                          </div>
-                          <span className="text-sm font-semibold tabular-nums" style={{ color: gc(p.realizedPnl) }}>
-                            {p.realizedPnl >= 0 ? '+' : ''}{fmt(p.realizedPnl)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )
           })()}
-
-          {/* Overview / Management tab bar */}
-          <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-5">
-            {[
-              { id: 'overview',   label: 'Overview' },
-              { id: 'management', label: 'Management' },
-            ].map(({ id, label }) => (
-              <button key={id} type="button" onClick={() => setPortfolioView(id)}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  background: portfolioView === id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  color:      portfolioView === id ? '#fff' : 'rgba(255,255,255,0.4)',
-                }}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Overview tab: performance table */}
-          {portfolioView === 'overview' && (
-            <div className="glass-card rounded-2xl overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-white/[0.04] flex items-center justify-between">
-                <span className="text-xs font-medium text-white/60 uppercase tracking-widest">All positions</span>
-                <span className="text-[10px] text-muted">{positions.length} position{positions.length !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="divide-y divide-white/[0.04]">
-                {positions.length === 0 && (
-                  <p className="text-center text-muted text-xs py-10">No positions yet.</p>
-                )}
-                {[...openPositions, ...closedPositions].map(p => {
-                  const color   = tickerColorMap[p.ticker] ?? 'rgba(255,255,255,0.3)'
-                  const isOpen  = p.qty > 0.0001
-                  const pnl     = isOpen ? p.unrealizedPnl : p.realizedPnl
-                  const pnlPct  = isOpen ? p.unrealizedPct : (p.realizedPnl != null && p.cost > 0 ? (p.realizedPnl / p.cost) * 100 : null)
-                  const value   = isOpen ? (p.currentVal ?? p.cost) : null
-                  return (
-                    <div key={p.ticker} className="flex items-center gap-4 px-5 py-3.5"
-                      style={{ boxShadow: `inset 3px 0 0 ${color}` }}>
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                          style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
-                          {p.ticker.slice(0, 2)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold" style={{ color }}>{p.ticker}</span>
-                            {!isOpen && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/35 uppercase tracking-wider">Closed</span>
-                            )}
-                          </div>
-                          {p.name && <p className="text-[10px] text-white/35 truncate">{p.name}</p>}
-                        </div>
-                      </div>
-                      <div className="hidden sm:flex items-center gap-8 text-right shrink-0">
-                        {isOpen && (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] text-muted">Qty</span>
-                            <span className="text-xs tabular-nums text-white/70">
-                              {p.qty.toLocaleString('nl-BE', { maximumFractionDigits: 4 })}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] text-muted">{isOpen ? 'Avg cost' : 'Cost basis'}</span>
-                          <span className="text-xs tabular-nums text-white/70">{fmt(p.avgCost || p.cost)}</span>
-                        </div>
-                        {isOpen && p.livePrice != null && (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] text-muted">Live</span>
-                            <span className="text-xs tabular-nums text-white">{fmt(p.livePrice)}</span>
-                          </div>
-                        )}
-                        {value != null && (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[10px] text-muted">Value</span>
-                            <span className="text-sm font-semibold tabular-nums text-white">{fmt(value)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="shrink-0 min-w-[90px] text-right">
-                        {pnl != null ? (
-                          <PnlChip value={pnl} pct={pnlPct} fmt={fmt} />
-                        ) : <span className="text-white/20 text-xs">—</span>}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Management tab: existing full management UI */}
-          {portfolioView === 'management' && <>
 
           {/* Label subtabs */}
           <div className="flex items-center gap-2 mb-5">
@@ -726,8 +617,8 @@ export default function Portfolio() {
             </div>
           </div>
 
-          {/* Stats + Summary combined layout */}
-          {(() => {
+          {/* ── removed stats+summary grid (hero covers this) ── */}
+          {false && (() => {
             const isAll         = labelTab === 'all'
             const labelTrades   = isAll ? allInvestTxs : allInvestTxs.filter(tx => tx.label === labelTab)
             const labelSells    = isAll ? closedTrades  : closedTrades.filter(t => t.label === labelTab)
@@ -849,37 +740,6 @@ export default function Portfolio() {
             )
           })()}
 
-          {/* Allocation donut */}
-          {openPositions.length > 1 && (
-            <div className="glass-card rounded-2xl px-4 py-4 mb-4 w-fit">
-              <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Allocation</p>
-              <div className="flex items-center gap-5">
-                <ResponsiveContainer width={100} height={100}>
-                  <PieChart>
-                    <Pie data={openPositions.map(p => ({ name: p.ticker, value: p.cost }))}
-                      cx="50%" cy="50%" innerRadius={26} outerRadius={46}
-                      dataKey="value" strokeWidth={0}>
-                      {openPositions.map((p, i) => (
-                        <Cell key={p.ticker} fill={`hsl(${(i * 67) % 360}, 60%, 55%)`} opacity={0.85} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-col gap-1.5 min-w-0">
-                  {openPositions.map((p, i) => {
-                    const alloc = totalInvested > 0 ? (p.cost / totalInvested) * 100 : 0
-                    return (
-                      <div key={p.ticker} className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: `hsl(${(i * 67) % 360}, 60%, 55%)` }} />
-                        <span className="text-xs text-white/70 truncate">{p.ticker}</span>
-                        <span className="text-xs text-muted ml-3 tabular-nums">{alloc.toFixed(1)}%</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Tab bar */}
           <div className="flex gap-1 p-1 bg-white/5 rounded-xl w-fit mb-3">
@@ -1374,8 +1234,6 @@ export default function Portfolio() {
           )}
 
           <p className="text-center text-white/20 text-[10px] mt-4">{t('port.footer')}</p>
-          </>}
-          {/* end management tab */}
 
         </>}
 
