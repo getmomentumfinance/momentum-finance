@@ -238,7 +238,11 @@ function TickerColorsSection() {
   const { prefs, setPref } = useUIPrefs()
   const { user } = useAuth()
   const [tickers, setTickers] = useState([])
-  const colors = prefs['ticker_colors'] ?? {}
+  const [pickerSymbol, setPickerSymbol] = useState(null)
+  const [pickerPos,    setPickerPos]    = useState({ top: 0, left: 0 })
+  const btnRefs    = useRef({})
+  const pickerRef  = useRef(null)
+  const colors     = prefs['ticker_colors'] ?? {}
 
   useEffect(() => {
     if (!user?.id) return
@@ -250,8 +254,21 @@ function TickerColorsSection() {
 
   if (!tickers.length) return null
 
+  function openPicker(symbol) {
+    if (pickerSymbol === symbol) { setPickerSymbol(null); return }
+    const btn = btnRefs.current[symbol]
+    if (!btn) return
+    const rect = btn.getBoundingClientRect()
+    const popupH = 220, popupW = 288
+    const top  = window.innerHeight - rect.bottom < popupH + 16 ? rect.top - popupH - 8 : rect.bottom + 8
+    const left = Math.min(rect.left, window.innerWidth - popupW - 16)
+    setPickerPos({ top, left })
+    setPickerSymbol(symbol)
+  }
+
   function setColor(symbol, color) {
     setPref('ticker_colors', { ...colors, [symbol]: color })
+    setPickerSymbol(null)
   }
 
   function resetColor(symbol) {
@@ -266,27 +283,33 @@ function TickerColorsSection() {
         <h3 className="text-sm font-medium text-white">Ticker colors</h3>
         <p className="text-xs text-muted mt-0.5">Custom colors for each ticker in the portfolio view.</p>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         {tickers.map(t => {
-          const custom = colors[t.symbol]
+          const color = colors[t.symbol] ?? '#a78bfa'
           return (
-            <div key={t.id} className="flex items-center justify-between py-1.5">
-              <span className="text-sm text-white/80 font-mono">{t.symbol}</span>
-              <div className="flex items-center gap-2">
-                {custom && (
-                  <button type="button" onClick={() => resetColor(t.symbol)}
-                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors">
-                    Reset
-                  </button>
-                )}
-                <input
-                  type="color"
-                  value={custom || '#a78bfa'}
-                  onChange={e => setColor(t.symbol, e.target.value)}
-                  className="w-8 h-8 rounded-full cursor-pointer border-2 border-white/20 hover:border-white/40 transition-colors bg-transparent"
-                  style={{ padding: 1 }}
+            <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <button
+                ref={el => { btnRefs.current[t.symbol] = el }}
+                type="button"
+                onClick={() => openPicker(t.symbol)}
+                className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
+                style={{ background: color }}
+              />
+              {pickerSymbol === t.symbol && (
+                <ColorPickerPopup
+                  popupRef={pickerRef}
+                  pos={pickerPos}
+                  selected={color}
+                  onSelect={c => setColor(t.symbol, c)}
                 />
-              </div>
+              )}
+              <span className="flex-1 text-sm font-mono" style={{ color }}>{t.symbol}</span>
+              {colors[t.symbol] && (
+                <button type="button" onClick={() => resetColor(t.symbol)}
+                  className="text-[10px] text-white/30 hover:text-white/60 transition-colors">
+                  Reset
+                </button>
+              )}
             </div>
           )
         })}
