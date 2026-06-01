@@ -145,7 +145,10 @@ function SortTh({ label, col, sort, onSort, className = '', align = 'right' }) {
   )
 }
 
-function computePortfolio(investTxs, cachedPrices) {
+// Tickers without a dot are US-listed (Yahoo returns USD). Tickers like VWCE.AS are EUR-listed.
+const isUsdTicker = t => !t.includes('.')
+
+function computePortfolio(investTxs, cachedPrices, eurUsdRate) {
   const grouped = {}
   const closedTrades = []
 
@@ -178,7 +181,12 @@ function computePortfolio(investTxs, cachedPrices) {
 
   const positions = Object.entries(grouped).map(([ticker, g]) => {
     const cached       = cachedPrices[ticker]
-    const livePrice    = cached?.price ?? null
+    const rawPrice     = cached?.price ?? null
+    // Convert USD-listed stocks to EUR using EUR/USD rate
+    const livePrice    = rawPrice != null && isUsdTicker(ticker) && eurUsdRate
+      ? rawPrice / eurUsdRate
+      : rawPrice
+    const livePriceUsd = rawPrice  // keep the original for display
     const avgCost      = g.qty > 0.0001 ? g.cost / g.qty : 0
     const currentVal   = livePrice != null && g.qty > 0.0001 ? livePrice * g.qty : null
     const unrealizedPnl = currentVal != null ? currentVal - g.cost : null
@@ -198,6 +206,7 @@ function computePortfolio(investTxs, cachedPrices) {
       avgCost,
       totalFees,
       livePrice,
+      livePriceUsd,
       currentVal,
       unrealizedPnl,
       unrealizedPct,
@@ -252,6 +261,7 @@ export default function Portfolio() {
   }
 
   const cachedPrices = prefs.portfolio_prices ?? {}
+  const eurUsdRate   = prefs.eur_usd_rate?.rate ?? null
 
   const allInvestTxs = useMemo(() =>
     allTransactions.filter(tx => tx.type === 'invest' && tx.ticker),
@@ -264,8 +274,8 @@ export default function Portfolio() {
   )
 
   const { positions, closedTrades } = useMemo(() =>
-    computePortfolio(investTxs, cachedPrices),
-    [investTxs, cachedPrices]
+    computePortfolio(investTxs, cachedPrices, eurUsdRate),
+    [investTxs, cachedPrices, eurUsdRate]
   )
 
   const closedPnlMap = useMemo(() =>
@@ -352,10 +362,14 @@ export default function Portfolio() {
     setRefreshing(true); setFailedTickers([])
     const tickers = [...new Set(allInvestTxs.map(tx => tx.ticker.toUpperCase()))]
     if (!tickers.length) { setRefreshing(false); return }
-    const results = await Promise.all(tickers.map(async ticker => {
-      const r = await fetchLivePrice(ticker)
-      return { ticker, price: r?.price ?? null, name: r?.name ?? null }
-    }))
+    const [eurUsd, ...results] = await Promise.all([
+      fetchLivePrice('EURUSD=X'),
+      ...tickers.map(async ticker => {
+        const r = await fetchLivePrice(ticker)
+        return { ticker, price: r?.price ?? null, name: r?.name ?? null }
+      }),
+    ])
+    if (eurUsd?.price) setPref('eur_usd_rate', { rate: eurUsd.price, updatedAt: new Date().toISOString() })
     setFailedTickers(results.filter(r => r.price == null).map(r => r.ticker))
     const next = { ...cachedPrices }
     const now  = new Date().toISOString()
@@ -1238,7 +1252,7 @@ export default function Portfolio() {
     </div>
 
     {showBuyModal && (
-      <QuickBuyModal onClose={() => setShowBuyModal(false)} />
+      <QuickBuyModal onClose={() => setShowBuyModal(false)} eurUsdRate={eurUsdRate} />
     )}
     {detailTrade && (() => {
       const pos      = positions.find(p => p.ticker === detailTrade.ticker?.toUpperCase())
@@ -1261,6 +1275,7 @@ export default function Portfolio() {
       <QuickSellModal
         position={sellTarget.position}
         lot={sellTarget.lot}
+        eurUsdRate={eurUsdRate}
         onClose={() => setSellTarget(null)}
       />
     )}

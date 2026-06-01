@@ -14,7 +14,7 @@ const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] r
 
 // position = aggregated position (for ticker, name, livePrice)
 // lot      = the specific buy transaction being sold (for exact cost basis)
-export default function QuickSellModal({ position, lot, onClose }) {
+export default function QuickSellModal({ position, lot, onClose, eurUsdRate = null }) {
   const { user }       = useAuth()
   const { fmt }        = usePreferences()
   const { prefs }      = useUIPrefs()
@@ -163,6 +163,9 @@ export default function QuickSellModal({ position, lot, onClose }) {
                   <input value={sellPrice} onChange={e => setSellPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
                     type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} autoFocus />
                 </div>
+                {price > 0 && eurUsdRate && (
+                  <span className="text-[10px] text-white/30 tabular-nums">≈ ${(price * eurUsdRate).toFixed(2)}</span>
+                )}
               </div>
             </div>
 

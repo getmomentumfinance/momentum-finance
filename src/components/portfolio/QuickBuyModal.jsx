@@ -68,7 +68,7 @@ function TickerInput({ value, onChange, tickers, onAddTicker, user }) {
   )
 }
 
-export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
+export default function QuickBuyModal({ onClose, defaultCardId = '', eurUsdRate = null }) {
   const { user }    = useAuth()
   const { fmt }     = usePreferences()
   const { prefs }   = useUIPrefs()
@@ -138,8 +138,9 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
       amount:         totalCost,
       card_id:        cardId || null,
       label:          label  || null,
-      stop_loss:      parseFloat(stopLoss.replace(',', '.'))    || null,
-      target_price:   parseFloat(targetPrice.replace(',', '.')) || null,
+      // stop/target entered in USD → convert to EUR before saving
+      stop_loss:    stopLoss    ? (eurUsdRate ? (parseFloat(stopLoss.replace(',', '.'))    / eurUsdRate) : parseFloat(stopLoss.replace(',', '.')))    || null : null,
+      target_price: targetPrice ? (eurUsdRate ? (parseFloat(targetPrice.replace(',', '.')) / eurUsdRate) : parseFloat(targetPrice.replace(',', '.'))) || null : null,
       date,
       is_cash:        false,
       is_split_parent: false,
@@ -231,6 +232,9 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
                 <input value={pricePerUnit} onChange={e => setPricePerUnit(e.target.value.replace(/[^0-9.,]/g, ''))}
                   type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
               </div>
+              {ppu > 0 && eurUsdRate && (
+                <span className="text-[10px] text-white/30 tabular-nums">≈ ${(ppu * eurUsdRate).toFixed(2)}</span>
+              )}
             </div>
           </div>
 
@@ -305,20 +309,26 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-muted uppercase tracking-widest">Stop Loss</label>
+                  <label className="text-[10px] text-muted uppercase tracking-widest">
+                    Stop Loss {eurUsdRate ? <span className="normal-case font-normal text-white/25">(in $)</span> : ''}
+                  </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">{eurUsdRate ? '$' : '€'}</span>
                     <input value={stopLoss} onChange={e => setStopLoss(e.target.value.replace(/[^0-9.,]/g, ''))}
                       type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
                   </div>
+                  {stopLoss && eurUsdRate && (() => { const v = parseFloat(stopLoss.replace(',','.')); return v > 0 ? <span className="text-[10px] text-white/30 tabular-nums">≈ €{(v / eurUsdRate).toFixed(2)}</span> : null })()}
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-muted uppercase tracking-widest">Target</label>
+                  <label className="text-[10px] text-muted uppercase tracking-widest">
+                    Target {eurUsdRate ? <span className="normal-case font-normal text-white/25">(in $)</span> : ''}
+                  </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">{eurUsdRate ? '$' : '€'}</span>
                     <input value={targetPrice} onChange={e => setTargetPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
                       type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
                   </div>
+                  {targetPrice && eurUsdRate && (() => { const v = parseFloat(targetPrice.replace(',','.')); return v > 0 ? <span className="text-[10px] text-white/30 tabular-nums">≈ €{(v / eurUsdRate).toFixed(2)}</span> : null })()}
                 </div>
               </div>
             </div>
