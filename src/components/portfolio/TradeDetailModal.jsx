@@ -194,6 +194,12 @@ export default function TradeDetailModal({ tx, realizedPnl, livePrice, cardName,
             {cardName && (
               <Row label="Account" value={cardName} mono={false} />
             )}
+            {tx.stop_loss != null && (
+              <Row label="Stop Loss" value={fmt(tx.stop_loss)} color="var(--type-expense)" />
+            )}
+            {tx.target_price != null && (
+              <Row label="Target" value={fmt(tx.target_price)} color="var(--type-income)" />
+            )}
           </div>
 
           {/* P&L */}

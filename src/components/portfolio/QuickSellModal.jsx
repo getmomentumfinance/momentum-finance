@@ -59,6 +59,13 @@ export default function QuickSellModal({ position, lot, onClose }) {
   const fmtPct = n => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
   const gc     = n => n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
+  const lotStop   = lot?.stop_loss    ? parseFloat(String(lot.stop_loss).replace(',', '.'))    : null
+  const lotTarget = lot?.target_price ? parseFloat(String(lot.target_price).replace(',', '.')) : null
+  const hasPlan   = lotStop != null || lotTarget != null
+  const hitTarget = hasPlan && lotTarget != null && price > 0 && price >= lotTarget
+  const hitStop   = hasPlan && lotStop   != null && price > 0 && price <= lotStop
+  const manual    = hasPlan && price > 0 && !hitTarget && !hitStop
+
   async function handleSell() {
     if (!(qty > 0) || !(price > 0)) return
     setSaving(true)
@@ -180,6 +187,43 @@ export default function QuickSellModal({ position, lot, onClose }) {
                 {realizedPnl != null && (realizedPnl >= 0
                   ? <TrendingUp size={18} style={{ color: gc(1) }} className="opacity-40 shrink-0" />
                   : <TrendingDown size={18} style={{ color: gc(-1) }} className="opacity-40 shrink-0" />)}
+              </div>
+            )}
+
+            {/* Trade plan comparison */}
+            {hasPlan && price > 0 && (
+              <div className="flex flex-col gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted uppercase tracking-widest">Trade plan</span>
+                  {hitTarget && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'color-mix(in srgb, var(--type-income) 15%, transparent)', color: 'var(--type-income)' }}>
+                      🎯 Target hit
+                    </span>
+                  )}
+                  {hitStop && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: 'color-mix(in srgb, var(--type-expense) 15%, transparent)', color: 'var(--type-expense)' }}>
+                      ⚠️ Stop loss triggered
+                    </span>
+                  )}
+                  {manual && (
+                    <span className="text-[11px] text-white/35">Manual close</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-white/40">
+                  {lotStop != null && (
+                    <span style={{ color: hitStop ? 'var(--type-expense)' : undefined }}>
+                      Stop {fmt(lotStop)}
+                    </span>
+                  )}
+                  {lotStop != null && lotTarget != null && <span className="text-white/15">·</span>}
+                  {lotTarget != null && (
+                    <span style={{ color: hitTarget ? 'var(--type-income)' : undefined }}>
+                      Target {fmt(lotTarget)}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 

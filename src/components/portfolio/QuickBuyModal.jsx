@@ -85,6 +85,8 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
   const [pricePerUnit, setPricePerUnit] = useState('')
   const [fee,          setFee]          = useState('')
   const [label,        setLabel]        = useState('')
+  const [stopLoss,     setStopLoss]     = useState('')
+  const [targetPrice,  setTargetPrice]  = useState('')
   const [date,         setDate]         = useState(new Date().toISOString().slice(0, 10))
   const [tickers,      setTickers]      = useState([])
   const [saving,       setSaving]       = useState(false)
@@ -136,6 +138,8 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
       amount:         totalCost,
       card_id:        cardId || null,
       label:          label  || null,
+      stop_loss:      parseFloat(stopLoss.replace(',', '.'))    || null,
+      target_price:   parseFloat(targetPrice.replace(',', '.')) || null,
       date,
       is_cash:        false,
       is_split_parent: false,
@@ -284,17 +288,37 @@ export default function QuickBuyModal({ onClose, defaultCardId = '' }) {
           </button>
 
           {showOptional && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
-                <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-muted uppercase tracking-widest">Date</label>
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inp} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-muted uppercase tracking-widest">Fee</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <input value={fee} onChange={e => setFee(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Fee</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
-                  <input value={fee} onChange={e => setFee(e.target.value.replace(/[^0-9.,]/g, ''))}
-                    type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-muted uppercase tracking-widest">Stop Loss</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <input value={stopLoss} onChange={e => setStopLoss(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] text-muted uppercase tracking-widest">Target</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <input value={targetPrice} onChange={e => setTargetPrice(e.target.value.replace(/[^0-9.,]/g, ''))}
+                      type="text" inputMode="decimal" placeholder="0,00" className={inp + ' pl-8'} />
+                  </div>
                 </div>
               </div>
             </div>
