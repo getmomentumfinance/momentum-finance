@@ -26,6 +26,7 @@ import { useUIPrefs } from '../context/UIPrefContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
 import { toLocalStr, getPeriodBounds } from '../utils/budgetPeriod'
 import MoneyFlowTab from '../components/analytics/MoneyFlowTab'
+import { computeBaseline } from '../utils/spendingBaseline'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -264,8 +265,9 @@ function DonutPanel({ title, subtitle, data }) {
 
 
 // ── Reusable multi-line panel ──────────────────────────────────────
-function ComparisonCard({ title, rows, colors }) {
+function ComparisonCard({ title, rows, colors, baseline }) {
   const { fmt, fmtK, t } = usePreferences()
+  const maxVal = rows.length ? Math.max(...rows.map(r => Math.max(r.value, baseline?.byName[r.name] ?? 0, 1))) : 1
   return (
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -276,24 +278,42 @@ function ComparisonCard({ title, rows, colors }) {
         <p className="text-sm text-muted py-2">{t('an.noDataShort')}</p>
       ) : (
         <div className="flex flex-col divide-y divide-white/[0.04]">
-          {rows.map(({ name, color, value, prev, pct }) => (
-            <div key={name} className="flex items-center gap-3 py-2.5">
-              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-              <span className="text-sm text-white/80 flex-1 truncate min-w-0">{name}</span>
-              <span className="text-sm tabular-nums text-white/70 shrink-0">{fmt(value, 0)}</span>
-              <span className="text-[11px] tabular-nums text-white/30 shrink-0 w-20 text-right">
-                {prev > 0 ? fmt(prev, 0) : '—'}
-              </span>
-              {pct !== null ? (
-                <span className="text-[11px] font-semibold tabular-nums shrink-0 w-14 text-right"
-                  style={{ color: pct > 0 ? colors.expense : colors.income }}>
-                  {pct > 0 ? '↗' : '↘'} {Math.abs(pct).toFixed(0)}%
-                </span>
-              ) : (
-                <span className="text-[11px] text-white/20 shrink-0 w-14 text-right">{t('an.newBadge')}</span>
-              )}
-            </div>
-          ))}
+          {rows.map(({ name, color, value, prev, pct }) => {
+            const avg = baseline?.byName[name]
+            const barPct     = Math.min((value / maxVal) * 100, 100)
+            const avgPct     = avg != null ? Math.min((avg / maxVal) * 100, 100) : null
+            return (
+              <div key={name} className="flex flex-col py-2.5 gap-1.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="text-sm text-white/80 flex-1 truncate min-w-0">{name}</span>
+                  <span className="text-sm tabular-nums text-white/70 shrink-0">{fmt(value, 0)}</span>
+                  <span className="text-[11px] tabular-nums text-white/30 shrink-0 w-20 text-right">
+                    {prev > 0 ? fmt(prev, 0) : '—'}
+                  </span>
+                  {pct !== null ? (
+                    <span className="text-[11px] font-semibold tabular-nums shrink-0 w-14 text-right"
+                      style={{ color: pct > 0 ? colors.expense : colors.income }}>
+                      {pct > 0 ? '↗' : '↘'} {Math.abs(pct).toFixed(0)}%
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-white/20 shrink-0 w-14 text-right">{t('an.newBadge')}</span>
+                  )}
+                </div>
+                {/* Baseline bar — only shown when history available */}
+                {avgPct != null && (
+                  <div className="relative h-[3px] rounded-full bg-white/[0.06] ml-5 overflow-visible">
+                    <div className="h-full rounded-full opacity-50"
+                      style={{ width: `${barPct}%`, background: color }} />
+                    <div className="absolute top-1/2 -translate-y-1/2 w-[2px] h-[7px] rounded-full bg-white/40"
+                      style={{ left: `${avgPct}%` }}
+                      title={`${baseline.monthCount}-month avg: ${fmt(avg, 0)}`}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -1257,6 +1277,18 @@ export default function Analytics() {
       }))
   }, [importanceData, prevPeriodExpenses])
 
+  // Historical baseline — keyed by category/subcategory/importance NAME for ComparisonCard
+  const categoryBaseline = useMemo(() => {
+    const b = computeBaseline(transactions, currentDate)
+    if (!b) return null
+    const byName = {}
+    for (const [catId, avg] of Object.entries(b.avgMap)) {
+      const name = categoryMap[catId]?.name
+      if (name) byName[name] = avg
+    }
+    return { byName, monthCount: b.monthCount }
+  }, [transactions, currentDate, categoryMap])
+
   const receiverComparison = useMemo(() => {
     const prevMap = {}
     prevPeriodExpenses.forEach(t => {
@@ -2210,8 +2242,8 @@ export default function Analytics() {
 
               {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} />
-                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} />
+                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
+                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} />
                 <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
               </div>
 

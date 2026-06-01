@@ -37,6 +37,7 @@ import FinancialInsights from '../components/dashboard/FinancialInsights'
 import MyCardsWidget from '../components/dashboard/MyCardsWidget'
 import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
+import SpendingDriftWidget from '../components/dashboard/SpendingDriftWidget'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useUIPrefs } from '../context/UIPrefContext'
 import { NotificationsProvider } from '../context/NotificationsContext'
@@ -415,6 +416,9 @@ export default function Dashboard() {
         )}
         </FadeIn>
         )}
+
+        {/* Spending drift — only renders when 2+ months of data + outliers exist */}
+        <SpendingDriftWidget currentDate={currentDate} />
 
         {/* Bottom: two independent sortable columns — no gaps on drag */}
         {(() => {
