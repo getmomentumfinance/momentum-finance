@@ -6,6 +6,7 @@ import { useCardCustomization } from '../../hooks/useCardCustomization'
 import { useSharedData } from '../../context/SharedDataContext'
 import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { toLocalStr, calcBudgetSpend } from '../../utils/budgetPeriod'
+import { computeBaseline, currentMonthTotals } from '../../utils/spendingBaseline'
 
 const fmtPct = n => `${Math.abs(n).toFixed(0)}%`
 
@@ -178,6 +179,26 @@ export default function FinancialInsights({ currentDate = new Date() }) {
 
   const visibleBudgets = budgetRows.slice(0, 6)
 
+  const driftRows = useMemo(() => {
+    const baseline = computeBaseline(allTransactions, currentDate)
+    if (!baseline) return []
+    const { avgMap } = baseline
+    const current = currentMonthTotals(allTransactions, currentDate)
+    return Object.entries(avgMap)
+      .filter(([, avg]) => avg >= 15)
+      .map(([catId, avg]) => {
+        const cur = current[catId] ?? 0
+        const pct = (cur - avg) / avg
+        if (Math.abs(pct) < 0.25) return null
+        const cat = categoryMap[catId]
+        if (!cat) return null
+        return { name: cat.name, color: cat.color, cur, avg, pct }
+      })
+      .filter(Boolean)
+      .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
+      .slice(0, 4)
+  }, [allTransactions, currentDate, categoryMap])
+
   return (
     <>
     <div className="glass-card rounded-2xl p-4 mb-0 h-full overflow-hidden flex flex-col gap-3 relative" style={{ border: c.borderStyle }}>
@@ -263,6 +284,32 @@ export default function FinancialInsights({ currentDate = new Date() }) {
                 </span>
               </div>
             ))}
+          </div>
+        </>
+      )}
+
+      {/* Spending drift */}
+      {driftRows.length > 0 && (
+        <>
+          <div className="h-px bg-white/[0.06] shrink-0" />
+          <div className="flex items-center justify-between shrink-0">
+            <span className="text-[10px] text-white/30 uppercase tracking-widest">Spending drift</span>
+            <span className="text-[10px] text-white/20">vs your average</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 min-h-0 overflow-hidden">
+            {driftRows.map(({ name, color, cur, avg, pct }) => {
+              const above    = pct > 0
+              const pctColor = above ? '#f59e0b' : '#38bdf8'
+              return (
+                <div key={name} className="flex items-center gap-2 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color || 'rgba(255,255,255,0.3)' }} />
+                  <span className="text-xs text-white/60 truncate flex-1 min-w-0">{name}</span>
+                  <span className="text-[10px] tabular-nums shrink-0 ml-0.5 font-semibold" style={{ color: pctColor }}>
+                    {above ? '↗' : '↘'} {Math.abs(pct * 100).toFixed(0)}%
+                  </span>
+                </div>
+              )
+            })}
           </div>
         </>
       )}
