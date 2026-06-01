@@ -45,7 +45,7 @@ export default function SpendingDriftWidget({ currentDate }) {
       <div className="flex flex-col gap-0.5">
         {drift.rows.map(({ name, color, cur, avg, pct }) => {
           const above = pct > 0
-          const pctColor = above ? '#f59e0b' : '#38bdf8'
+          const pctColor = above ? 'var(--type-income)' : 'var(--type-expense)'
           return (
             <div key={name} className="flex items-center gap-2.5 py-1.5">
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color || 'rgba(255,255,255,0.3)' }} />

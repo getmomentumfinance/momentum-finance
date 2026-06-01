@@ -299,7 +299,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
           <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 min-h-0 overflow-hidden">
             {driftRows.map(({ name, color, cur, avg, pct }) => {
               const above    = pct > 0
-              const pctColor = above ? '#f59e0b' : '#38bdf8'
+              const pctColor = above ? 'var(--type-income)' : 'var(--type-expense)'
               return (
                 <div key={name} className="flex items-center gap-2 min-w-0">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color || 'rgba(255,255,255,0.3)' }} />
