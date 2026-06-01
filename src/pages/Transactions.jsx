@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors } from 'lucide-react'
+import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors, CornerDownLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useImportance } from '../hooks/useImportance'
@@ -127,7 +127,8 @@ export default function Transactions() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState({ col: 'date', dir: 'desc' })
-  const [editingTx, setEditingTx] = useState(null)
+  const [editingTx,  setEditingTx]  = useState(null)
+  const [paybackFor, setPaybackFor] = useState(null)
   const [splitTx, setSplitTx] = useState(null)
   const [allCategories, setAllCategories] = useState([])
   const [allReceivers, setAllReceivers] = useState([])
@@ -789,6 +790,16 @@ export default function Transactions() {
                               <Scissors size={13} />
                             </button>
                           )}
+                          {/* Payback — always visible for expense rows */}
+                          {row.type === 'expense' && !isChild && (
+                            <button
+                              onClick={() => setPaybackFor(row)}
+                              title="Log payback for this expense"
+                              className="p-1.5 rounded-lg text-white/25 hover:text-accent hover:bg-white/8 transition-colors"
+                            >
+                              <CornerDownLeft size={13} />
+                            </button>
+                          )}
                           {/* Pencil + Delete — hover only */}
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {!isChild && (
@@ -851,6 +862,19 @@ export default function Transactions() {
         <AddTransactionModal
           transaction={editingTx}
           onClose={() => setEditingTx(null)}
+        />
+      )}
+      {paybackFor && (
+        <AddTransactionModal
+          transaction={{
+            type: 'income',
+            linked_expense_id: paybackFor.id,
+            amount: paybackFor.amount,
+            date: new Date().toISOString().slice(0, 10),
+            description: paybackFor.description ? `Payback: ${paybackFor.description}` : '',
+            card_id: paybackFor.card_id,
+          }}
+          onClose={() => setPaybackFor(null)}
         />
       )}
 

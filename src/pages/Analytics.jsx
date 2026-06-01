@@ -723,6 +723,18 @@ export default function Analytics() {
 
   const expenses = useMemo(() => filtered.filter(t => t.type === 'expense' && !t.is_split_parent), [filtered])
 
+  // Payback map: expense_id → total received payback amount (across all time)
+  const paybackMap = useMemo(() => {
+    const map = {}
+    transactions.filter(t => t.type === 'income' && t.linked_expense_id).forEach(t => {
+      map[t.linked_expense_id] = (map[t.linked_expense_id] || 0) + Number(t.amount)
+    })
+    return map
+  }, [transactions])
+
+  // Net amount for an expense after subtracting any linked paybacks
+  const netAmt = (t) => Math.max(0, Number(t.amount) - (paybackMap[t.id] || 0))
+
   const totalReimbursable = useMemo(() =>
     expenses.reduce((s, t) => s + (t.reimbursable_amount ?? 0), 0)
   , [expenses])
@@ -741,10 +753,12 @@ export default function Analytics() {
         if (t.source === 'savings_out') { map['savings'] = (map['savings'] || 0) - amt;  return }
         return // skip transactions without a source (old format)
       }
-      map[t.type] = (map[t.type] || 0) + amt
+      // For expenses, deduct any linked paybacks
+      const effective = t.type === 'expense' ? Math.max(0, amt - (paybackMap[t.id] || 0)) : amt
+      map[t.type] = (map[t.type] || 0) + effective
     })
     return map
-  }, [filtered])
+  }, [filtered, paybackMap])
 
   // ── Period chart data ─────────────────────────────────────────
   const periodData = useMemo(() => {
@@ -809,10 +823,10 @@ export default function Analytics() {
       const name  = categoryMap[t.category_id]?.name ?? 'Unknown'
       const color = midColor(categoryMap[t.category_id]?.color)
       if (!map[name]) map[name] = { name, value: 0, color }
-      map[name].value += Number(t.amount)
+      map[name].value += netAmt(t)
     })
     return Object.values(map).sort((a, b) => b.value - a.value)
-  }, [expenses, categoryMap])
+  }, [expenses, categoryMap, paybackMap])
 
   // ── By Subcategory (categorized expenses only) ────────────────
   const subcategoryData = useMemo(() => {
@@ -821,10 +835,10 @@ export default function Analytics() {
       const name  = categoryMap[t.subcategory_id]?.name ?? 'Unknown'
       const color = midColor(categoryMap[t.subcategory_id]?.color)
       if (!map[name]) map[name] = { name, value: 0, color }
-      map[name].value += Number(t.amount)
+      map[name].value += netAmt(t)
     })
     return Object.values(map).sort((a, b) => b.value - a.value)
-  }, [expenses, categoryMap])
+  }, [expenses, categoryMap, paybackMap])
 
   // ── Category & subcategory line chart data ────────────────────
   const categoryLineData = useMemo(() => buildLineData(
@@ -843,17 +857,16 @@ export default function Analytics() {
   const importanceData = useMemo(() => {
     const map = {}
     expenses.forEach(t => {
-      // Importance lives on the subcategory; fall back to parent category
       const imp = t.importance
       if (!imp) return
       const def = DEFAULT_IMPORTANCE.find(d => d.value === imp)
       if (!def) return
       const color = importanceColors[imp] ?? def.color
       if (!map[imp]) map[imp] = { name: def.label, value: 0, color }
-      map[imp].value += Number(t.amount)
+      map[imp].value += netAmt(t)
     })
     return DEFAULT_IMPORTANCE.filter(d => map[d.value]).map(d => map[d.value])
-  }, [expenses, importanceColors])
+  }, [expenses, importanceColors, paybackMap])
 
   // ── Top receivers ─────────────────────────────────────────────
   const receiverData = useMemo(() => {

@@ -15,6 +15,7 @@ import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverAvatar as SharedReceiverAvatar, ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { showToast } from '../shared/Toast'
+import LinkedExpenseSearch from '../shared/LinkedExpenseSearch'
 
 // ── Category custom select ────────────────────────────────────
 function CategorySelect({ value, onChange, options, placeholder = 'Empty', disabled = false }) {
@@ -305,7 +306,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [date,        setDate]        = useState(transaction?.date            ?? defaults.date ?? new Date().toISOString().slice(0, 10))
   const [comment,     setComment]     = useState(transaction?.comment        ?? '')
   const [status,      setStatus]      = useState(transaction?.status         ?? 'completed')
-  const [isEarned,    setIsEarned]    = useState(transaction?.is_earned      ?? false)
+  const [isEarned,       setIsEarned]       = useState(transaction?.is_earned        ?? false)
+  const [linkedExpenseId, setLinkedExpenseId] = useState(transaction?.linked_expense_id ?? null)
   const [receiverId,  setReceiverId]  = useState(transaction?.receiver_id    ?? null)
   const [importance,  setImportance]  = useState(transaction?.importance     ?? '')
   const [saving,      setSaving]      = useState(false)
@@ -581,7 +583,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         receiver_id:         receiverId || null,
         is_cash:             isCash,
         is_split_parent:     false,
-        ...(type === 'income' && { is_earned: isEarned }),
+        ...(type === 'income' && { is_earned: isEarned, linked_expense_id: linkedExpenseId || null }),
         ...(type === 'expense' && { importance: importance || null }),
         date,
         comment:             comment.trim() || null,
@@ -1148,6 +1150,17 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   onToggle={() => setIsCash(v => !v)}
                 />
               )}
+            </div>
+          )}
+
+          {/* Payback link — income only */}
+          {type === 'income' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
+                Payback for expense
+                <span className="normal-case font-normal text-white/25">(optional)</span>
+              </label>
+              <LinkedExpenseSearch value={linkedExpenseId} onChange={setLinkedExpenseId} />
             </div>
           )}
 
