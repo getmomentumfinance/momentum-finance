@@ -78,7 +78,7 @@ function PnlChip({ value, pct, fmt }) {
   const color = gc(value)
   return (
     <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
-      style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color, boxShadow: `0 2px 10px color-mix(in srgb, ${color} 25%, transparent)` }}>
+      style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
       {value >= 0 ? '+' : ''}{fmt(value)}
       {pct != null && <span className="opacity-60 text-[10px]">({fmtPct(pct)})</span>}
     </span>
@@ -463,6 +463,57 @@ export default function Portfolio() {
             fmt={fmt}
           />
 
+          {/* Label subtabs */}
+          <div className="flex items-center gap-2 mb-5">
+            <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
+              <button type="button" onClick={() => { setLabelTab('all'); setExpanded({}) }}
+                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: labelTab === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  color:      labelTab === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
+                }}>
+                All
+              </button>
+              {tradeLabels.filter(({ name }) => !hiddenTabs.has(name)).map(({ name, color }) => (
+                <button key={name} type="button" onClick={() => { setLabelTab(name); setExpanded({}) }}
+                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{
+                    background:  labelTab === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
+                    color:       labelTab === name ? color : 'rgba(255,255,255,0.4)',
+                  }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <button type="button" onClick={() => setShowTabSettings(v => !v)}
+                className="p-1.5 rounded-lg transition-colors hover:bg-white/8"
+                style={{ color: showTabSettings ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)' }}
+                title="Show / hide subtabs">
+                <SlidersHorizontal size={13} />
+              </button>
+              {showTabSettings && (
+                <div className="absolute top-full left-0 mt-1 glass-popup border border-white/10 rounded-xl overflow-hidden shadow-xl z-20 min-w-[160px]"
+                  onMouseLeave={() => setShowTabSettings(false)}>
+                  <p className="text-[10px] text-muted uppercase tracking-widest px-3 pt-2.5 pb-1">Subtab visibility</p>
+                  {tradeLabels.map(({ name, color }) => {
+                    const hidden = hiddenTabs.has(name)
+                    return (
+                      <button key={name} type="button" onClick={() => toggleTabVisibility(name)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                        <span className="flex-1 text-left text-xs" style={{ color: hidden ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.75)' }}>
+                          {name}
+                        </span>
+                        {hidden ? <EyeOff size={12} className="text-white/25 shrink-0" /> : <Eye size={12} className="text-white/50 shrink-0" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Portfolio hero — always visible */}
           {(() => {
             const heroTotal = openPositions.reduce((s, p) => s + (p.currentVal ?? p.cost), 0)
@@ -478,7 +529,7 @@ export default function Portfolio() {
                     <div className="flex items-center gap-2 mt-1.5">
                       {hasLive && totalUnrealized !== 0 && (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums px-2 py-0.5 rounded-md"
-                          style={{ background: `color-mix(in srgb, ${gc(totalUnrealized)} 16%, transparent)`, color: gc(totalUnrealized), boxShadow: `0 2px 10px color-mix(in srgb, ${gc(totalUnrealized)} 25%, transparent)` }}>
+                          style={{ background: `color-mix(in srgb, ${gc(totalUnrealized)} 16%, transparent)`, color: gc(totalUnrealized) }}>
                           {totalUnrealized >= 0 ? '+' : ''}{fmt(totalUnrealized)}
                           <span className="opacity-60 text-[10px]">({fmtPct((totalUnrealized / totalInvested) * 100)})</span>
                         </span>
@@ -562,60 +613,6 @@ export default function Portfolio() {
               </div>
             )
           })()}
-
-          {/* Label subtabs */}
-          <div className="flex items-center gap-2 mb-5">
-            <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
-              <button type="button" onClick={() => { setLabelTab('all'); setExpanded({}) }}
-                className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  background: labelTab === 'all' ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  color:      labelTab === 'all' ? '#fff' : 'rgba(255,255,255,0.4)',
-                }}>
-                All
-              </button>
-              {tradeLabels.filter(({ name }) => !hiddenTabs.has(name)).map(({ name, color }) => (
-                <button key={name} type="button" onClick={() => { setLabelTab(name); setExpanded({}) }}
-                  className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    background:  labelTab === name ? `color-mix(in srgb, ${color} 18%, transparent)` : 'transparent',
-                    color:       labelTab === name ? color : 'rgba(255,255,255,0.4)',
-                  }}>
-                  {name}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative">
-              <button type="button" onClick={() => setShowTabSettings(v => !v)}
-                className="p-1.5 rounded-lg transition-colors hover:bg-white/8"
-                style={{ color: showTabSettings ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)' }}
-                title="Show / hide subtabs">
-                <SlidersHorizontal size={13} />
-              </button>
-              {showTabSettings && (
-                <div className="absolute top-full left-0 mt-1 glass-popup border border-white/10 rounded-xl overflow-hidden shadow-xl z-20 min-w-[160px]"
-                  onMouseLeave={() => setShowTabSettings(false)}>
-                  <p className="text-[10px] text-muted uppercase tracking-widest px-3 pt-2.5 pb-1">Subtab visibility</p>
-                  {tradeLabels.map(({ name, color }) => {
-                    const hidden = hiddenTabs.has(name)
-                    return (
-                      <button key={name} type="button" onClick={() => toggleTabVisibility(name)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 transition-colors">
-                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                        <span className="flex-1 text-left text-xs" style={{ color: hidden ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.75)' }}>
-                          {name}
-                        </span>
-                        {hidden
-                          ? <EyeOff size={12} className="text-white/25 shrink-0" />
-                          : <Eye size={12} className="text-white/50 shrink-0" />}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* ── removed stats+summary grid (hero covers this) ── */}
           {false && (() => {
