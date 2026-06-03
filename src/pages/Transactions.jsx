@@ -191,7 +191,7 @@ export default function Transactions() {
         { data: receivers },
       ] = await Promise.all([
         supabase.from('transactions')
-          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance, label')
+          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance, label, linked_expense_id')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .gte('date', start)
@@ -729,7 +729,7 @@ export default function Transactions() {
                           )}
                           {row.type === 'income' && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/50">
-                              {row.is_earned ? t('source.earned') : t('source.gifted')}
+                              {row.linked_expense_id ? 'Payback' : row.is_earned ? t('source.earned') : t('source.gifted')}
                             </span>
                           )}
                           {(row.type === 'income' || row.type === 'expense') && row.is_cash && (
