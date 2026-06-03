@@ -267,7 +267,7 @@ function Toggle({ label, on, onToggle }) {
 
 
 export default function AddTransactionModal({ onClose, defaults = {}, transaction = null }) {
-  const isEditing = !!transaction
+  const isEditing = !!(transaction?.id)
   const { user } = useAuth()
   const { fmt } = usePreferences()
   const { cards } = useCards()
