@@ -790,11 +790,11 @@ export default function Transactions() {
                               <Scissors size={13} />
                             </button>
                           )}
-                          {/* Payback — always visible for expense rows */}
-                          {row.type === 'expense' && !isChild && (
+                          {/* Payback — visible on all expense rows (parent, child, regular) */}
+                          {row.type === 'expense' && (
                             <button
                               onClick={() => setPaybackFor(row)}
-                              title="Log payback for this expense"
+                              title={isParent ? 'Log payback (select a child)' : 'Log payback for this expense'}
                               className="p-1.5 rounded-lg text-white/25 hover:text-accent hover:bg-white/8 transition-colors"
                             >
                               <CornerDownLeft size={13} />
@@ -868,12 +868,14 @@ export default function Transactions() {
         <AddTransactionModal
           transaction={{
             type: 'income',
-            linked_expense_id: paybackFor.id,
-            amount: paybackFor.amount,
+            // split parents: don't pre-link — user will pick a child via the search
+            linked_expense_id: paybackFor.is_split_parent ? null : paybackFor.id,
+            amount: paybackFor.is_split_parent ? undefined : paybackFor.amount,
             date: new Date().toISOString().slice(0, 10),
-            description: paybackFor.description ? `Payback: ${paybackFor.description}` : '',
+            description: paybackFor.is_split_parent ? '' : (paybackFor.description ? `Payback: ${paybackFor.description}` : ''),
             card_id: paybackFor.card_id,
           }}
+          paybackParentId={paybackFor.is_split_parent ? paybackFor.id : null}
           onClose={() => setPaybackFor(null)}
         />
       )}

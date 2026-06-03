@@ -266,7 +266,7 @@ function Toggle({ label, on, onToggle }) {
 }
 
 
-export default function AddTransactionModal({ onClose, defaults = {}, transaction = null }) {
+export default function AddTransactionModal({ onClose, defaults = {}, transaction = null, paybackParentId = null }) {
   const isEditing = !!(transaction?.id)
   const { user } = useAuth()
   const { fmt } = usePreferences()
@@ -1160,7 +1160,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                 Payback for expense
                 <span className="normal-case font-normal text-white/25">(optional)</span>
               </label>
-              <LinkedExpenseSearch value={linkedExpenseId} onChange={setLinkedExpenseId} />
+              <LinkedExpenseSearch value={linkedExpenseId} onChange={setLinkedExpenseId} initialParentId={paybackParentId} />
             </div>
           )}
 

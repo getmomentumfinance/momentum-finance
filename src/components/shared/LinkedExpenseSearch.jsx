@@ -3,7 +3,7 @@ import { Search, X, Receipt } from 'lucide-react'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
 
-export default function LinkedExpenseSearch({ value, onChange }) {
+export default function LinkedExpenseSearch({ value, onChange, initialParentId = null }) {
   const { fmt } = usePreferences()
   const { allTransactions, categoryMap, receiverMap } = useSharedData()
   const [open,   setOpen]   = useState(false)
@@ -28,14 +28,24 @@ export default function LinkedExpenseSearch({ value, onChange }) {
     .sort((a, b) => b.date.localeCompare(a.date))
 
   const q = query.trim().toLowerCase()
-  const filtered = q
-    ? expenses.filter(t => {
-        const desc = (t.description ?? '').toLowerCase()
-        const rec  = receiverMap[t.receiver_id]?.name?.toLowerCase() ?? ''
-        const cat  = categoryMap[t.category_id]?.name?.toLowerCase() ?? ''
-        return desc.includes(q) || rec.includes(q) || cat.includes(q)
-      })
-    : expenses
+
+  let filtered
+  if (q) {
+    filtered = expenses.filter(t => {
+      const desc = (t.description ?? '').toLowerCase()
+      const rec  = receiverMap[t.receiver_id]?.name?.toLowerCase() ?? ''
+      const cat  = categoryMap[t.category_id]?.name?.toLowerCase() ?? ''
+      return desc.includes(q) || rec.includes(q) || cat.includes(q)
+    })
+  } else if (initialParentId) {
+    // Show children of the split parent first, then all other expenses
+    const children = expenses.filter(t => t.split_parent_id === initialParentId)
+    const rest     = expenses.filter(t => t.split_parent_id !== initialParentId)
+    filtered = [...children, ...rest]
+  } else {
+    filtered = expenses
+  }
+
   const results = filtered.slice(0, 20)
 
   function select(tx) {
@@ -93,10 +103,22 @@ export default function LinkedExpenseSearch({ value, onChange }) {
             {results.length === 0 && (
               <p className="text-center text-xs text-white/30 py-6">No expenses found</p>
             )}
-            {results.map(tx => {
+            {!q && initialParentId && filtered.some(t => t.split_parent_id === initialParentId) && (
+              <div className="px-3 py-1.5 text-[10px] text-muted uppercase tracking-widest border-b border-white/[0.04] bg-white/[0.02]">
+                Split children
+              </div>
+            )}
+            {results.map((tx, idx) => {
               const rec = receiverMap[tx.receiver_id]?.name
               const cat = categoryMap[tx.category_id]
+              const isFirstNonChild = !q && initialParentId && idx > 0 && tx.split_parent_id !== initialParentId && results[idx - 1]?.split_parent_id === initialParentId
               return (
+                <>
+                {isFirstNonChild && (
+                  <div className="px-3 py-1.5 text-[10px] text-muted uppercase tracking-widest border-y border-white/[0.04] bg-white/[0.02]">
+                    Other expenses
+                  </div>
+                )}
                 <button
                   key={tx.id}
                   type="button"
@@ -115,6 +137,7 @@ export default function LinkedExpenseSearch({ value, onChange }) {
                   </div>
                   <span className="text-xs tabular-nums text-white/55 shrink-0">{fmt(tx.amount)}</span>
                 </button>
+                </>
               )
             })}
           </div>
