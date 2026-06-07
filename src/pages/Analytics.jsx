@@ -1035,7 +1035,21 @@ export default function Analytics() {
     const dailyAvg = avgMonthlySpend / daysInMonth
     const remainingDays = daysInMonth - dayOfMonth
     const projected = soFar + dailyAvg * remainingDays
-    return { projected, dailyAvg, dayOfMonth, daysInMonth, soFar }
+
+    const timePct  = dayOfMonth / daysInMonth
+    const spentPct = projected > 0 ? soFar / projected : 0
+    const paceRatio = dailyAvg > 0 && dayOfMonth > 0 ? (soFar / dayOfMonth) / dailyAvg : 1
+
+    let indicator = null
+    if (spentPct >= timePct + 0.2) {
+      indicator = { level: 'danger', text: `Already ${Math.round(spentPct * 100)}% through projected — only day ${dayOfMonth}` }
+    } else if (prevTotals.length > 0 && paceRatio > 1.3) {
+      indicator = { level: 'warning', text: `Spending ${Math.round((paceRatio - 1) * 100)}% faster than usual` }
+    } else if (prevTotals.length > 0 && paceRatio < 0.7 && dayOfMonth >= 5) {
+      indicator = { level: 'good', text: `${Math.round((1 - paceRatio) * 100)}% under your usual pace` }
+    }
+
+    return { projected, dailyAvg, dayOfMonth, daysInMonth, soFar, indicator }
   }, [transactions])
 
   // ── Deep Dive ─────────────────────────────────────────────────
@@ -2734,6 +2748,20 @@ export default function Analytics() {
                       <p className="text-sm font-semibold tabular-nums text-white/60">{fmt(projectedSpend.dailyAvg)}/day</p>
                     </div>
                   </div>
+                  {projectedSpend.indicator && (() => {
+                    const { level, text } = projectedSpend.indicator
+                    const styles = {
+                      danger:  { bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444', color: '#ef4444' },
+                      warning: { bg: 'rgba(251,146,60,0.12)', dot: '#fb923c', color: '#fb923c' },
+                      good:    { bg: 'rgba(74,222,128,0.12)', dot: '#4ade80', color: '#4ade80' },
+                    }[level]
+                    return (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg mb-3 w-fit text-[11px] font-medium" style={{ background: styles.bg, color: styles.color }}>
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: styles.dot }} />
+                        {text}
+                      </div>
+                    )
+                  })()}
                   <div className="flex h-2 rounded-full overflow-hidden gap-px mt-auto">
                     <div style={{ width: `${(projectedSpend.dayOfMonth / projectedSpend.daysInMonth) * 100}%`, background: 'var(--color-progress-bar)' }} className="rounded-l-full" />
                     <div style={{ flex: 1, background: 'var(--color-progress-bar)', opacity: 0.2 }} className="rounded-r-full" />
