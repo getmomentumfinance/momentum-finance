@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { DEFAULT_IMPORTANCE } from '../constants/importance'
-import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X, Info, Users } from 'lucide-react'
+import { ChevronDown, TrendingUp, TrendingDown, PiggyBank, Tag, ShoppingBag, Zap, SlidersHorizontal, X, Info, Users, CornerDownLeft } from 'lucide-react'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -1005,6 +1005,8 @@ export default function Analytics() {
 
 
   // ── Projected spend ───────────────────────────────────────────
+  // Daily rate is derived from the previous 2 complete months so it is fully
+  // independent of what the user logs this month — the projection stays stable.
   const projectedSpend = useMemo(() => {
     if (range !== 'month') return null
     const today = new Date()
@@ -1015,16 +1017,40 @@ export default function Analytics() {
     if (dayOfMonth < 3) return null
     const daysInMonth = new Date(y, m + 1, 0).getDate()
     const soFar = expenses.reduce((s, t) => s + Number(t.amount), 0)
-    const dailyAvg = soFar / dayOfMonth
-    const projected = dailyAvg * daysInMonth
+
+    const prevTotals = []
+    for (let i = 1; i <= 2; i++) {
+      const ref  = new Date(y, m - i, 1)
+      const py   = ref.getFullYear()
+      const pm   = ref.getMonth()
+      const pfx  = `${py}-${String(pm + 1).padStart(2, '0')}`
+      const total = transactions
+        .filter(t => t.type === 'expense' && !t.is_split_parent && t.date.startsWith(pfx))
+        .reduce((s, t) => s + Number(t.amount), 0)
+      if (total > 0) prevTotals.push(total)
+    }
+
+    const avgMonthlySpend = prevTotals.length > 0
+      ? prevTotals.reduce((s, v) => s + v, 0) / prevTotals.length
+      : soFar / dayOfMonth * daysInMonth
+    const dailyAvg = avgMonthlySpend / daysInMonth
+    const remainingDays = daysInMonth - dayOfMonth
+    const projected = soFar + dailyAvg * remainingDays
     return { projected, dailyAvg, dayOfMonth, daysInMonth, soFar }
-  }, [range, currentDate, expenses])
+  }, [range, currentDate, expenses, transactions])
 
   // ── Deep Dive ─────────────────────────────────────────────────
   const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver'
   const [ddFilter,       setDdFilter]       = useState(null)
   const [ddChartType,    setDdChartType]    = useState('bar')
   const [ddClickedLabel, setDdClickedLabel] = useState(null)
+  const [openPayback,    setOpenPayback]    = useState(null)
+  useEffect(() => {
+    if (!openPayback) return
+    const close = () => setOpenPayback(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openPayback])
 
   const ddCategories = useMemo(() => {
     const seen = new Map()
@@ -1063,13 +1089,13 @@ export default function Analytics() {
     return true
   }), [expenses, ddDimension, ddFilter])
 
-  const ddTotal   = useMemo(() => ddFiltered.reduce((s, t) => s + Number(t.amount), 0), [ddFiltered])
+  const ddTotal   = useMemo(() => ddFiltered.reduce((s, t) => s + netAmt(t), 0), [ddFiltered, paybackMap])
   const ddAvg     = ddFiltered.length ? ddTotal / ddFiltered.length : 0
   const ddHighest = useMemo(() => {
     if (!ddFiltered.length) return null
-    const t = ddFiltered.reduce((mx, t) => Number(t.amount) > Number(mx.amount) ? t : mx, ddFiltered[0])
-    return { amount: Number(t.amount), name: receiverMap[t.receiver_id]?.name ?? null }
-  }, [ddFiltered, receiverMap])
+    const t = ddFiltered.reduce((mx, t) => netAmt(t) > netAmt(mx) ? t : mx, ddFiltered[0])
+    return { amount: netAmt(t), name: receiverMap[t.receiver_id]?.name ?? null }
+  }, [ddFiltered, receiverMap, paybackMap])
 
   const ddMostFrequent = useMemo(() => {
     const freq = {}
@@ -2811,7 +2837,7 @@ export default function Analytics() {
                         <div>
                           <p className="text-[10px] text-muted uppercase tracking-widest">{ddClickedLabel}</p>
                           <p className="text-2xl font-bold tabular-nums leading-tight mt-0.5" style={{ color: ddColor }}>
-                            {fmt(ddBarTransactions.reduce((s, t) => s + Number(t.amount), 0))}
+                            {fmt(ddBarTransactions.reduce((s, t) => s + netAmt(t), 0))}
                           </p>
                           <p className="text-[10px] text-muted mt-0.5">{ddBarTransactions.length} transaction{ddBarTransactions.length !== 1 ? 's' : ''}</p>
                         </div>
@@ -2835,7 +2861,36 @@ export default function Analytics() {
                                 <div className="flex flex-col min-w-0 flex-1 gap-1">
                                   <div className="flex items-center justify-between gap-2">
                                     <span className="text-xs truncate text-white/85">{tx.description || rec?.name || '—'}</span>
-                                    <span className="text-xs tabular-nums font-semibold shrink-0" style={{ color: colors.expense }}>−{fmt(tx.amount)}</span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {paybackMap[tx.id] > 0 && (
+                                        <div className="relative">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); setOpenPayback(openPayback === tx.id ? null : tx.id) }}
+                                            className="p-0.5 rounded text-white/30 hover:text-white/60 transition-colors"
+                                          >
+                                            <CornerDownLeft size={9} />
+                                          </button>
+                                          {openPayback === tx.id && (
+                                            <div className="absolute right-0 top-full mt-1 z-50 glass-popup border border-white/15 rounded-xl p-2.5 shadow-xl" style={{ minWidth: 148 }}>
+                                              <div className="flex justify-between gap-4 text-[11px]">
+                                                <span className="text-white/40">Original</span>
+                                                <span className="text-white/40 line-through tabular-nums">−{fmt(tx.amount)}</span>
+                                              </div>
+                                              <div className="flex justify-between gap-4 text-[11px] mt-0.5">
+                                                <span className="text-white/40">Payback</span>
+                                                <span className="text-green-400 tabular-nums">+{fmt(paybackMap[tx.id])}</span>
+                                              </div>
+                                              <div className="h-px bg-white/10 my-1.5" />
+                                              <div className="flex justify-between gap-4 text-[11px] font-semibold">
+                                                <span className="text-white/60">Net</span>
+                                                <span className="tabular-nums" style={{ color: colors.expense }}>−{fmt(netAmt(tx))}</span>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      <span className="text-xs tabular-nums font-semibold" style={{ color: colors.expense }}>−{fmt(netAmt(tx))}</span>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     {mainCat && (
@@ -2908,7 +2963,7 @@ export default function Analytics() {
                             }
                             if (!key) return
                             if (!totalsMap[key]) totalsMap[key] = { value: 0, color }
-                            totalsMap[key].value += Number(tx.amount)
+                            totalsMap[key].value += netAmt(tx)
                           })
                           const ranked = Object.entries(totalsMap).sort(([,a],[,b]) => b.value - a.value).slice(0, 7)
                           const maxVal = ranked[0]?.[1].value || 1

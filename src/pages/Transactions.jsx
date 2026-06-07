@@ -129,6 +129,7 @@ export default function Transactions() {
   const [sort, setSort] = useState({ col: 'date', dir: 'desc' })
   const [editingTx,  setEditingTx]  = useState(null)
   const [paybackFor, setPaybackFor] = useState(null)
+  const [openPayback, setOpenPayback] = useState(null)
   const [splitTx, setSplitTx] = useState(null)
   const [allCategories, setAllCategories] = useState([])
   const [allReceivers, setAllReceivers] = useState([])
@@ -245,6 +246,21 @@ export default function Transactions() {
     })
     return sort.dir === 'asc' ? sorted.reverse() : sorted
   }, [rows, sort])
+
+  const txPaybackMap = useMemo(() => {
+    const map = {}
+    rows.filter(r => r.type === 'income' && r.linked_expense_id).forEach(r => {
+      map[r.linked_expense_id] = (map[r.linked_expense_id] || 0) + Number(r.amount)
+    })
+    return map
+  }, [rows])
+
+  useEffect(() => {
+    if (!openPayback) return
+    const close = () => setOpenPayback(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openPayback])
 
   const filteredRows = useMemo(() => {
     let result = sortedRows
@@ -547,9 +563,40 @@ export default function Transactions() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
+                    {row.type === 'expense' && txPaybackMap[row.id] > 0 && (
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenPayback(openPayback === row.id ? null : row.id) }}
+                          className="p-0.5 rounded text-white/30 hover:text-white/60 transition-colors"
+                        >
+                          <CornerDownLeft size={10} />
+                        </button>
+                        {openPayback === row.id && (
+                          <div className="absolute right-0 top-full mt-1 z-50 glass-popup border border-white/15 rounded-xl p-2.5 shadow-xl" style={{ minWidth: 148 }}>
+                            <div className="flex justify-between gap-4 text-[11px]">
+                              <span className="text-white/40">Original</span>
+                              <span className="text-white/40 line-through tabular-nums">−{fmt(Math.abs(row.amount))}</span>
+                            </div>
+                            <div className="flex justify-between gap-4 text-[11px] mt-0.5">
+                              <span className="text-white/40">Payback</span>
+                              <span className="text-green-400 tabular-nums">+{fmt(txPaybackMap[row.id])}</span>
+                            </div>
+                            <div className="h-px bg-white/10 my-1.5" />
+                            <div className="flex justify-between gap-4 text-[11px] font-semibold">
+                              <span className="text-white/60">Net</span>
+                              <span className="text-white/80 tabular-nums">−{fmt(Math.max(0, Math.abs(row.amount) - txPaybackMap[row.id]))}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <span className="text-sm font-semibold tabular-nums" style={{ color: isParent ? 'rgba(255,255,255,0.2)' : amountColor(row.type, row.source) }}>
-                      {isParent ? <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
-                        : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>}
+                      {isParent
+                        ? <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
+                        : row.type === 'expense' && txPaybackMap[row.id] > 0
+                          ? <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.max(0, Math.abs(row.amount) - txPaybackMap[row.id]))}</>
+                          : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>
+                      }
                     </span>
                     {!isChild && (
                       <button onClick={() => setEditingTx(row)} className="p-1.5 rounded-lg text-white/25 hover:text-white transition-colors">
@@ -696,13 +743,44 @@ export default function Transactions() {
                       <td className="px-3 py-3 text-right tabular-nums font-medium overflow-hidden"
                         style={{ width: widths.amount, maxWidth: widths.amount, color: isParent ? 'rgba(255,255,255,0.2)' : amountColor(row.type, row.source) }}
                       >
-                        {isParent
-                          ? <span className="flex items-center justify-end gap-1.5">
-                              <Scissors size={10} className="opacity-60" />
-                              <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
-                            </span>
-                          : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>
-                        }
+                        <div className="flex items-center justify-end gap-1">
+                          {row.type === 'expense' && txPaybackMap[row.id] > 0 && (
+                            <div className="relative">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenPayback(openPayback === row.id ? null : row.id) }}
+                                className="p-0.5 rounded text-white/30 hover:text-white/60 transition-colors"
+                              >
+                                <CornerDownLeft size={9} />
+                              </button>
+                              {openPayback === row.id && (
+                                <div className="absolute right-0 top-full mt-1 z-50 glass-popup border border-white/15 rounded-xl p-2.5 shadow-xl" style={{ minWidth: 148 }}>
+                                  <div className="flex justify-between gap-4 text-[11px]">
+                                    <span className="text-white/40">Original</span>
+                                    <span className="text-white/40 line-through tabular-nums">−{fmt(Math.abs(row.amount))}</span>
+                                  </div>
+                                  <div className="flex justify-between gap-4 text-[11px] mt-0.5">
+                                    <span className="text-white/40">Payback</span>
+                                    <span className="text-green-400 tabular-nums">+{fmt(txPaybackMap[row.id])}</span>
+                                  </div>
+                                  <div className="h-px bg-white/10 my-1.5" />
+                                  <div className="flex justify-between gap-4 text-[11px] font-semibold">
+                                    <span className="text-white/60">Net</span>
+                                    <span className="text-white/80 tabular-nums">−{fmt(Math.max(0, Math.abs(row.amount) - txPaybackMap[row.id]))}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {isParent
+                            ? <span className="flex items-center gap-1.5">
+                                <Scissors size={10} className="opacity-60" />
+                                <span className="line-through">{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</span>
+                              </span>
+                            : row.type === 'expense' && txPaybackMap[row.id] > 0
+                              ? <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.max(0, Math.abs(row.amount) - txPaybackMap[row.id]))}</>
+                              : <>{amountSign(row.type, row.source, row.amount)}{fmt(Math.abs(row.amount))}</>
+                          }
+                        </div>
                       </td>
 
                       {/* Category */}
