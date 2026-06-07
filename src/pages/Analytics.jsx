@@ -1005,18 +1005,17 @@ export default function Analytics() {
 
 
   // ── Projected spend ───────────────────────────────────────────
-  // Daily rate is derived from the previous 2 complete months so it is fully
-  // independent of what the user logs this month — the projection stays stable.
+  // Always computed against today's real month, independent of the chart range.
   const projectedSpend = useMemo(() => {
-    if (range !== 'month') return null
     const today = new Date()
-    const y = currentDate.getFullYear()
-    const m = currentDate.getMonth()
-    if (today.getFullYear() !== y || today.getMonth() !== m) return null
+    const y = today.getFullYear()
+    const m = today.getMonth()
     const dayOfMonth = today.getDate()
-    if (dayOfMonth < 3) return null
     const daysInMonth = new Date(y, m + 1, 0).getDate()
-    const soFar = expenses.reduce((s, t) => s + Number(t.amount), 0)
+    const monthPfx = `${y}-${String(m + 1).padStart(2, '0')}`
+    const soFar = transactions
+      .filter(t => t.type === 'expense' && !t.is_split_parent && t.date.startsWith(monthPfx))
+      .reduce((s, t) => s + Number(t.amount), 0)
 
     const prevTotals = []
     for (let i = 1; i <= 2; i++) {
@@ -1032,12 +1031,12 @@ export default function Analytics() {
 
     const avgMonthlySpend = prevTotals.length > 0
       ? prevTotals.reduce((s, v) => s + v, 0) / prevTotals.length
-      : soFar / dayOfMonth * daysInMonth
+      : dayOfMonth > 0 ? soFar / dayOfMonth * daysInMonth : 0
     const dailyAvg = avgMonthlySpend / daysInMonth
     const remainingDays = daysInMonth - dayOfMonth
     const projected = soFar + dailyAvg * remainingDays
     return { projected, dailyAvg, dayOfMonth, daysInMonth, soFar }
-  }, [range, currentDate, expenses, transactions])
+  }, [transactions])
 
   // ── Deep Dive ─────────────────────────────────────────────────
   const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver'
@@ -2715,7 +2714,7 @@ export default function Analytics() {
 
             {/* Projected spend + Financial Insights side by side (month/other views) */}
             {(showProjected || (showInsights && range !== 'week')) && <div className="flex flex-col md:flex-row gap-5 items-stretch">
-              {showProjected && projectedSpend && (
+              {showProjected && (
                 <div className="flex-1 glass-card rounded-2xl p-5 flex flex-col">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-semibold">{t('an.projectedSpend')}</h2>
