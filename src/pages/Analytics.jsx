@@ -2750,14 +2750,14 @@ export default function Analytics() {
                   </div>
                   {projectedSpend.indicator && (() => {
                     const { level, text } = projectedSpend.indicator
-                    const styles = {
-                      danger:  { bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444', color: '#ef4444' },
-                      warning: { bg: 'rgba(251,146,60,0.12)', dot: '#fb923c', color: '#fb923c' },
-                      good:    { bg: 'rgba(74,222,128,0.12)', dot: '#4ade80', color: '#4ade80' },
+                    const c = {
+                      danger:  colors.alert,
+                      warning: colors.warning,
+                      good:    colors.income,
                     }[level]
                     return (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg mb-3 w-fit text-[11px] font-medium" style={{ background: styles.bg, color: styles.color }}>
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: styles.dot }} />
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg mb-3 w-fit text-[11px] font-medium" style={{ background: c + '1f', color: c }}>
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c }} />
                         {text}
                       </div>
                     )
