@@ -432,7 +432,7 @@ export default function Savings() {
     ? { amount: monthlyTotals[bestIdx], label: new Date(year, bestIdx, 1).toLocaleDateString('en-US', { month: 'short' }) }
     : null
 
-  const targetPct = target > 0 ? Math.min((netThisMonth / target) * 100, 100) : 0
+  const targetPct = target > 0 ? Math.max(0, Math.min((netThisMonth / target) * 100, 100)) : 0
   const targetRatio = target > 0 ? netThisMonth / target : 0
 
   // Recent activity: savings transactions + goal allocations merged
