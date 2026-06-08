@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
   AreaChart, Area,
   BarChart, Bar, Cell,
+  PieChart, Pie,
   XAxis, YAxis,
   CartesianGrid, Tooltip,
   ReferenceLine, Customized,
@@ -333,7 +334,19 @@ export default function Savings() {
   const month = currentDate.getMonth()
 
   const deposits    = allTxs.filter(t => t.source === 'savings_in'  && t.amount > 0)
-  const withdrawals = allTxs.filter(t => t.source === 'savings_out' && t.amount > 0)
+  const WITHDRAWAL_SOURCES = ['savings_out', 'savings_out_purchase', 'savings_out_invest']
+  const withdrawals = allTxs.filter(t => WITHDRAWAL_SOURCES.includes(t.source) && t.amount > 0)
+
+  const withdrawalBreakdown = useMemo(() => {
+    const topup    = withdrawals.filter(t => t.source === 'savings_out').reduce((s, t) => s + t.amount, 0)
+    const purchase = withdrawals.filter(t => t.source === 'savings_out_purchase').reduce((s, t) => s + t.amount, 0)
+    const invest   = withdrawals.filter(t => t.source === 'savings_out_invest').reduce((s, t) => s + t.amount, 0)
+    return [
+      { name: 'Top-up',    value: topup,    color: '#60a5fa' },
+      { name: 'Purchase',  value: purchase, color: '#f472b6' },
+      { name: 'Investment', value: invest,  color: '#34d399' },
+    ].filter(d => d.value > 0)
+  }, [withdrawals])
 
   // ── Chart data ────────────────────────────────────────────
   const savingsChartData = (() => {
@@ -766,6 +779,52 @@ export default function Savings() {
             ? <div className="flex-1 flex items-center justify-center text-xs text-muted">{t('sav.noDataYetPeriod')}</div>
             : <div className="flex-1 min-h-[140px] sm:min-h-[180px]"><NetFlowChart data={flowChartData} view={flowView} /></div>}
         </div>
+
+        {/* Withdrawal breakdown donut */}
+        {withdrawalBreakdown.length > 0 && (
+          <div className="glass-card rounded-2xl p-5 flex flex-col col-span-full lg:col-span-2">
+            <h2 className="text-sm font-semibold mb-0.5">Withdrawal purposes</h2>
+            <p className="text-[11px] text-muted mb-4">All-time breakdown of where savings went</p>
+            <div className="flex items-center gap-6">
+              <div className="w-28 h-28 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={withdrawalBreakdown} dataKey="value" innerRadius="62%" outerRadius="100%" paddingAngle={3} startAngle={90} endAngle={-270} strokeWidth={0}>
+                      {withdrawalBreakdown.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v) => [fmt(v)]}
+                      contentStyle={{ background: 'var(--color-dash-card)', border: '1px solid var(--color-border)', borderRadius: 8, fontSize: 12 }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col gap-2.5 flex-1">
+                {withdrawalBreakdown.map((entry, i) => {
+                  const total = withdrawalBreakdown.reduce((s, d) => s + d.value, 0)
+                  const pct   = total > 0 ? (entry.value / total) * 100 : 0
+                  return (
+                    <div key={i} className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
+                          <span className="text-[11px] text-muted">{entry.name}</span>
+                        </div>
+                        <span className="text-[11px] font-semibold tabular-nums">{fmt(entry.value)}</span>
+                      </div>
+                      <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: entry.color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
 
         </div>{/* end 5-col grid */}
 

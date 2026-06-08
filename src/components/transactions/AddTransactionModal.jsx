@@ -294,9 +294,10 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [purchaseReceiverId, setPurchaseReceiverId] = useState('')
   const [purchaseImportance, setPurchaseImportance] = useState('')
   const [purchaseCardId,     setPurchaseCardId]     = useState('')
-  const [investDir,     setInvestDir]     = useState(transaction?.direction ?? defaults.direction ?? 'buy')
-  const [investLabel,   setInvestLabel]   = useState(transaction?.label    ?? '')
-  const [ticker,        setTicker]        = useState(transaction?.ticker   ?? defaults.ticker   ?? '')
+  const [investDir,          setInvestDir]          = useState(transaction?.direction ?? defaults.direction ?? 'buy')
+  const [investLabel,        setInvestLabel]        = useState(transaction?.label    ?? '')
+  const [ticker,             setTicker]             = useState(transaction?.ticker   ?? defaults.ticker   ?? '')
+  const [investPriceCurrency, setInvestPriceCurrency] = useState('EUR')
   const [quantity,      setQuantity]      = useState(transaction?.quantity != null ? String(transaction.quantity) : defaults.quantity != null ? String(defaults.quantity) : '')
   const [pricePerUnit,  setPricePerUnit]  = useState(transaction?.price_per_unit != null ? String(transaction.price_per_unit) : '')
   const [fee,           setFee]           = useState('')
@@ -328,6 +329,12 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     supabase.from('tickers').select('id, symbol, name').eq('user_id', user.id).order('symbol')
       .then(({ data, error }) => { if (error) console.error('tickers load:', error.message); if (data) setTickers(data) })
   }, [user?.id])
+
+  useEffect(() => {
+    const t = ticker.trim()
+    if (!t) return
+    setInvestPriceCurrency(t.includes('.') ? 'EUR' : 'USD')
+  }, [ticker])
 
   useEffect(() => {
     if (!user?.id || type !== 'savings') return
@@ -500,7 +507,10 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       const savingsDesc = savingsDir === 'in'
         ? `Savings deposit from ${fromCard?.name ?? 'card'}`
         : `Savings withdrawal to ${toCard?.name ?? 'card'}`
-      const source = savingsDir === 'in' ? 'savings_in' : 'savings_out'
+      const source = savingsDir === 'in' ? 'savings_in'
+        : withdrawMode === 'invest'   ? 'savings_out_invest'
+        : withdrawMode === 'purchase' ? 'savings_out_purchase'
+        : 'savings_out'
       if (effectiveIsEditing) {
         const [r1, r2] = await Promise.all([
           supabase.from('transactions').update({ amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   source, description: savingsDesc }).eq('id', editId),
@@ -542,10 +552,14 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         }
       }
     } else if (type === 'invest') {
-      const qty      = parseFloat(quantity)
-      const ppu      = parseFloat(pricePerUnit)
-      const feeAmt   = parseFloat(fee) || 0
-      const computed = investDir === 'sell' ? qty * ppu - feeAmt : qty * ppu + feeAmt
+      const qty        = parseFloat(quantity)
+      const ppuRaw     = parseFloat(pricePerUnit)
+      const feeRaw     = parseFloat(fee) || 0
+      const eurUsdRate = uiPrefs.eur_usd_rate?.rate ?? null
+      const converting = investPriceCurrency === 'USD' && eurUsdRate
+      const ppu        = converting ? ppuRaw / eurUsdRate : ppuRaw
+      const feeAmt     = converting ? feeRaw / eurUsdRate : feeRaw
+      const computed   = investDir === 'sell' ? qty * ppu - feeAmt : qty * ppu + feeAmt
       const payload  = {
         type,
         direction:        investDir,
@@ -770,6 +784,18 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
                     Price per unit
+                    <div className="flex gap-1">
+                      {['USD', 'EUR'].map(c => (
+                        <button key={c} type="button" onClick={() => setInvestPriceCurrency(c)}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors"
+                          style={{
+                            background: investPriceCurrency === c ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.05)',
+                            color:      investPriceCurrency === c ? '#fff' : 'rgba(255,255,255,0.35)',
+                          }}>
+                          {c}
+                        </button>
+                      ))}
+                    </div>
                     {ticker.trim() && (
                       <span className="ml-auto flex items-center gap-1.5">
                         {fetchingPrice
@@ -799,7 +825,9 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                     )}
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">
+                      {investPriceCurrency === 'USD' ? '$' : '€'}
+                    </span>
                     <input
                       value={pricePerUnit}
                       onChange={e => setPricePerUnit(e.target.value)}
@@ -814,7 +842,9 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   Fee <span className="text-white/30 normal-case font-normal">(optional, not counted in cost basis)</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">
+                    {investPriceCurrency === 'USD' ? '$' : '€'}
+                  </span>
                   <input
                     value={fee}
                     onChange={e => setFee(e.target.value)}
@@ -823,21 +853,30 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                   />
                 </div>
               </div>
-              {parseFloat(quantity) > 0 && parseFloat(pricePerUnit) > 0 && (
-                <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/8 text-xs">
-                  <span className="text-muted">
-                    {investDir === 'sell'
-                      ? (cardId ? 'Net proceeds to card' : 'Net proceeds')
-                      : (cardId ? 'Total deducted from card' : 'Total invested')}
-                  </span>
-                  <span className="text-white/60">
-                    €{(investDir === 'sell'
-                      ? parseFloat(quantity) * parseFloat(pricePerUnit) - (parseFloat(fee) || 0)
-                      : parseFloat(quantity) * parseFloat(pricePerUnit) + (parseFloat(fee) || 0)
-                    ).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              )}
+              {parseFloat(quantity) > 0 && parseFloat(pricePerUnit) > 0 && (() => {
+                const qty      = parseFloat(quantity)
+                const ppuDisp  = parseFloat(pricePerUnit)
+                const feeDisp  = parseFloat(fee) || 0
+                const rawTotal = investDir === 'sell' ? qty * ppuDisp - feeDisp : qty * ppuDisp + feeDisp
+                const eurRate  = uiPrefs.eur_usd_rate?.rate ?? null
+                const eurTotal = investPriceCurrency === 'USD' && eurRate ? rawTotal / eurRate : null
+                const currSym  = investPriceCurrency === 'USD' ? '$' : '€'
+                return (
+                  <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/8 text-xs">
+                    <span className="text-muted">
+                      {investDir === 'sell'
+                        ? (cardId ? 'Net proceeds to card' : 'Net proceeds')
+                        : (cardId ? 'Total deducted from card' : 'Total invested')}
+                    </span>
+                    <span className="text-white/60 flex items-center gap-1.5">
+                      {currSym}{rawTotal.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {eurTotal != null && (
+                        <span className="text-white/30">≈ €{eurTotal.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
           )}
 
@@ -927,6 +966,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                     {[
                       { id: 'topup',    label: 'Top-up',   desc: 'Transfer to debit card' },
                       { id: 'purchase', label: 'Purchase', desc: 'Buy something directly' },
+                      { id: 'invest',   label: 'Invest',   desc: 'Going to investments'   },
                     ].map(m => (
                       <button key={m.id} type="button" onClick={() => setWithdrawMode(m.id)}
                         className="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-lg transition-colors"
