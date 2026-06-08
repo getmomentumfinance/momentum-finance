@@ -122,7 +122,7 @@ export default function SplitTransactionModal({ transaction, existingChildren = 
   const allocated = splits.reduce((s, sp) => s + (parseFloat(sp.amount) || 0), 0)
   const remaining = total - allocated
   const isValid = splits.length >= 2 &&
-    splits.every(sp => sp.amount && parseFloat(sp.amount) > 0 && sp.importance) &&
+    splits.every(sp => sp.amount && parseFloat(sp.amount) > 0) &&
     Math.abs(remaining) < 0.005
 
   function updateSplit(key, field, value) {
