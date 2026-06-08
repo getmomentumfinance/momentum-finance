@@ -318,6 +318,85 @@ function TickerColorsSection() {
   )
 }
 
+const WITHDRAWAL_TYPES = [
+  { source: 'savings_out',         label: 'Top-up',     defaultColor: '#60a5fa' },
+  { source: 'savings_out_purchase', label: 'Purchase',   defaultColor: '#f472b6' },
+  { source: 'savings_out_invest',   label: 'Investment', defaultColor: '#34d399' },
+]
+
+function WithdrawalColorsSection() {
+  const { prefs, setPref } = useUIPrefs()
+  const colors = prefs['withdrawal_colors'] ?? {}
+  const [pickerSource, setPickerSource] = useState(null)
+  const [pickerPos,    setPickerPos]    = useState({ top: 0, left: 0 })
+  const btnRefs   = useRef({})
+  const pickerRef = useRef(null)
+
+  function openPicker(source) {
+    if (pickerSource === source) { setPickerSource(null); return }
+    const btn = btnRefs.current[source]
+    if (!btn) return
+    const rect   = btn.getBoundingClientRect()
+    const popupH = 220, popupW = 288
+    const top  = window.innerHeight - rect.bottom < popupH + 16 ? rect.top - popupH - 8 : rect.bottom + 8
+    const left = Math.min(rect.left, window.innerWidth - popupW - 16)
+    setPickerPos({ top, left })
+    setPickerSource(source)
+  }
+
+  function setColor(source, color) {
+    setPref('withdrawal_colors', { ...colors, [source]: color })
+    setPickerSource(null)
+    showToast('Color updated')
+  }
+
+  function resetColor(source) {
+    const next = { ...colors }
+    delete next[source]
+    setPref('withdrawal_colors', next)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="text-sm font-medium text-white">Withdrawal purposes</h3>
+        <p className="text-xs text-muted mt-0.5">Colors for the savings withdrawal donut chart.</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {WITHDRAWAL_TYPES.map(({ source, label, defaultColor }) => {
+          const color = colors[source] ?? defaultColor
+          return (
+            <div key={source} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <button
+                ref={el => { btnRefs.current[source] = el }}
+                type="button"
+                onClick={() => openPicker(source)}
+                className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
+                style={{ background: color }}
+              />
+              {pickerSource === source && (
+                <ColorPickerPopup
+                  popupRef={pickerRef}
+                  pos={pickerPos}
+                  selected={color}
+                  onSelect={c => setColor(source, c)}
+                />
+              )}
+              <span className="flex-1 text-sm" style={{ color }}>{label}</span>
+              {colors[source] && (
+                <button type="button" onClick={() => resetColor(source)}
+                  className="text-[10px] text-white/30 hover:text-white/60 transition-colors">
+                  Reset
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function TradeLabelsSection() {
   const { prefs, setPref } = useUIPrefs()
   const labels = prefs['invest_labels'] ?? DEFAULT_TRADE_LABELS
@@ -1000,6 +1079,9 @@ export default function AppearanceTab() {
             <StrictnessColorRow id="strict" label="Negative" defaultColor={STRICTNESS_DEFAULTS.strict} />
           </div>
         </div>
+
+        {/* Withdrawal purpose colors */}
+        <WithdrawalColorsSection />
 
         {/* Trade labels */}
         <TradeLabelsSection />
