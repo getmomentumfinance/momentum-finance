@@ -2286,20 +2286,21 @@ export default function Analytics() {
                       )}
                     </div>
                   </div>
-                  {/* Insight chips */}
-                  {insights.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {insights.map((ins, i) => (
-                        <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
-                          style={{ background: ins.bg, color: ins.color }}>
-                          <span>{ins.icon}</span>
-                          <span>{ins.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Insight chips */}
+              {insights.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {insights.map((ins, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                      style={{ background: ins.bg, color: ins.color }}>
+                      <span>{ins.icon}</span>
+                      <span>{ins.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Charts row — Cumulative spending + Savings rate side by side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
