@@ -267,7 +267,7 @@ function DonutPanel({ title, subtitle, data }) {
 // ── Reusable multi-line panel ──────────────────────────────────────
 function ComparisonCard({ title, rows, colors, baseline }) {
   const { fmt, fmtK, t } = usePreferences()
-  const maxVal = rows.length ? Math.max(...rows.map(r => Math.max(r.value, baseline?.byName[r.name] ?? 0, 1))) : 1
+  const maxVal = rows.length ? Math.max(...rows.map(r => Math.max(r.value, r.prev ?? 0, baseline?.byName[r.name] ?? 0, 1))) : 1
   return (
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -279,9 +279,11 @@ function ComparisonCard({ title, rows, colors, baseline }) {
       ) : (
         <div className="flex flex-col divide-y divide-white/[0.04]">
           {rows.map(({ name, color, value, prev, pct }) => {
-            const avg = baseline?.byName[name]
+            const avg        = baseline?.byName[name]
             const barPct     = Math.min((value / maxVal) * 100, 100)
             const avgPct     = avg != null ? Math.min((avg / maxVal) * 100, 100) : null
+            const prevPct    = prev > 0 ? Math.min((prev / maxVal) * 100, 100) : null
+            const tickPct    = avgPct ?? prevPct
             return (
               <div key={name} className="flex flex-col py-2.5 gap-1.5">
                 <div className="flex items-center gap-3">
@@ -300,17 +302,16 @@ function ComparisonCard({ title, rows, colors, baseline }) {
                     <span className="text-[11px] text-white/20 shrink-0 w-14 text-right">{t('an.newBadge')}</span>
                   )}
                 </div>
-                {/* Baseline bar — only shown when history available */}
-                {avgPct != null && (
-                  <div className="relative h-[3px] rounded-full bg-white/[0.06] ml-5 overflow-visible">
-                    <div className="h-full rounded-full opacity-50"
-                      style={{ width: `${barPct}%`, background: color }} />
+                <div className="relative h-[3px] rounded-full bg-white/[0.06] ml-5 overflow-visible">
+                  <div className="h-full rounded-full opacity-50"
+                    style={{ width: `${barPct}%`, background: color }} />
+                  {tickPct != null && (
                     <div className="absolute top-1/2 -translate-y-1/2 w-[2px] h-[7px] rounded-full bg-white/40"
-                      style={{ left: `${avgPct}%` }}
-                      title={`${baseline.monthCount}-month avg: ${fmt(avg, 0)}`}
+                      style={{ left: `${tickPct}%` }}
+                      title={avg != null ? `${baseline.monthCount}-month avg: ${fmt(avg, 0)}` : `Previous: ${fmt(prev, 0)}`}
                     />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )
           })}
