@@ -277,7 +277,7 @@ function ComparisonCard({ title, rows, colors, baseline }) {
       {rows.length === 0 ? (
         <p className="text-sm text-muted py-2">{t('an.noDataShort')}</p>
       ) : (
-        <div className="flex flex-col divide-y divide-white/[0.04]">
+        <div className={`flex flex-col divide-y divide-white/[0.04] ${rows.length > 8 ? 'overflow-y-auto max-h-[420px] pr-1 scrollbar-thin' : ''}`}>
           {rows.map(({ name, color, value, prev, pct }) => {
             const avg        = baseline?.byName[name]
             const barPct     = Math.min((value / maxVal) * 100, 100)
@@ -1294,7 +1294,6 @@ export default function Analytics() {
         prev: prevMap[c.name] ?? 0,
         pct: (prevMap[c.name] ?? 0) > 0 ? ((c.value - prevMap[c.name]) / prevMap[c.name]) * 100 : null,
       }))
-      .slice(0, 8)
   }, [categoryData, prevPeriodExpenses, categoryMap])
 
   const subcategoryComparison = useMemo(() => {
@@ -1310,7 +1309,6 @@ export default function Analytics() {
         prev: prevMap[c.name] ?? 0,
         pct: (prevMap[c.name] ?? 0) > 0 ? ((c.value - prevMap[c.name]) / prevMap[c.name]) * 100 : null,
       }))
-      .slice(0, 8)
   }, [subcategoryData, prevPeriodExpenses, categoryMap])
 
   const importanceComparison = useMemo(() => {
