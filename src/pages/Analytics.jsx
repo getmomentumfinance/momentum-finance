@@ -2134,10 +2134,23 @@ export default function Analytics() {
 
               {/* Month vs Month view */}
               {compareSubMode === 'months' && (() => {
-                const currNet  = currInc - currExp
-                const prevNet  = prevInc - prevExp
-                const netDiff  = currNet - prevNet
-                const netPct   = prevNet !== 0 ? (netDiff / Math.abs(prevNet)) * 100 : null
+                const currNet    = currInc - currExp
+                const prevNet    = prevInc - prevExp
+                const netDiff    = currNet - prevNet
+                const netPct     = prevNet !== 0 ? (netDiff / Math.abs(prevNet)) * 100 : null
+                const daysInCurr = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
+                const daysInPrev = new Date(prevMonthDate.getFullYear(), prevMonthDate.getMonth() + 1, 0).getDate()
+                const avgDailyCurr = daysInCurr > 0 ? currExp / daysInCurr : 0
+                const avgDailyPrev = daysInPrev > 0 ? prevExp / daysInPrev : 0
+                const moversUp   = [...momData].filter(d => d.current > d.prev).sort((a, b) => (b.current - b.prev) - (a.current - a.prev))
+                const moversDown = [...momData].filter(d => d.prev > 0 && d.current < d.prev).sort((a, b) => (b.prev - b.current) - (a.prev - a.current))
+                const newCats    = momData.filter(d => d.prev === 0 && d.current > 0)
+                const insights   = [
+                  moversUp[0]   && { icon: '↑', text: `${moversUp[0].name} up ${fmtK(moversUp[0].current - moversUp[0].prev)}`,    bg: colors.expense + '18', color: colors.expense },
+                  moversDown[0] && { icon: '↓', text: `${moversDown[0].name} saved ${fmtK(moversDown[0].prev - moversDown[0].current)}`, bg: colors.income + '18',  color: colors.income },
+                  newCats.length && { icon: '★', text: `New this month: ${newCats.map(d => d.name).join(', ')}`, bg: 'rgba(167,139,250,0.10)', color: 'rgba(167,139,250,0.9)' },
+                  avgDailyPrev > 0 && { icon: '≈', text: `Daily avg ${fmtK(avgDailyCurr)} vs ${fmtK(avgDailyPrev)}`, bg: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.45)' },
+                ].filter(Boolean)
                 return (<>
 
               {/* Month pickers */}
@@ -2222,6 +2235,19 @@ export default function Analytics() {
                 </div>
               </div>
 
+              {/* Insight chips */}
+              {insights.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {insights.map((ins, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                      style={{ background: ins.bg, color: ins.color }}>
+                      <span>{ins.icon}</span>
+                      <span>{ins.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Charts row — Cumulative spending + Savings rate side by side */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 260 }}>
@@ -2281,6 +2307,57 @@ export default function Analytics() {
                   </div>
                 </div>
               </div>
+
+              {/* Top movers */}
+              {(moversUp.length > 0 || moversDown.length > 0) && (
+                <div className="glass-card rounded-2xl p-5">
+                  <h2 className="text-sm font-semibold mb-4">Top Movers</h2>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Increased vs {prevLabel}</p>
+                      {moversUp.length === 0 ? (
+                        <p className="text-xs text-white/25 italic">None</p>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          {moversUp.slice(0, 3).map(d => {
+                            const diff = d.current - d.prev
+                            const pct  = d.prev > 0 ? (diff / d.prev) * 100 : null
+                            return (
+                              <div key={d.name} className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                <span className="text-xs text-white/80 flex-1 truncate">{d.name}</span>
+                                <span className="text-xs tabular-nums font-semibold" style={{ color: colors.expense }}>+{fmtK(diff)}</span>
+                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 w-10 text-right shrink-0">+{pct.toFixed(0)}%</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Decreased vs {prevLabel}</p>
+                      {moversDown.length === 0 ? (
+                        <p className="text-xs text-white/25 italic">None</p>
+                      ) : (
+                        <div className="flex flex-col gap-3">
+                          {moversDown.slice(0, 3).map(d => {
+                            const diff = d.prev - d.current
+                            const pct  = d.prev > 0 ? (diff / d.prev) * 100 : null
+                            return (
+                              <div key={d.name} className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
+                                <span className="text-xs text-white/80 flex-1 truncate">{d.name}</span>
+                                <span className="text-xs tabular-nums font-semibold" style={{ color: colors.income }}>−{fmtK(diff)}</span>
+                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 w-10 text-right shrink-0">−{pct.toFixed(0)}%</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
