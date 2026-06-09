@@ -2164,27 +2164,27 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Top row — Top Movers (left) + KPI cards + insight chips (right) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
-                {/* Left: Top Movers */}
+              {/* Top row — Top Movers + KPI cards, all equal columns */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {/* Top Movers */}
                 <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
                   <h2 className="text-sm font-semibold">Top Movers</h2>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="flex flex-col gap-4">
                     <div>
-                      <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Increased vs {prevLabel}</p>
+                      <p className="text-[10px] text-muted uppercase tracking-widest mb-2">↑ Increased vs {prevLabel}</p>
                       {moversUp.length === 0 ? (
                         <p className="text-xs text-white/25 italic">None</p>
                       ) : (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
                           {moversUp.slice(0, 3).map(d => {
                             const diff = d.current - d.prev
                             const pct  = d.prev > 0 ? (diff / d.prev) * 100 : null
                             return (
-                              <div key={d.name} className="flex items-center gap-3">
+                              <div key={d.name} className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
                                 <span className="text-xs text-white/80 flex-1 truncate">{d.name}</span>
-                                <span className="text-xs tabular-nums font-semibold" style={{ color: colors.expense }}>+{fmtK(diff)}</span>
-                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 w-10 text-right shrink-0">+{pct.toFixed(0)}%</span>}
+                                <span className="text-xs tabular-nums font-semibold shrink-0" style={{ color: colors.expense }}>+{fmtK(diff)}</span>
+                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 shrink-0">+{pct.toFixed(0)}%</span>}
                               </div>
                             )
                           })}
@@ -2192,20 +2192,20 @@ export default function Analytics() {
                       )}
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted uppercase tracking-widest mb-3">Decreased vs {prevLabel}</p>
+                      <p className="text-[10px] text-muted uppercase tracking-widest mb-2">↓ Decreased vs {prevLabel}</p>
                       {moversDown.length === 0 ? (
                         <p className="text-xs text-white/25 italic">None</p>
                       ) : (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2">
                           {moversDown.slice(0, 3).map(d => {
                             const diff = d.prev - d.current
                             const pct  = d.prev > 0 ? (diff / d.prev) * 100 : null
                             return (
-                              <div key={d.name} className="flex items-center gap-3">
+                              <div key={d.name} className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
                                 <span className="text-xs text-white/80 flex-1 truncate">{d.name}</span>
-                                <span className="text-xs tabular-nums font-semibold" style={{ color: colors.income }}>−{fmtK(diff)}</span>
-                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 w-10 text-right shrink-0">−{pct.toFixed(0)}%</span>}
+                                <span className="text-xs tabular-nums font-semibold shrink-0" style={{ color: colors.income }}>−{fmtK(diff)}</span>
+                                {pct !== null && <span className="text-[10px] tabular-nums text-white/30 shrink-0">−{pct.toFixed(0)}%</span>}
                               </div>
                             )
                           })}
@@ -2214,76 +2214,70 @@ export default function Analytics() {
                     </div>
                   </div>
                 </div>
-
-                {/* Right: KPI cards + insight chips */}
-                <div className="flex flex-col gap-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    {/* Expenses */}
-                    <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
-                      <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.expenses')}</p>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
-                          <span className="text-base font-bold tabular-nums truncate" style={{ color: colors.expense }}>{fmt(currExp)}</span>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
-                          <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevExp)}</span>
-                        </div>
-                      </div>
-                      {expPct !== null && (
-                        <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
-                          style={{ background: (expDiff >= 0 ? colors.expense : colors.income) + '22', color: expDiff >= 0 ? colors.expense : colors.income }}>
-                          {expDiff >= 0 ? '↑' : '↓'} {Math.abs(expPct).toFixed(1)}%
-                        </span>
-                      )}
+                {/* Expenses */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.expenses')}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-base font-bold tabular-nums truncate" style={{ color: colors.expense }}>{fmt(currExp)}</span>
                     </div>
-                    {/* Income */}
-                    <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
-                      <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.income')}</p>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
-                          <span className="text-base font-bold tabular-nums truncate" style={{ color: colors.income }}>{fmt(currInc)}</span>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
-                          <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevInc)}</span>
-                        </div>
-                      </div>
-                      {incPct !== null && (
-                        <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
-                          style={{ background: (incDiff >= 0 ? colors.income : colors.expense) + '22', color: incDiff >= 0 ? colors.income : colors.expense }}>
-                          {incDiff >= 0 ? '↑' : '↓'} {Math.abs(incPct).toFixed(1)}%
-                        </span>
-                      )}
-                    </div>
-                    {/* Net */}
-                    <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
-                      <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.net') ?? 'Net'}</p>
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
-                          <span className="text-base font-bold tabular-nums truncate"
-                            style={{ color: currNet >= 0 ? colors.income : colors.expense }}>
-                            {currNet >= 0 ? '+' : ''}{fmt(currNet)}
-                          </span>
-                        </div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
-                          <span className="text-sm tabular-nums text-white/35 truncate">
-                            {prevNet >= 0 ? '+' : ''}{fmt(prevNet)}
-                          </span>
-                        </div>
-                      </div>
-                      {netPct !== null && (
-                        <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
-                          style={{ background: (netDiff >= 0 ? colors.income : colors.expense) + '22', color: netDiff >= 0 ? colors.income : colors.expense }}>
-                          {netDiff >= 0 ? '↑' : '↓'} {Math.abs(netPct).toFixed(1)}%
-                        </span>
-                      )}
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevExp)}</span>
                     </div>
                   </div>
+                  {expPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (expDiff >= 0 ? colors.expense : colors.income) + '22', color: expDiff >= 0 ? colors.expense : colors.income }}>
+                      {expDiff >= 0 ? '↑' : '↓'} {Math.abs(expPct).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {/* Income */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.income')}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-base font-bold tabular-nums truncate" style={{ color: colors.income }}>{fmt(currInc)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevInc)}</span>
+                    </div>
+                  </div>
+                  {incPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (incDiff >= 0 ? colors.income : colors.expense) + '22', color: incDiff >= 0 ? colors.income : colors.expense }}>
+                      {incDiff >= 0 ? '↑' : '↓'} {Math.abs(incPct).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {/* Net */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.net') ?? 'Net'}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-base font-bold tabular-nums truncate"
+                        style={{ color: currNet >= 0 ? colors.income : colors.expense }}>
+                        {currNet >= 0 ? '+' : ''}{fmt(currNet)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">
+                        {prevNet >= 0 ? '+' : ''}{fmt(prevNet)}
+                      </span>
+                    </div>
+                  </div>
+                  {netPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (netDiff >= 0 ? colors.income : colors.expense) + '22', color: netDiff >= 0 ? colors.income : colors.expense }}>
+                      {netDiff >= 0 ? '↑' : '↓'} {Math.abs(netPct).toFixed(1)}%
+                    </span>
+                  )}
                 </div>
               </div>
 
