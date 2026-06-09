@@ -23,8 +23,8 @@ import TradeDetailModal  from '../components/portfolio/TradeDetailModal'
 const fmtPct = (n) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`
 const gc     = (n) => n == null ? 'rgba(255,255,255,0.25)' : n >= 0 ? 'var(--type-income)' : 'var(--type-expense)'
 
-function TickerMarquee({ positions, fmt }) {
-  const items = positions.filter(p => p.livePrice != null)
+function TickerMarquee({ positions, fmt, hiddenFromMarquee }) {
+  const items = positions.filter(p => p.livePrice != null && !hiddenFromMarquee.includes(p.ticker))
   if (!items.length) return null
   const doubled = [...items, ...items]
   return (
@@ -475,6 +475,7 @@ export default function Portfolio() {
           <TickerMarquee
             positions={openPositions.map(p => ({ ...p, color: tickerColorMap[p.ticker] }))}
             fmt={fmt}
+            hiddenFromMarquee={prefs.ticker_marquee_hidden ?? []}
           />
 
           {/* Label subtabs */}

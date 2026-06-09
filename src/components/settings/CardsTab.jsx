@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import {
-  CreditCard, PiggyBank, Ticket, Banknote, Plus, Pencil, Trash2, TrendingUp, Wallet, X,
+  CreditCard, PiggyBank, Ticket, Banknote, Plus, Pencil, Trash2, TrendingUp, Wallet, X, Eye, EyeOff,
 } from 'lucide-react'
 import { CATEGORY_ICONS, ICONS_MAP } from '../shared/CategoryPill'
 import { useCards } from '../../hooks/useCards'
@@ -9,6 +9,7 @@ import { SkeletonCard } from '../shared/Skeleton'
 import { useBanks } from '../../hooks/useBanks'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useUIPrefs } from '../../context/UIPrefContext'
 
 function resolveIcon(id) { return ICONS_MAP[id] ?? CreditCard }
 
@@ -429,8 +430,17 @@ function AddBankForm({ onSave, onCancel }) {
 function TickersSection({ userId }) {
   const { user } = useAuth()
   const { fmt } = usePreferences()
+  const { prefs, setPref } = useUIPrefs()
   const [tickers,   setTickers]   = useState([])
   const [balances,  setBalances]  = useState(() => user?.user_metadata?.portfolio_ticker_balances ?? {})
+
+  const hiddenFromMarquee = prefs.ticker_marquee_hidden ?? []
+  function toggleMarquee(symbol) {
+    const next = hiddenFromMarquee.includes(symbol)
+      ? hiddenFromMarquee.filter(s => s !== symbol)
+      : [...hiddenFromMarquee, symbol]
+    setPref('ticker_marquee_hidden', next)
+  }
   const [adding,    setAdding]    = useState(false)
   const [newSymbol, setNewSymbol] = useState('')
   const [newName,   setNewName]   = useState('')
@@ -527,13 +537,23 @@ function TickersSection({ userId }) {
                 <span className="text-sm text-white font-mono w-20 shrink-0">{t.symbol}</span>
                 <span className="flex-1 text-xs text-muted truncate">{t.name ?? ''}</span>
                 {bal && <span className="text-xs text-white/50 shrink-0">{fmt(typeof bal === 'object' ? bal.amount : bal)}</span>}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => {
-                    const balObj = typeof bal === 'object' ? bal : (bal ? { amount: bal, date: '' } : null)
-                    setEditId(t.id)
-                    setEditForm({ symbol: t.symbol, name: t.name ?? '', balance: balObj ? String(balObj.amount) : '', date: balObj?.date || new Date().toISOString().slice(0, 10) })
-                  }} className="text-white/30 hover:text-white p-1.5 transition-colors"><Pencil size={13} /></button>
-                  <button onClick={() => deleteTicker(t.id)} className="text-white/30 hover:text-red-400 p-1.5 transition-colors"><Trash2 size={13} /></button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => toggleMarquee(t.symbol)}
+                    title={hiddenFromMarquee.includes(t.symbol) ? 'Hidden from marquee' : 'Shown in marquee'}
+                    className="p-1.5 transition-colors"
+                    style={{ color: hiddenFromMarquee.includes(t.symbol) ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.45)' }}
+                  >
+                    {hiddenFromMarquee.includes(t.symbol) ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => {
+                      const balObj = typeof bal === 'object' ? bal : (bal ? { amount: bal, date: '' } : null)
+                      setEditId(t.id)
+                      setEditForm({ symbol: t.symbol, name: t.name ?? '', balance: balObj ? String(balObj.amount) : '', date: balObj?.date || new Date().toISOString().slice(0, 10) })
+                    }} className="text-white/30 hover:text-white p-1.5 transition-colors"><Pencil size={13} /></button>
+                    <button onClick={() => deleteTicker(t.id)} className="text-white/30 hover:text-red-400 p-1.5 transition-colors"><Trash2 size={13} /></button>
+                  </div>
                 </div>
               </>
             )}
