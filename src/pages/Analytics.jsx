@@ -2222,45 +2222,63 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Cumulative spending */}
-              <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 260 }}>
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h2 className="text-sm font-semibold">Cumulative Spending</h2>
-                    <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
+              {/* Charts row — Cumulative spending + Savings rate side by side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 260 }}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h2 className="text-sm font-semibold">Cumulative Spending</h2>
+                      <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-0.5 rounded" style={{ background: colors.expense }} />
+                        <span className="text-[10px] text-white/50">{currLabel}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-0.5 rounded border border-dashed border-white/25" />
+                        <span className="text-[10px] text-white/30">{prevLabel}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 shrink-0">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded" style={{ background: colors.expense }} />
-                      <span className="text-[10px] text-white/50">{currLabel}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-3 h-0.5 rounded border border-dashed border-white/25" />
-                      <span className="text-[10px] text-white/30">{prevLabel}</span>
-                    </div>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={cumulativeData}>
+                        <defs>
+                          <linearGradient id="cumCurrGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={colors.expense} stopOpacity={0.2} />
+                            <stop offset="95%" stopColor={colors.expense} stopOpacity={0}   />
+                          </linearGradient>
+                          <linearGradient id="cumPrevGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={MUTED} stopOpacity={0.1} />
+                            <stop offset="95%" stopColor={MUTED} stopOpacity={0}   />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke={GRID} />
+                        <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
+                        <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
+                        <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'current' ? currLabel : prevLabel} />} cursor={false} />
+                        <Area type="monotone" dataKey="previous" stroke="rgba(255,255,255,0.25)" fill="url(#cumPrevGrad)" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
+                        <Area type="monotone" dataKey="current"  stroke={colors.expense} fill="url(#cumCurrGrad)" strokeWidth={2} dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={cumulativeData}>
-                      <defs>
-                        <linearGradient id="cumCurrGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor={colors.expense} stopOpacity={0.2} />
-                          <stop offset="95%" stopColor={colors.expense} stopOpacity={0}   />
-                        </linearGradient>
-                        <linearGradient id="cumPrevGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%"  stopColor={MUTED} stopOpacity={0.1} />
-                          <stop offset="95%" stopColor={MUTED} stopOpacity={0}   />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid vertical={false} stroke={GRID} />
-                      <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} interval={4} />
-                      <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
-                      <Tooltip content={<FilteredTooltip nameFormatter={n => n === 'current' ? currLabel : prevLabel} />} cursor={false} />
-                      <Area type="monotone" dataKey="previous" stroke="rgba(255,255,255,0.25)" fill="url(#cumPrevGrad)" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
-                      <Area type="monotone" dataKey="current"  stroke={colors.expense} fill="url(#cumCurrGrad)" strokeWidth={2} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 260 }}>
+                  <h2 className="text-sm font-semibold mb-0.5">{t('an.savingsRate')}</h2>
+                  <p className="text-[11px] text-muted mb-3">{t('an.savingsRateDesc')}</p>
+                  <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={savingsRateData}>
+                        <CartesianGrid vertical={false} stroke={GRID} />
+                        <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tickFormatter={v => `${v.toFixed(0)}%`} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
+                        <Tooltip content={<FilteredTooltip valueFormatter={v => `${Number(v).toFixed(1)}%`} nameFormatter={() => 'Savings rate'} />} cursor={false} />
+                        <ReferenceLine y={20} stroke={colors.income} strokeDasharray="4 3" strokeWidth={1.5} />
+                        <Line type="monotone" dataKey="rate" stroke={colors.lineChart} strokeWidth={2} dot={{ fill: colors.lineChart, r: 3 }} activeDot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
 
@@ -2269,24 +2287,6 @@ export default function Analytics() {
                 <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
                 <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} />
                 <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
-              </div>
-
-              {/* Savings rate */}
-              <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 220 }}>
-                <h2 className="text-sm font-semibold mb-0.5">{t('an.savingsRate')}</h2>
-                <p className="text-[11px] text-muted mb-3">{t('an.savingsRateDesc')}</p>
-                <div className="flex-1 min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={savingsRateData}>
-                      <CartesianGrid vertical={false} stroke={GRID} />
-                      <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis tickFormatter={v => `${v.toFixed(0)}%`} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={40} />
-                      <Tooltip content={<FilteredTooltip valueFormatter={v => `${Number(v).toFixed(1)}%`} nameFormatter={() => 'Savings rate'} />} cursor={false} />
-                      <ReferenceLine y={20} stroke={colors.income} strokeDasharray="4 3" strokeWidth={1.5} />
-                      <Line type="monotone" dataKey="rate" stroke={colors.lineChart} strokeWidth={2} dot={{ fill: colors.lineChart, r: 3 }} activeDot={{ r: 4 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
               </div>
 
               </>)
