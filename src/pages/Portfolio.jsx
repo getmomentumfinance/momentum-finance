@@ -3,7 +3,7 @@ import {
   Plus, RefreshCw, TrendingUp, TrendingDown, AlertCircle,
   ChevronDown, ChevronRight, Clock, Pencil, Trash2,
   BarChart2, List, Info, Eye, EyeOff, SlidersHorizontal,
-  Search, ArrowUpDown, ArrowUp, ArrowDown,
+  Search, ArrowUpDown, ArrowUp, ArrowDown, Settings2,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { supabase } from '../lib/supabase'
@@ -28,7 +28,7 @@ function TickerMarquee({ positions, fmt, hiddenFromMarquee }) {
   if (!items.length) return null
   const doubled = [...items, ...items]
   return (
-    <div className="overflow-hidden mb-5"
+    <div className="overflow-hidden"
       style={{ maskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)' }}>
       <div className="animate-ticker flex gap-8 w-max">
         {doubled.map((p, i) => (
@@ -242,8 +242,9 @@ export default function Portfolio() {
   const [posSort,         setPosSort]         = useState({ col: null, dir: 'asc' })
   const [logSort,         setLogSort]         = useState({ col: 'date', dir: 'desc' })
   const [tradeSearch,     setTradeSearch]     = useState('')
-  const [showClosed,      setShowClosed]      = useState(false)
-  const [portfolioView,   setPortfolioView]   = useState('overview')
+  const [showClosed,         setShowClosed]         = useState(false)
+  const [portfolioView,      setPortfolioView]      = useState('overview')
+  const [showMarqueeSettings, setShowMarqueeSettings] = useState(false)
 
   const hiddenTabs = new Set(prefs.hidden_label_tabs ?? [])
   function toggleTabVisibility(name) {
@@ -472,11 +473,51 @@ export default function Portfolio() {
         {loaded && allInvestTxs.length > 0 && <>
 
           {/* Ticker marquee */}
-          <TickerMarquee
-            positions={openPositions.map(p => ({ ...p, color: tickerColorMap[p.ticker] }))}
-            fmt={fmt}
-            hiddenFromMarquee={prefs.ticker_marquee_hidden ?? []}
-          />
+          {(() => {
+            const hiddenFromMarquee = prefs.ticker_marquee_hidden ?? []
+            function toggleMarquee(symbol) {
+              const next = hiddenFromMarquee.includes(symbol)
+                ? hiddenFromMarquee.filter(s => s !== symbol)
+                : [...hiddenFromMarquee, symbol]
+              setPref('ticker_marquee_hidden', next)
+            }
+            return (
+              <div className="relative mb-5">
+                <TickerMarquee
+                  positions={openPositions.map(p => ({ ...p, color: tickerColorMap[p.ticker] }))}
+                  fmt={fmt}
+                  hiddenFromMarquee={hiddenFromMarquee}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMarqueeSettings(v => !v)}
+                  title="Show / hide tickers in marquee"
+                  className="absolute top-0 right-0 p-1 rounded-md transition-colors"
+                  style={{ color: showMarqueeSettings ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)' }}
+                >
+                  <Eye size={13} />
+                </button>
+                {showMarqueeSettings && (
+                  <div className="absolute right-0 top-6 z-20 w-48 rounded-xl border border-white/10 bg-[var(--color-dash-card)] shadow-xl p-2 flex flex-col gap-0.5"
+                    style={{ backdropFilter: 'blur(12px)' }}>
+                    <p className="text-[10px] text-white/30 uppercase tracking-widest px-2 pb-1">Marquee visibility</p>
+                    {openPositions.map(p => {
+                      const hidden = hiddenFromMarquee.includes(p.ticker)
+                      const color  = tickerColorMap[p.ticker] ?? 'rgba(255,255,255,0.5)'
+                      return (
+                        <button key={p.ticker} type="button" onClick={() => toggleMarquee(p.ticker)}
+                          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors text-left w-full">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: hidden ? 'rgba(255,255,255,0.12)' : color }} />
+                          <span className="flex-1 text-xs font-mono" style={{ color: hidden ? 'rgba(255,255,255,0.3)' : color }}>{p.ticker}</span>
+                          {hidden ? <EyeOff size={11} className="text-white/20 shrink-0" /> : <Eye size={11} className="text-white/40 shrink-0" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Label subtabs */}
           <div className="flex items-center gap-2 mb-5">
