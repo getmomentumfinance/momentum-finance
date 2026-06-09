@@ -2264,51 +2264,6 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Spending by Category — 4-column grid */}
-              {momData.length > 0 && (
-                <div>
-                  <div className="mb-3">
-                    <h2 className="text-sm font-semibold">{t('an.spendByCategory')}</h2>
-                    <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {momData.map(d => {
-                      const diffAmt  = d.current - d.prev
-                      const isUp     = diffAmt > 0
-                      const pct      = d.prev > 0 ? (diffAmt / d.prev) * 100 : null
-                      const diffColor = isUp ? colors.expense : colors.income
-                      return (
-                        <div key={d.name} className="glass-card rounded-2xl p-4 flex flex-col gap-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
-                            <span className="text-xs font-semibold text-white truncate">{d.name}</span>
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-baseline justify-between gap-1">
-                              <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
-                              <span className="text-sm font-bold tabular-nums text-white truncate">{fmt(d.current, 0)}</span>
-                            </div>
-                            <div className="flex items-baseline justify-between gap-1">
-                              <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
-                              <span className="text-xs tabular-nums text-white/35 truncate">{fmt(d.prev, 0)}</span>
-                            </div>
-                            <div className="h-1 bg-white/[0.06] rounded-full mt-1 overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${maxVal > 0 ? (d.current / maxVal) * 100 : 0}%`, background: d.color }} />
-                            </div>
-                          </div>
-                          {pct !== null && (
-                            <span className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
-                              style={{ background: diffColor + '22', color: diffColor }}>
-                              {isUp ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}%
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
               {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
