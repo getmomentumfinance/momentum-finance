@@ -2271,7 +2271,7 @@ export default function Analytics() {
                     <h2 className="text-sm font-semibold">{t('an.spendByCategory')}</h2>
                     <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {momData.map(d => {
                       const diffAmt  = d.current - d.prev
                       const isUp     = diffAmt > 0
