@@ -2132,7 +2132,12 @@ export default function Analytics() {
               )}
 
               {/* Month vs Month view */}
-              {compareSubMode === 'months' && <>
+              {compareSubMode === 'months' && (() => {
+                const currNet  = currInc - currExp
+                const prevNet  = prevInc - prevExp
+                const netDiff  = currNet - prevNet
+                const netPct   = prevNet !== 0 ? (netDiff / Math.abs(prevNet)) * 100 : null
+                return (<>
 
               {/* Month pickers */}
               <div className="flex items-center gap-3">
@@ -2147,63 +2152,93 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Summary header */}
-              <div className="glass-card rounded-2xl p-5">
-                <h2 className="text-sm font-semibold mb-4">{t('an.periodSummary')}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Expenses comparison */}
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-widest mb-3">{t('an.expenses')}</p>
-                    <div className="flex items-end gap-4">
-                      <div>
-                        <p className="text-[11px] text-muted mb-1">{currLabel}</p>
-                        <p className="text-2xl font-bold tabular-nums" style={{ color: colors.expense }}>{fmt(currExp)}</p>
-                      </div>
-                      <div className="mb-1 text-white/20 text-lg">vs</div>
-                      <div>
-                        <p className="text-[11px] text-muted mb-1">{prevLabel}</p>
-                        <p className="text-2xl font-bold tabular-nums text-white/50">{fmt(prevExp)}</p>
-                      </div>
-                      {expPct !== null && (
-                        <div className="mb-1 ml-2">
-                          <span className="text-sm font-semibold px-2.5 py-1 rounded-full tabular-nums"
-                            style={{ background: (expDiff >= 0 ? colors.expense : colors.income) + '22', color: expDiff >= 0 ? colors.expense : colors.income }}>
-                            {expDiff >= 0 ? '+' : ''}{expPct.toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
+              {/* KPI row — Expenses / Income / Net */}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Expenses */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.expenses')}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-lg font-bold tabular-nums truncate" style={{ color: colors.expense }}>{fmt(currExp)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevExp)}</span>
                     </div>
                   </div>
-                  {/* Income comparison */}
-                  <div>
-                    <p className="text-[11px] text-muted uppercase tracking-widest mb-3">{t('an.income')}</p>
-                    <div className="flex items-end gap-4">
-                      <div>
-                        <p className="text-[11px] text-muted mb-1">{currLabel}</p>
-                        <p className="text-2xl font-bold tabular-nums" style={{ color: colors.income }}>{fmt(currInc)}</p>
-                      </div>
-                      <div className="mb-1 text-white/20 text-lg">vs</div>
-                      <div>
-                        <p className="text-[11px] text-muted mb-1">{prevLabel}</p>
-                        <p className="text-2xl font-bold tabular-nums text-white/50">{fmt(prevInc)}</p>
-                      </div>
-                      {incPct !== null && (
-                        <div className="mb-1 ml-2">
-                          <span className="text-sm font-semibold px-2.5 py-1 rounded-full tabular-nums"
-                            style={{ background: (incDiff >= 0 ? colors.income : colors.expense) + '22', color: incDiff >= 0 ? colors.income : colors.expense }}>
-                            {incDiff >= 0 ? '+' : ''}{incPct.toFixed(1)}%
-                          </span>
-                        </div>
-                      )}
+                  {expPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (expDiff >= 0 ? colors.expense : colors.income) + '22', color: expDiff >= 0 ? colors.expense : colors.income }}>
+                      {expDiff >= 0 ? '↑' : '↓'} {Math.abs(expPct).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {/* Income */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.income')}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-lg font-bold tabular-nums truncate" style={{ color: colors.income }}>{fmt(currInc)}</span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">{fmt(prevInc)}</span>
                     </div>
                   </div>
+                  {incPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (incDiff >= 0 ? colors.income : colors.expense) + '22', color: incDiff >= 0 ? colors.income : colors.expense }}>
+                      {incDiff >= 0 ? '↑' : '↓'} {Math.abs(incPct).toFixed(1)}%
+                    </span>
+                  )}
+                </div>
+                {/* Net */}
+                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                  <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.net') ?? 'Net'}</p>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                      <span className="text-lg font-bold tabular-nums truncate"
+                        style={{ color: currNet >= 0 ? colors.income : colors.expense }}>
+                        {currNet >= 0 ? '+' : ''}{fmt(currNet)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                      <span className="text-sm tabular-nums text-white/35 truncate">
+                        {prevNet >= 0 ? '+' : ''}{fmt(prevNet)}
+                      </span>
+                    </div>
+                  </div>
+                  {netPct !== null && (
+                    <span className="self-start text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: (netDiff >= 0 ? colors.income : colors.expense) + '22', color: netDiff >= 0 ? colors.income : colors.expense }}>
+                      {netDiff >= 0 ? '↑' : '↓'} {Math.abs(netPct).toFixed(1)}%
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Cumulative spending */}
               <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 260 }}>
-                <h2 className="text-sm font-semibold mb-0.5">Cumulative Spending</h2>
-                <p className="text-[11px] text-muted mb-4">{currLabel} vs {prevLabel}</p>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h2 className="text-sm font-semibold">Cumulative Spending</h2>
+                    <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 rounded" style={{ background: colors.expense }} />
+                      <span className="text-[10px] text-white/50">{currLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-0.5 rounded border border-dashed border-white/25" />
+                      <span className="text-[10px] text-white/30">{prevLabel}</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex-1 min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={cumulativeData}>
@@ -2228,45 +2263,44 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Category comparison — horizontal paired bars */}
+              {/* Spending by Category — 4-column grid */}
               {momData.length > 0 && (
-                <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
-                  <div>
+                <div>
+                  <div className="mb-3">
                     <h2 className="text-sm font-semibold">{t('an.spendByCategory')}</h2>
                     <p className="text-[11px] text-muted mt-0.5">{currLabel} vs {prevLabel}</p>
                   </div>
-                  <div className="flex flex-col gap-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {momData.map(d => {
-                      const diffAmt   = d.current - d.prev
-                      const isUp      = diffAmt > 0
+                      const diffAmt  = d.current - d.prev
+                      const isUp     = diffAmt > 0
+                      const pct      = d.prev > 0 ? (diffAmt / d.prev) * 100 : null
                       const diffColor = isUp ? colors.expense : colors.income
                       return (
-                        <div key={d.name} className="flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color }} />
-                              <span className="text-xs font-semibold text-white">{d.name}</span>
-                            </div>
-                            {d.prev > 0 && (
-                              <span className="text-xs font-semibold tabular-nums" style={{ color: diffColor }}>
-                                {isUp ? '↑' : '↓'} {fmtK(Math.abs(diffAmt))}
-                              </span>
-                            )}
+                        <div key={d.name} className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: d.color }} />
+                            <span className="text-xs font-semibold text-white truncate">{d.name}</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[11px] text-muted w-7 shrink-0">{t('an.now')}</span>
-                            <div className="flex-1 h-5 bg-white/[0.06] rounded overflow-hidden">
-                              <div className="h-full rounded" style={{ width: `${maxVal > 0 ? (d.current / maxVal) * 100 : 0}%`, background: d.color }} />
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-baseline justify-between gap-1">
+                              <span className="text-[10px] text-white/40 shrink-0">{currLabel}</span>
+                              <span className="text-sm font-bold tabular-nums text-white truncate">{fmt(d.current, 0)}</span>
                             </div>
-                            <span className="text-xs tabular-nums text-white/70 w-16 text-right shrink-0">{fmt(d.current, 0)}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[11px] text-muted w-7 shrink-0">{t('an.prev')}</span>
-                            <div className="flex-1 h-5 bg-white/[0.06] rounded overflow-hidden">
-                              <div className="h-full rounded" style={{ width: `${maxVal > 0 ? (d.prev / maxVal) * 100 : 0}%`, background: 'rgba(255,255,255,0.22)' }} />
+                            <div className="flex items-baseline justify-between gap-1">
+                              <span className="text-[10px] text-white/30 shrink-0">{prevLabel}</span>
+                              <span className="text-xs tabular-nums text-white/35 truncate">{fmt(d.prev, 0)}</span>
                             </div>
-                            <span className="text-xs tabular-nums text-white/40 w-16 text-right shrink-0">{fmt(d.prev, 0)}</span>
+                            <div className="h-1 bg-white/[0.06] rounded-full mt-1 overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${maxVal > 0 ? (d.current / maxVal) * 100 : 0}%`, background: d.color }} />
+                            </div>
                           </div>
+                          {pct !== null && (
+                            <span className="self-start text-[10px] font-semibold px-2 py-0.5 rounded-full tabular-nums"
+                              style={{ background: diffColor + '22', color: diffColor }}>
+                              {isUp ? '↑' : '↓'} {Math.abs(pct).toFixed(1)}%
+                            </span>
+                          )}
                         </div>
                       )
                     })}
@@ -2274,7 +2308,14 @@ export default function Analytics() {
                 </div>
               )}
 
-              {/* Savings rate (full width) */}
+              {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
+                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} />
+                <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
+              </div>
+
+              {/* Savings rate */}
               <div className="glass-card rounded-2xl p-5 flex flex-col" style={{ height: 220 }}>
                 <h2 className="text-sm font-semibold mb-0.5">{t('an.savingsRate')}</h2>
                 <p className="text-[11px] text-muted mb-3">{t('an.savingsRateDesc')}</p>
@@ -2292,14 +2333,8 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
-                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} />
-                <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
-              </div>
-
-              </>}
+              </>)
+              })()}
 
             </div>
           )
