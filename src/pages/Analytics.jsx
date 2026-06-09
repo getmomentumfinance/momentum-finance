@@ -2165,7 +2165,7 @@ export default function Analytics() {
               </div>
 
               {/* Top row — Top Movers (left) + KPI cards + insight chips (right) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
                 {/* Left: Top Movers */}
                 <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
                   <h2 className="text-sm font-semibold">Top Movers</h2>
