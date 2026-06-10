@@ -289,6 +289,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [withdrawMode,       setWithdrawMode]       = useState('topup') // 'topup' | 'purchase'
   const [purchaseTotal,      setPurchaseTotal]      = useState('')
   const [purchaseDesc,       setPurchaseDesc]       = useState('')
+  const [purchaseComment,    setPurchaseComment]    = useState('')
   const [purchaseCatId,      setPurchaseCatId]      = useState('')
   const [purchaseSubId,      setPurchaseSubId]      = useState('')
   const [purchaseReceiverId, setPurchaseReceiverId] = useState('')
@@ -547,7 +548,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             amount: purchaseParsed, category_id: purchaseCatId || null, subcategory_id: purchaseSubId || null,
             receiver_id: purchaseReceiverId || null, card_id: expCard || null,
             is_cash: false, is_split_parent: false, importance: purchaseImportance || null,
-            date, comment: null, status: 'completed',
+            date, comment: purchaseComment.trim() || null, status: 'completed',
           })
         }
       }
@@ -1005,11 +1006,21 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                         })()}
                       </div>
 
-                      {/* Description */}
+                      {/* Receiver */}
                       <div className="flex flex-col gap-2">
-                        <label className="text-xs text-muted uppercase tracking-widest">Description</label>
-                        <input value={purchaseDesc} onChange={e => setPurchaseDesc(e.target.value)}
-                          placeholder="What did you buy?" className={inp} />
+                        <label className="text-xs text-muted uppercase tracking-widest">Receiver</label>
+                        <DescriptionCombobox
+                          value={purchaseDesc}
+                          onChange={setPurchaseDesc}
+                          receiverId={purchaseReceiverId}
+                          onReceiverSelect={setPurchaseReceiverId}
+                          onAddReceiver={async (name, type) => {
+                            const { data } = await supabase.from('receivers').insert({ user_id: user.id, name, type: type ?? 'business' }).select().single()
+                            if (data) { setExtraReceivers(prev => [...prev, data]); setPurchaseReceiverId(data.id) }
+                          }}
+                          receivers={receivers}
+                          inputClass={inp}
+                        />
                       </div>
 
                       {/* Category */}
@@ -1023,21 +1034,13 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                         )}
                       </div>
 
-                      {/* Receiver */}
+                      {/* Comment */}
                       <div className="flex flex-col gap-2">
                         <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                          Merchant <span className="text-white/30 normal-case font-normal">(optional)</span>
+                          Description <span className="text-white/30 normal-case font-normal">(optional)</span>
                         </label>
-                        <ReceiverCombobox
-                          receiverId={purchaseReceiverId}
-                          onReceiverSelect={setPurchaseReceiverId}
-                          receivers={receivers}
-                          onAddReceiver={async (name, type) => {
-                            const { data } = await supabase.from('receivers').insert({ user_id: user.id, name, type: type ?? 'business' }).select().single()
-                            if (data) { setExtraReceivers(prev => [...prev, data]); setPurchaseReceiverId(data.id) }
-                          }}
-                          inputClass={inp}
-                        />
+                        <textarea value={purchaseComment} onChange={e => setPurchaseComment(e.target.value)}
+                          placeholder="Add a note..." rows={2} className={inp + ' resize-none'} />
                       </div>
 
                       {/* Importance */}
