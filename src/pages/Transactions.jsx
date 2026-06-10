@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors, CornerDownLeft } from 'lucide-react'
+import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors, CornerDownLeft, Info, ExternalLink } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useImportance } from '../hooks/useImportance'
@@ -118,6 +118,128 @@ function ReceiverAvatar({ receiver }) {
   )
 }
 
+// ── Read-only transaction detail modal ───────────────────────
+function TransactionDetailModal({ tx, onClose, onViewLinked, linkedTx, fmt, t, impMap }) {
+  if (!tx) return null
+  const typeInfo = TYPES_MAP[tx.type] ?? { label: tx.type, color: '#9ca3af' }
+  const imp = tx.importance ? impMap[tx.importance] : null
+  const isNegativeFlow = tx.type === 'expense' || (tx.type === 'savings' && tx.amount > 0) || tx.type === 'cash_out'
+
+  const Field = ({ label, children }) => (
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/[0.04] last:border-0">
+      <span className="text-[11px] text-white/35 uppercase tracking-widest shrink-0 w-28">{label}</span>
+      <div className="flex-1 text-right text-sm text-white/80">{children}</div>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative glass-popup border border-white/10 rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 pb-4">
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full w-max"
+              style={{ background: typeInfo.color + '22', color: typeInfo.color }}>
+              {typeInfo.label}
+            </span>
+            <span className="text-2xl font-bold tabular-nums mt-1"
+              style={{ color: isNegativeFlow ? 'var(--type-expense)' : tx.type === 'income' ? 'var(--type-income)' : 'rgba(255,255,255,0.7)' }}>
+              {isNegativeFlow ? '−' : tx.type === 'income' ? '+' : ''}{fmt(Math.abs(tx.amount))}
+            </span>
+            <span className="text-xs text-white/35">
+              {new Date(tx.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Fields */}
+        <div className="px-5 pb-2 flex flex-col">
+          {tx.description && (
+            <Field label="Receiver">
+              <div className="flex items-center justify-end gap-2">
+                {tx.receiver && (
+                  <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[8px] font-bold text-white shrink-0">
+                    {tx.receiver.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                {tx.description}
+              </div>
+            </Field>
+          )}
+          {tx.category && (
+            <Field label="Category">
+              <CategoryPill name={tx.category.name} color={tx.category.color} icon={tx.category.icon} />
+            </Field>
+          )}
+          {tx.subcategory && (
+            <Field label="Subcategory">
+              <CategoryPill name={tx.subcategory.name} color={tx.subcategory.color} icon={tx.subcategory.icon} />
+            </Field>
+          )}
+          {imp && (
+            <Field label="Importance">
+              <div className="flex items-center justify-end gap-1.5">
+                <span className="flex items-center gap-[3px]">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <span key={i} className="w-1.5 h-1.5 rounded-full"
+                      style={{ background: i < imp.dots ? imp.color : imp.color + '30' }} />
+                  ))}
+                </span>
+                <span className="text-white/60 text-xs">{imp.label}</span>
+              </div>
+            </Field>
+          )}
+          {tx.card && <Field label="Card">{tx.card.name}</Field>}
+          {tx.source && tx.type !== 'cash_out' && (
+            <Field label="Source">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/8 text-white/50 capitalize">
+                {tx.source.replace(/_/g, ' ')}
+              </span>
+            </Field>
+          )}
+          {tx.comment && <Field label="Note"><span className="text-white/50 italic">{tx.comment}</span></Field>}
+        </div>
+
+        {/* Linked expense section */}
+        {tx.linked_expense_id && (
+          <div className="mx-5 mb-5 mt-2 rounded-xl p-4 flex flex-col gap-2"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-[10px] text-white/30 uppercase tracking-widest">Funded Expense</p>
+            {linkedTx ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm text-white/80 truncate">{linkedTx.description || '—'}</span>
+                  {linkedTx.category && (
+                    <CategoryPill name={linkedTx.category.name} color={linkedTx.category.color} icon={linkedTx.category.icon} />
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--type-expense)' }}>
+                    −{fmt(Math.abs(linkedTx.amount))}
+                  </span>
+                  <button onClick={() => onViewLinked(linkedTx)}
+                    className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
+                    title="View expense details">
+                    <ExternalLink size={13} />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="text-xs text-white/30 italic">Expense not in current view</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 export default function Transactions() {
   const { user } = useAuth()
@@ -128,6 +250,7 @@ export default function Transactions() {
   const [loading, setLoading] = useState(true)
   const [sort, setSort] = useState({ col: 'date', dir: 'desc' })
   const [editingTx,  setEditingTx]  = useState(null)
+  const [detailTx,   setDetailTx]   = useState(null)
   const [paybackFor, setPaybackFor] = useState(null)
   const [openPayback, setOpenPayback] = useState(null)
   const [splitTx, setSplitTx] = useState(null)
@@ -831,7 +954,16 @@ export default function Transactions() {
                               {t('type.invest')}
                             </span>
                           )}
-                          {!row.source && !row.label && row.type !== 'income' && !row.is_cash && row.type !== 'transfer' && row.type !== 'cash_out' && row.type !== 'invest' && (
+                          {row.linked_expense_id && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setDetailTx(row) }}
+                              className="text-[10px] px-1.5 py-0.5 rounded-full transition-colors"
+                              style={{ background: 'rgba(251,191,36,0.12)', color: 'rgba(251,191,36,0.7)' }}
+                              title="View linked expense">
+                              → expense
+                            </button>
+                          )}
+                          {!row.source && !row.label && row.type !== 'income' && !row.is_cash && row.type !== 'transfer' && row.type !== 'cash_out' && row.type !== 'invest' && !row.linked_expense_id && (
                             <span className="text-white/20">—</span>
                           )}
                         </div>
@@ -878,8 +1010,15 @@ export default function Transactions() {
                               <CornerDownLeft size={13} />
                             </button>
                           )}
-                          {/* Pencil + Delete — hover only */}
+                          {/* Info + Pencil + Delete — hover only */}
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => setDetailTx(row)}
+                              className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
+                              title="View details"
+                            >
+                              <Info size={13} />
+                            </button>
                             {!isChild && (
                               <button
                                 onClick={() => setEditingTx(row)}
@@ -964,6 +1103,18 @@ export default function Transactions() {
           existingChildren={rows.filter(r => r.split_parent_id === splitTx.id)}
           allCategories={allCategories}
           onClose={() => setSplitTx(null)}
+        />
+      )}
+
+      {detailTx && (
+        <TransactionDetailModal
+          tx={detailTx}
+          linkedTx={detailTx.linked_expense_id ? rows.find(r => r.id === detailTx.linked_expense_id) ?? null : null}
+          onClose={() => setDetailTx(null)}
+          onViewLinked={tx => setDetailTx(tx)}
+          fmt={fmt}
+          t={t}
+          impMap={impMap}
         />
       )}
     </div>

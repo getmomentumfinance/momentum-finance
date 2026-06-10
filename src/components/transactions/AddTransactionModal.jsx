@@ -512,6 +512,22 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         : withdrawMode === 'invest'   ? 'savings_out_invest'
         : withdrawMode === 'purchase' ? 'savings_out_purchase'
         : 'savings_out'
+      // For new purchase-mode withdrawals, create expense first to capture its ID
+      let purchaseExpenseId = null
+      if (!effectiveIsEditing && savingsDir === 'out' && withdrawMode === 'purchase') {
+        const purchaseParsed = parseFloat(purchaseTotal.replace(',', '.'))
+        if (purchaseParsed > 0) {
+          const expCard = purchaseParsed > parsed ? (purchaseCardId || toCardId) : toCardId
+          const { data: expData, error: expErr } = await supabase.from('transactions').insert({
+            user_id: user.id, type: 'expense', description: purchaseDesc.trim() || null,
+            amount: purchaseParsed, category_id: purchaseCatId || null, subcategory_id: purchaseSubId || null,
+            receiver_id: purchaseReceiverId || null, card_id: expCard || null,
+            is_cash: false, is_split_parent: false, importance: purchaseImportance || null,
+            date, comment: purchaseComment.trim() || null, status: 'completed',
+          }).select('id').single()
+          if (!expErr) purchaseExpenseId = expData?.id ?? null
+        }
+      }
       if (effectiveIsEditing) {
         const [r1, r2] = await Promise.all([
           supabase.from('transactions').update({ amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   source, description: savingsDesc }).eq('id', editId),
@@ -519,8 +535,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         ])
         if (r1.error || r2.error) { console.error('savings edit error:', r1.error?.message ?? r2.error?.message); setSaving(false); return }
       } else {
-        const base = { user_id: user.id, type: 'savings', date, comment: comment.trim() || null, status, is_cash: false, is_deleted: false, is_split_parent: false, category_id: null, subcategory_id: null, receiver_id: null, source, description: savingsDesc }
-        // outflow from source card (positive = deducted), inflow to dest card (negative = added via -(-x))
+        const base = { user_id: user.id, type: 'savings', date, comment: comment.trim() || null, status, is_cash: false, is_deleted: false, is_split_parent: false, category_id: null, subcategory_id: null, receiver_id: null, source, description: savingsDesc, linked_expense_id: purchaseExpenseId }
         const { error } = await supabase.from('transactions').insert([
           { ...base, card_id: cardId,   amount:  parsed },
           { ...base, card_id: toCardId, amount: -parsed },
@@ -536,20 +551,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             await supabase.from('savings_goals').update({ allocated_amount: (fund.allocated_amount ?? 0) - deduction }).eq('id', selectedFundId)
             window.dispatchEvent(new CustomEvent('savings-goal-updated'))
           }
-        }
-      }
-      // Create purchase expense (savings_out purchase mode only)
-      if (savingsDir === 'out' && withdrawMode === 'purchase') {
-        const purchaseParsed = parseFloat(purchaseTotal.replace(',', '.'))
-        if (purchaseParsed > 0) {
-          const expCard = purchaseParsed > parsed ? (purchaseCardId || toCardId) : toCardId
-          await supabase.from('transactions').insert({
-            user_id: user.id, type: 'expense', description: purchaseDesc.trim() || null,
-            amount: purchaseParsed, category_id: purchaseCatId || null, subcategory_id: purchaseSubId || null,
-            receiver_id: purchaseReceiverId || null, card_id: expCard || null,
-            is_cash: false, is_split_parent: false, importance: purchaseImportance || null,
-            date, comment: purchaseComment.trim() || null, status: 'completed',
-          })
         }
       }
     } else if (type === 'invest') {
