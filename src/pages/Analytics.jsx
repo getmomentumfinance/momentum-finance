@@ -2164,10 +2164,10 @@ export default function Analytics() {
                 </div>
               </div>
 
-              {/* Top row — Top Movers + KPI cards, all equal columns */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {/* Top row — Top Movers (3/6) + KPI cards (1/6 each) */}
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 {/* Top Movers */}
-                <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+                <div className="md:col-span-3 glass-card rounded-2xl p-5 flex flex-col gap-4">
                   <h2 className="text-sm font-semibold">Top Movers</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -2215,7 +2215,7 @@ export default function Analytics() {
                   </div>
                 </div>
                 {/* Expenses */}
-                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                <div className="md:col-span-1 glass-card rounded-2xl p-4 flex flex-col gap-3">
                   <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.expenses')}</p>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-2">
@@ -2235,7 +2235,7 @@ export default function Analytics() {
                   )}
                 </div>
                 {/* Income */}
-                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                <div className="md:col-span-1 glass-card rounded-2xl p-4 flex flex-col gap-3">
                   <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.income')}</p>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-2">
@@ -2255,7 +2255,7 @@ export default function Analytics() {
                   )}
                 </div>
                 {/* Net */}
-                <div className="glass-card rounded-2xl p-4 flex flex-col gap-3">
+                <div className="md:col-span-1 glass-card rounded-2xl p-4 flex flex-col gap-3">
                   <p className="text-[10px] text-muted uppercase tracking-widest">{t('an.net') ?? 'Net'}</p>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-baseline justify-between gap-2">
