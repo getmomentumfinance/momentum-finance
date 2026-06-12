@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { useCards } from '../../hooks/useCards'
-import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
+import { CategoryPill } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { useImportance } from '../../hooks/useImportance'
 import ImportancePicker from '../shared/ImportancePicker'
@@ -14,69 +14,6 @@ import { showToast } from '../shared/Toast'
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
 
-function IconPickerInline({ value, onChange }) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const q = query.trim().toLowerCase()
-  const filtered = q
-    ? CATEGORY_ICONS.filter(({ id, group }) => id.includes(q) || group.toLowerCase().includes(q))
-    : CATEGORY_ICONS
-  const selected = CATEGORY_ICONS.find(i => i.id === value)
-
-  function pick(id) { onChange(id); setOpen(false); setQuery('') }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setOpen(v => !v)}
-          className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 hover:border-white/25 flex items-center justify-center shrink-0 transition-colors"
-        >
-          {selected ? <selected.Icon size={16} className="text-white/70" /> : <span className="text-white/20 text-xs">—</span>}
-        </button>
-        <span className="text-sm text-white/40">{selected ? selected.id : 'No icon'}</span>
-        {value && (
-          <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-            className="ml-auto text-white/30 hover:text-white/60 transition-colors text-xs">
-            Clear
-          </button>
-        )}
-        {!value && (
-          <button type="button" onClick={() => setOpen(v => !v)}
-            className="ml-auto text-white/30 hover:text-white/60 transition-colors text-xs">
-            {open ? 'Close' : 'Choose'}
-          </button>
-        )}
-      </div>
-      {open && (
-        <div className="flex flex-col gap-2">
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search icons…"
-            autoFocus
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/30 placeholder:text-white/25"
-          />
-          <div className="max-h-32 overflow-y-auto scrollbar-thin grid grid-cols-[repeat(auto-fill,minmax(2rem,1fr))] gap-1 bg-white/[0.03] rounded-xl p-2 border border-white/8">
-            {filtered.map(({ id, Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => pick(id)}
-                title={id}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors
-                  ${value === id ? 'bg-white/20 text-white' : 'text-white/40 hover:bg-white/10 hover:text-white/80'}`}
-              >
-                <Icon size={14} />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function CategorySelect({ value, onChange, options, placeholder = 'None', disabled = false }) {
   const [open, setOpen]     = useState(false)
@@ -143,7 +80,6 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
   const { importance: importanceOptions } = useImportance()
 
   const [name,       setName]       = useState('')
-  const [icon,       setIcon]       = useState(item?.icon        ?? '')
   const [receiverId, setReceiverId] = useState(item?.receiver_id ?? '')
   const [amount,     setAmount]     = useState(item?.amount      ?? '')
   const [payBefore,  setPayBefore]  = useState(item?.pay_before  ?? '')
@@ -181,7 +117,6 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     const receiverName = receivers.find(r => r.id === receiverId)?.name ?? null
     const payload = {
       name:           commentVal ?? receiverName ?? 'Pending',
-      icon:           icon        || null,
       receiver_id:    receiverId  || null,
       amount:         parseAmount(amount),
       pay_before:     payBefore,
@@ -231,12 +166,6 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
 
         {/* Body */}
         <div className="overflow-y-auto flex flex-col gap-5 p-6 scrollbar-thin">
-
-          {/* Icon */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-muted uppercase tracking-widest">Icon</label>
-            <IconPickerInline value={icon} onChange={setIcon} />
-          </div>
 
           {/* Receiver */}
           <div className="flex flex-col gap-2">
