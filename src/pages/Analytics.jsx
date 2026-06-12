@@ -3148,6 +3148,28 @@ export default function Analytics() {
               const totalInc = weeklyData.reduce((s, w) => s + w.income, 0)
               const totalNet = totalInc - totalExp
               const avgExp   = weeklyData.length > 0 ? totalExp / weeklyData.length : 0
+
+              // Build previous month's week expense totals (same index = same week number)
+              const prevMIdx    = currentDate.getMonth() - 1
+              const prevMYear   = prevMIdx < 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()
+              const prevMMonth  = prevMIdx < 0 ? 11 : prevMIdx
+              const prevMStart  = new Date(prevMYear, prevMMonth, 1)
+              const prevMEnd    = new Date(prevMYear, prevMMonth + 1, 0)
+              const prevMWeeks  = []
+              const pmCursor    = new Date(prevMStart)
+              pmCursor.setDate(pmCursor.getDate() - ((pmCursor.getDay() + 6) % 7))
+              while (pmCursor <= prevMEnd) {
+                const wEnd   = new Date(pmCursor); wEnd.setDate(wEnd.getDate() + 6)
+                const cStart = pmCursor < prevMStart ? new Date(prevMStart) : new Date(pmCursor)
+                const cEnd   = wEnd > prevMEnd ? new Date(prevMEnd) : new Date(wEnd)
+                const s = cStart.toISOString().slice(0, 10)
+                const e = cEnd.toISOString().slice(0, 10)
+                const exp = transactions.filter(t => !t.is_split_parent && t.type === 'expense' && t.date >= s && t.date <= e)
+                  .reduce((a, t) => a + Number(t.amount), 0)
+                prevMWeeks.push(exp)
+                pmCursor.setDate(pmCursor.getDate() + 7)
+              }
+
               return (
                 <div className="glass-card rounded-2xl p-5 flex-1 flex flex-col">
                   <h2 className="text-sm font-semibold mb-4">{t('an.weekSummary')}</h2>
@@ -3160,8 +3182,8 @@ export default function Analytics() {
                     </div>
                     {/* Rows */}
                     {weeklyData.map((w, i) => {
-                      const prev = weeklyData[i - 1]
-                      const delta = prev && prev.expenses > 0 ? ((w.expenses - prev.expenses) / prev.expenses) * 100 : null
+                      const prevExp = prevMWeeks[i] ?? null
+                      const delta = prevExp != null && prevExp > 0 ? ((w.expenses - prevExp) / prevExp) * 100 : null
                       return (
                         <div key={w.label} className="grid grid-cols-4 gap-2 py-2 border-b border-white/[0.04] last:border-0">
                           <span className="text-xs font-semibold text-white">{w.label}</span>
