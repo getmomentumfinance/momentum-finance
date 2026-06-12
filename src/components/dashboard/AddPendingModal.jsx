@@ -9,6 +9,7 @@ import { CategoryPill, CATEGORY_ICONS } from '../shared/CategoryPill'
 import { ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { useImportance } from '../../hooks/useImportance'
 import ImportancePicker from '../shared/ImportancePicker'
+import { showToast } from '../shared/Toast'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
@@ -177,8 +178,9 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     if (!amount || isNaN(parseAmount(amount)) || !payBefore) return
     setSaving(true)
     const commentVal = comment.trim() || null
+    const receiverName = receivers.find(r => r.id === receiverId)?.name ?? null
     const payload = {
-      name:           commentVal,
+      name:           commentVal ?? receiverName ?? 'Pending',
       icon:           icon        || null,
       receiver_id:    receiverId  || null,
       amount:         parseAmount(amount),
@@ -192,7 +194,7 @@ export default function AddPendingModal({ onClose, onSaved, item = null }) {
     const { error } = isEdit
       ? await supabase.from('pending_items').update(payload).eq('id', item.id)
       : await supabase.from('pending_items').insert({ ...payload, user_id: user.id, status: 'pending' })
-    if (error) { console.error('pending_items save error:', error.message); setSaving(false); return }
+    if (error) { console.error('pending_items save error:', error.message); showToast(`Save failed: ${error.message}`); setSaving(false); return }
     setSaving(false)
     window.dispatchEvent(new CustomEvent('transaction-saved'))
     onSaved()
