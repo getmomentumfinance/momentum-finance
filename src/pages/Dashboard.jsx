@@ -224,7 +224,7 @@ export default function Dashboard() {
       const [{ data: balanceCards }, { data: cashCards }, { data: savingsCards }, { data: allTxs }, { data: monthTxs }] = await Promise.all([
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).in('type', BALANCE_TYPES),
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'cash'),
-        supabase.from('cards').select('initial_balance').eq('user_id', user.id).eq('type', 'savings'),
+        supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'savings'),
         supabase.from('transactions').select('card_id, type, amount, is_cash, source, split_parent_id').eq('user_id', user.id).eq('is_deleted', false),
         supabase.from('transactions').select('type, amount, source, is_split_parent').eq('user_id', user.id).eq('is_deleted', false).gte('date', start).lte('date', end),
       ])
@@ -244,17 +244,21 @@ export default function Dashboard() {
         setCashBalance(cashTotal)
         setTotalBalance(cardTotal + cashTotal)
 
-        const savingsInitial = (savingsCards ?? []).reduce((s, c) => s + Number(c.initial_balance), 0)
-        const savIn  = allTxs.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
-        const savOut = allTxs.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
-        setTotalSavings(savingsInitial + savIn - savOut)
+        const savingsTotal = (savingsCards ?? []).reduce((sum, card) => {
+          const delta = allTxs
+            .filter(t => t.card_id === card.id && !t.split_parent_id)
+            .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
+          return sum + Number(card.initial_balance) + delta
+        }, 0)
+        setTotalSavings(savingsTotal)
       }
 
       if (monthTxs) {
         setTotalIncome(      monthTxs.filter(t => t.type === 'income'  && !t.is_split_parent).reduce((s, t) => s + t.amount, 0))
         setTotalExpenses(    monthTxs.filter(t => t.type === 'expense' && !t.is_split_parent).reduce((s, t) => s + t.amount, 0))
+        const SAVINGS_OUT_SOURCES = new Set(['savings_out', 'savings_out_purchase', 'savings_out_invest'])
         const savMonthIn  = monthTxs.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
-        const savMonthOut = monthTxs.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
+        const savMonthOut = monthTxs.filter(t => SAVINGS_OUT_SOURCES.has(t.source) && t.amount > 0).reduce((s, t) => s + t.amount, 0)
         setTotalSavingsMonth(savMonthIn - savMonthOut)
       }
     }
