@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors, CornerDownLeft, Info, ExternalLink } from 'lucide-react'
+import { ChevronUp, ChevronDown, Pencil, Trash2, Search, X, PiggyBank, Banknote, Scissors, CornerDownLeft, ExternalLink } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useImportance } from '../hooks/useImportance'
@@ -795,8 +795,9 @@ export default function Transactions() {
                       key={row.id}
                       className={`border-b border-white/[0.03] last:border-0 group ${isChild ? 'bg-white/[0.01]' : ''}`}
                     >
-                      {/* Receiver */}
-                      <td className="px-3 py-3 overflow-hidden" style={{ width: widths.description, maxWidth: widths.description }}>
+                      {/* Receiver — click to open detail modal */}
+                      <td className="px-3 py-3 overflow-hidden cursor-pointer" style={{ width: widths.description, maxWidth: widths.description }}
+                        onClick={() => setDetailTx(row)}>
                         <div className="flex items-center gap-2.5 min-w-0">
                           {isParent && (
                             <button
@@ -1010,15 +1011,8 @@ export default function Transactions() {
                               <CornerDownLeft size={13} />
                             </button>
                           )}
-                          {/* Info + Pencil + Delete — hover only */}
+                          {/* Pencil + Delete — hover only */}
                           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => setDetailTx(row)}
-                              className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/8 transition-colors"
-                              title="View details"
-                            >
-                              <Info size={13} />
-                            </button>
                             {!isChild && (
                               <button
                                 onClick={() => setEditingTx(row)}
