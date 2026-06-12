@@ -3166,7 +3166,7 @@ export default function Analytics() {
                         <div key={w.label} className="grid grid-cols-4 gap-2 py-2 border-b border-white/[0.04] last:border-0">
                           <span className="text-xs font-semibold text-white">{w.label}</span>
                           <span className="text-xs tabular-nums" style={{ color: colors.expense }}>{w.expenses > 0 ? fmt(w.expenses) : '—'}</span>
-                          <span className="text-xs tabular-nums font-medium" style={{ color: delta === null ? 'transparent' : delta > 0 ? colors.expense : colors.income }}>
+                          <span className="text-xs tabular-nums font-medium" style={{ color: delta === null ? 'rgba(255,255,255,0.2)' : delta > 0 ? colors.expense : colors.income }}>
                             {delta !== null ? `${delta > 0 ? '↑' : '↓'} ${Math.abs(delta).toFixed(0)}%` : '—'}
                           </span>
                           <span className="text-xs tabular-nums font-medium" style={{ color: w.net >= 0 ? colors.income : colors.expense }}>
