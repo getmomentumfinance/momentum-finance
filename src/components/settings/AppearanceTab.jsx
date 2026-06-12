@@ -279,7 +279,7 @@ function TickerColorsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="min-h-[56px]">
         <h3 className="text-sm font-medium text-white">Ticker colors</h3>
         <p className="text-xs text-muted mt-0.5">Custom colors for each ticker in the portfolio view.</p>
       </div>
@@ -358,7 +358,7 @@ function WithdrawalColorsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="min-h-[56px]">
         <h3 className="text-sm font-medium text-white">Withdrawal purposes</h3>
         <p className="text-xs text-muted mt-0.5">Colors for the savings withdrawal donut chart.</p>
       </div>
@@ -437,7 +437,7 @@ function TradeLabelsSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="min-h-[56px]">
         <h3 className="text-sm font-medium text-white">Trade labels</h3>
         <p className="text-xs text-muted mt-0.5">Labels for investment transactions — strategy or timeframe.</p>
       </div>
@@ -1022,7 +1022,7 @@ export default function AppearanceTab() {
 
         {/* Importance flags */}
         <div className="flex flex-col gap-4">
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between min-h-[56px]">
             <div>
               <h3 className="text-sm font-medium text-white">Importance flags</h3>
               <p className="text-xs text-muted mt-0.5">Colors for importance levels on categories.</p>
@@ -1044,7 +1044,7 @@ export default function AppearanceTab() {
 
         {/* Transaction type colors */}
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="min-h-[56px]">
             <h3 className="text-sm font-medium text-white">Transaction type colors</h3>
             <p className="text-xs text-muted mt-0.5">Used in the transaction table, modal, and calendar.</p>
           </div>
@@ -1057,7 +1057,7 @@ export default function AppearanceTab() {
 
         {/* Income type colors */}
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="min-h-[56px]">
             <h3 className="text-sm font-medium text-white">Income type colors</h3>
             <p className="text-xs text-muted mt-0.5">Used in the income sources donut chart on Analytics.</p>
           </div>
@@ -1069,7 +1069,7 @@ export default function AppearanceTab() {
 
         {/* Positive / Neutral / Negative color coding */}
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="min-h-[56px]">
             <h3 className="text-sm font-medium text-white">Color coding</h3>
             <p className="text-xs text-muted mt-0.5">Colors applied to positive, neutral, and negative values across the app — trends, indicators, and limits.</p>
           </div>
