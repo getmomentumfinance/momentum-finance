@@ -555,7 +555,7 @@ function LinePanel({ title, subtitle, data, series, xInterval = 0, chartHeight =
 export default function Analytics() {
   const { fmt, fmtK, t } = usePreferences()
   const isMobile = useIsMobile()
-  const { setPref, loaded: prefsLoaded } = useUIPrefs()
+  const { prefs, setPref, loaded: prefsLoaded } = useUIPrefs()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [range, setRange] = useState('month')
   const [view,  setView]  = useState('spending') // 'spending' | 'money-flow'
@@ -1060,7 +1060,7 @@ export default function Analytics() {
   }, [transactions])
 
   // ── Deep Dive ─────────────────────────────────────────────────
-  const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver'
+  const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver' | 'source'
   const [ddFilter,       setDdFilter]       = useState(null)
   const [ddChartType,    setDdChartType]    = useState('bar')
   const [ddClickedLabel, setDdClickedLabel] = useState(null)
@@ -1090,24 +1090,69 @@ export default function Analytics() {
     return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [expenses, receiverMap])
 
+  const SOURCE_META = {
+    'expense':              { label: 'Expense'             },
+    'savings_out':          { label: 'Savings: Top-up'     },
+    'savings_out_purchase': { label: 'Savings: Purchase'   },
+    'savings_out_invest':   { label: 'Savings: Investment' },
+    'invest':               { label: 'Investment'          },
+    'cash_out':             { label: 'Cash Out'            },
+  }
+  function getSourceKey(t) {
+    if (t.type === 'expense')  return 'expense'
+    if (t.type === 'invest')   return 'invest'
+    if (t.type === 'cash_out') return 'cash_out'
+    return t.source ?? t.type
+  }
+  function getSourceLabel(t) { return SOURCE_META[getSourceKey(t)]?.label ?? getSourceKey(t) }
+  function getSourceColor(t, wc) {
+    if (t.type === 'expense')                   return colors.expense
+    if (t.source === 'savings_out')             return wc?.['savings_out']          ?? '#60a5fa'
+    if (t.source === 'savings_out_purchase')    return wc?.['savings_out_purchase'] ?? '#f472b6'
+    if (t.source === 'savings_out_invest')      return wc?.['savings_out_invest']   ?? '#34d399'
+    if (t.type === 'invest')                    return colors.invest
+    if (t.type === 'cash_out')                  return colors.cashOut
+    return colors.expense
+  }
+
+  const ddMoneyOut = useMemo(() =>
+    filtered.filter(t => !t.is_split_parent && (
+      t.type === 'expense' ||
+      (t.type === 'savings' && t.source?.startsWith('savings_out')) ||
+      t.type === 'invest' ||
+      t.type === 'cash_out'
+    ))
+  , [filtered])
+
+  const ddSourceOptions = useMemo(() => {
+    const seen = new Map()
+    ddMoneyOut.forEach(t => { const k = getSourceKey(t); if (!seen.has(k)) seen.set(k, getSourceLabel(t)) })
+    return [...seen.entries()].map(([id, name]) => ({ id, name }))
+  }, [ddMoneyOut])
+
   const ddOptions = useMemo(() => {
     if (ddDimension === 'category')    return ddCategories
     if (ddDimension === 'subcategory') return ddAllSubcategories
     if (ddDimension === 'receiver')    return ddReceivers
+    if (ddDimension === 'source')      return ddSourceOptions
     return DEFAULT_IMPORTANCE.map(d => ({ id: d.value, name: d.label }))
-  }, [ddDimension, ddCategories, ddAllSubcategories, ddReceivers])
+  }, [ddDimension, ddCategories, ddAllSubcategories, ddReceivers, ddSourceOptions])
 
-  const ddFiltered = useMemo(() => expenses.filter(t => {
-    if (!ddFilter) return true
-    if (ddDimension === 'category')    return t.category_id    === ddFilter
-    if (ddDimension === 'subcategory') return t.subcategory_id === ddFilter
-    if (ddDimension === 'receiver')    return t.receiver_id    === ddFilter
-    if (ddDimension === 'importance') {
-      const imp = t.importance
-      return imp === ddFilter
-    }
-    return true
-  }), [expenses, ddDimension, ddFilter])
+  const ddFiltered = useMemo(() => {
+    const base = ddDimension === 'source' ? ddMoneyOut : expenses
+    return base.filter(t => {
+      if (!ddFilter) return true
+      if (ddDimension === 'category')    return t.category_id    === ddFilter
+      if (ddDimension === 'subcategory') return t.subcategory_id === ddFilter
+      if (ddDimension === 'receiver')    return t.receiver_id    === ddFilter
+      if (ddDimension === 'source')      return getSourceKey(t)  === ddFilter
+      if (ddDimension === 'importance') {
+        const imp = t.importance
+        return imp === ddFilter
+      }
+      return true
+    })
+  }, [ddMoneyOut, expenses, ddDimension, ddFilter])
 
   const ddTotal   = useMemo(() => ddFiltered.reduce((s, t) => s + netAmt(t), 0), [ddFiltered, paybackMap])
   const ddAvg     = ddFiltered.length ? ddTotal / ddFiltered.length : 0
@@ -1150,6 +1195,16 @@ export default function Analytics() {
       } else {
         getKey   = t => t.receiver_id ? (receiverMap[t.receiver_id]?.name ?? 'Unknown') : null
         getColor = t => t.receiver_id ? getMerchantColor(receiverMap[t.receiver_id]?.name ?? 'Unknown') : null
+      }
+    } else if (ddDimension === 'source') {
+      const wc = prefs['withdrawal_colors'] ?? {}
+      if (ddFilter) {
+        // drill into categories for selected source type
+        getKey   = t => t.category_id ? (categoryMap[t.category_id]?.name ?? 'Other') : 'Uncategorized'
+        getColor = t => midColor(categoryMap[t.category_id]?.color)
+      } else {
+        getKey   = t => getSourceLabel(t)
+        getColor = t => getSourceColor(t, wc)
       }
     } else {
       // importance
@@ -1228,8 +1283,13 @@ export default function Analytics() {
       return midColor(categoryMap[ddFilter]?.color) || colors.expense
     if (ddDimension === 'receiver')
       return getMerchantColor(receiverMap[ddFilter]?.name ?? '') || colors.expense
+    if (ddDimension === 'source') {
+      const wc = prefs['withdrawal_colors'] ?? {}
+      const match = ddMoneyOut.find(t => getSourceKey(t) === ddFilter)
+      return match ? getSourceColor(match, wc) : colors.expense
+    }
     return importanceColors[ddFilter] ?? DEFAULT_IMPORTANCE.find(d => d.value === ddFilter)?.color ?? colors.expense
-  }, [ddFilter, ddDimension, categoryMap, importanceColors, receiverMap, colors.expense])
+  }, [ddFilter, ddDimension, categoryMap, importanceColors, receiverMap, ddMoneyOut, prefs, colors.expense])
 
   const ddBarTransactions = useMemo(() => {
     if (!ddClickedLabel) return []
@@ -1712,6 +1772,24 @@ export default function Analytics() {
     })
     return [earned, notEarned].filter(d => d.value > 0).sort((a, b) => b.value - a.value)
   }, [filtered, colors.incomeEarned, colors.incomeNotEarned])
+
+  // ── Withdrawal purpose donut ─────────────────────────────────────
+  const withdrawalPurposeData = useMemo(() => {
+    const wc = prefs['withdrawal_colors'] ?? {}
+    const SOURCES = {
+      'savings_out':          { name: 'Top-up',     color: wc['savings_out']          ?? '#60a5fa' },
+      'savings_out_purchase': { name: 'Purchase',   color: wc['savings_out_purchase'] ?? '#f472b6' },
+      'savings_out_invest':   { name: 'Investment', color: wc['savings_out_invest']   ?? '#34d399' },
+    }
+    const totals = {}
+    filtered.filter(t => t.type === 'savings' && SOURCES[t.source]).forEach(t => {
+      totals[t.source] = (totals[t.source] || 0) + Number(t.amount)
+    })
+    return Object.entries(totals)
+      .map(([src, value]) => ({ name: SOURCES[src].name, value, color: SOURCES[src].color }))
+      .filter(d => d.value > 0)
+      .sort((a, b) => b.value - a.value)
+  }, [filtered, prefs])
 
   // ── Top merchants ────────────────────────────────────────────────
   const topMerchantsData = useMemo(() => {
@@ -2392,11 +2470,14 @@ export default function Analytics() {
         )}
 
         {/* ── Donut row — week and month only ── */}
-        {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        {showDonuts && (range === 'week' || range === 'month') && <div className={`grid grid-cols-1 gap-5 ${withdrawalPurposeData.length > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
           <DonutPanel title={t('an.byCategory')}    data={categoryData}    />
           <DonutPanel title={t('an.bySubcategory')} data={subcategoryData} />
           <DonutPanel title={t('an.byImportance')}  data={importanceData}  />
           <DonutPanel title={t('an.incomeSource')}  subtitle={t('an.incomeOnly')} data={incomeSourceData} />
+          {withdrawalPurposeData.length > 0 && (
+            <DonutPanel title="Withdrawal Purpose" subtitle="Savings withdrawals" data={withdrawalPurposeData} />
+          )}
         </div>}
 
             {/* Daily/Monthly breakdown + per-type stats side by side */}
@@ -2875,6 +2956,7 @@ export default function Analytics() {
                         { id: 'subcategory', label: t('an.dimSubcategory') },
                         { id: 'importance',  label: t('an.dimImportance')  },
                         { id: 'receiver',    label: 'Merchant'              },
+                        { id: 'source',      label: 'Source'                },
                       ].map(d => (
                         <button
                           key={d.id}
@@ -2910,7 +2992,7 @@ export default function Analytics() {
                         onChange={e => { setDdFilter(e.target.value || null); setDdClickedLabel(null) }}
                         className="w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
                       >
-                        <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : t('an.allImportance')}</option>
+                        <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : ddDimension === 'source' ? 'All Sources' : t('an.allImportance')}</option>
                         {ddOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
                       <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
