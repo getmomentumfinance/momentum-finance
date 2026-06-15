@@ -53,13 +53,14 @@ const tooltipStyle = {
 }
 
 // Tooltip that hides series with value === 0
-function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter }) {
+function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter, showTotal }) {
   const { fmt } = usePreferences()
   if (!active || !payload?.length) return null
   const items = payload.filter(p => p.value != null && Number(p.value) !== 0)
   if (!items.length) return null
   const vfmt = valueFormatter ?? (v => fmt(v))
   const nfmt = nameFormatter ?? (n => n)
+  const total = items.reduce((s, p) => s + Number(p.value), 0)
   return (
     <div style={{ background: 'var(--color-dash-card)', border: '1px solid var(--color-border)', borderRadius: 10, fontSize: 12, padding: '8px 12px' }}>
       {label != null && <p style={{ color: MUTED, marginBottom: 4, fontSize: 11 }}>{label}</p>}
@@ -68,6 +69,11 @@ function FilteredTooltip({ active, payload, label, valueFormatter, nameFormatter
           <span style={{ color: p.color }}>{nfmt(p.name)}</span>{': '}{vfmt(p.value)}
         </p>
       ))}
+      {showTotal && items.length > 1 && (
+        <p style={{ color: '#fff', fontWeight: 600, borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 4, paddingTop: 4 }}>
+          Total: {vfmt(total)}
+        </p>
+      )}
     </div>
   )
 }
@@ -2073,7 +2079,7 @@ export default function Analytics() {
                               <CartesianGrid vertical={false} stroke={GRID} />
                               <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11 }} axisLine={false} tickLine={false} />
                               <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
-                              <Tooltip content={<FilteredTooltip valueFormatter={fmtK} />} cursor={false} />
+                              <Tooltip content={<FilteredTooltip valueFormatter={fmtK} showTotal />} cursor={false} />
                               {weeklyBreakdownData.series.map(s => (
                                 <Bar key={s.name} dataKey={s.name} stackId="a" fill={s.color} shape={<StackedBarShape />} />
                               ))}
@@ -3094,7 +3100,7 @@ export default function Analytics() {
                             <CartesianGrid vertical={false} stroke={GRID} />
                             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} interval={range === 'month' ? 4 : 0} />
                             <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
-                            <Tooltip content={<FilteredTooltip />} cursor={false} />
+                            <Tooltip content={<FilteredTooltip showTotal />} cursor={false} />
                             {ddChartData.series.map(s => (
                               <Line key={s.name} type="monotone" dataKey={s.name} stroke={s.color} strokeWidth={2} dot={false}
                                 strokeOpacity={ddClickedLabel && ddChartData.data.find(d => d.label === ddClickedLabel) ? 0.35 : 1} />
@@ -3107,7 +3113,7 @@ export default function Analytics() {
                             <CartesianGrid vertical={false} stroke={GRID} />
                             <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} interval={range === 'month' ? 4 : 0} />
                             <YAxis tickFormatter={fmtK} tick={{ fill: MUTED, fontSize: 10 }} axisLine={false} tickLine={false} width={44} />
-                            <Tooltip content={<FilteredTooltip />} cursor={false} />
+                            <Tooltip content={<FilteredTooltip showTotal />} cursor={false} />
                             {ddChartData.series.map((s, i) => (
                               <Bar key={s.name} dataKey={s.name} stackId="stack" fill={s.color} maxBarSize={28}
                                 shape={<StackedBarShape />}
