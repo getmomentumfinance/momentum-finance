@@ -1119,15 +1119,15 @@ export default function Analytics() {
 
   const ddMoneyOut = useMemo(() =>
     filtered.filter(t => !t.is_split_parent && (
-      t.type === 'expense' ||
-      (t.type === 'savings' && t.source?.startsWith('savings_out')) ||
-      t.type === 'invest' ||
-      t.type === 'cash_out'
+      (t.type === 'expense') ||
+      (t.type === 'savings' && Number(t.amount) > 0 && t.source?.startsWith('savings_out')) ||
+      (t.type === 'invest'   && Number(t.amount) > 0) ||
+      (t.type === 'cash_out' && Number(t.amount) > 0)
     ))
   , [filtered])
 
   const ddSavingsBase = useMemo(() =>
-    filtered.filter(t => !t.is_split_parent && t.type === 'savings' && t.source?.startsWith('savings_out'))
+    filtered.filter(t => !t.is_split_parent && t.type === 'savings' && Number(t.amount) > 0 && t.source?.startsWith('savings_out'))
   , [filtered])
 
   const ddTypeOptions = useMemo(() => {
@@ -1800,7 +1800,7 @@ export default function Analytics() {
       'savings_out_invest':   { name: 'Investment', color: wc['savings_out_invest']   ?? '#34d399' },
     }
     const totals = {}
-    filtered.filter(t => t.type === 'savings' && SOURCES[t.source]).forEach(t => {
+    filtered.filter(t => t.type === 'savings' && Number(t.amount) > 0 && SOURCES[t.source]).forEach(t => {
       totals[t.source] = (totals[t.source] || 0) + Number(t.amount)
     })
     return Object.entries(totals)
