@@ -1090,14 +1090,14 @@ export default function Analytics() {
     return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [expenses, receiverMap])
 
-  const TYPE_LABELS = { expense: 'Expense', savings: 'Savings', invest: 'Investment', cash_out: 'Cash Out' }
-  function getTypeKey(t) {
+  const DD_TYPE_LABELS = { expense: 'Expense', savings: 'Savings', invest: 'Investment', cash_out: 'Cash Out' }
+  function getDdTypeKey(t) {
     if (t.type === 'expense')  return 'expense'
     if (t.type === 'invest')   return 'invest'
     if (t.type === 'cash_out') return 'cash_out'
     return 'savings'
   }
-  function getTypeColor(key) {
+  function getDdTypeColor(key) {
     if (key === 'expense')  return colors.expense
     if (key === 'savings')  return colors.savings
     if (key === 'invest')   return colors.invest
@@ -1132,8 +1132,8 @@ export default function Analytics() {
 
   const ddTypeOptions = useMemo(() => {
     const seen = new Set()
-    ddMoneyOut.forEach(t => seen.add(getTypeKey(t)))
-    return [...seen].map(k => ({ id: k, name: TYPE_LABELS[k] ?? k }))
+    ddMoneyOut.forEach(t => seen.add(getDdTypeKey(t)))
+    return [...seen].map(k => ({ id: k, name: DD_TYPE_LABELS[k] ?? k }))
   }, [ddMoneyOut])
 
   const ddPurposeOptions = useMemo(() => {
@@ -1158,7 +1158,7 @@ export default function Analytics() {
       if (ddDimension === 'category')    return t.category_id    === ddFilter
       if (ddDimension === 'subcategory') return t.subcategory_id === ddFilter
       if (ddDimension === 'receiver')    return t.receiver_id    === ddFilter
-      if (ddDimension === 'type')        return getTypeKey(t)    === ddFilter
+      if (ddDimension === 'type')        return getDdTypeKey(t)  === ddFilter
       if (ddDimension === 'purpose')     return t.source         === ddFilter
       if (ddDimension === 'importance') {
         const imp = t.importance
@@ -1215,8 +1215,8 @@ export default function Analytics() {
         getKey   = t => t.category_id ? (categoryMap[t.category_id]?.name ?? 'Other') : 'Uncategorized'
         getColor = t => midColor(categoryMap[t.category_id]?.color)
       } else {
-        getKey   = t => TYPE_LABELS[getTypeKey(t)] ?? getTypeKey(t)
-        getColor = t => getTypeColor(getTypeKey(t))
+        getKey   = t => DD_TYPE_LABELS[getDdTypeKey(t)] ?? getDdTypeKey(t)
+        getColor = t => getDdTypeColor(getDdTypeKey(t))
       }
     } else if (ddDimension === 'purpose') {
       const wc = prefs['withdrawal_colors'] ?? {}
@@ -1304,7 +1304,7 @@ export default function Analytics() {
       return midColor(categoryMap[ddFilter]?.color) || colors.expense
     if (ddDimension === 'receiver')
       return getMerchantColor(receiverMap[ddFilter]?.name ?? '') || colors.expense
-    if (ddDimension === 'type')    return getTypeColor(ddFilter)
+    if (ddDimension === 'type')    return getDdTypeColor(ddFilter)
     if (ddDimension === 'purpose') { const wc = prefs['withdrawal_colors'] ?? {}; return getPurposeColor(ddFilter, wc) }
     return importanceColors[ddFilter] ?? DEFAULT_IMPORTANCE.find(d => d.value === ddFilter)?.color ?? colors.expense
   }, [ddFilter, ddDimension, categoryMap, importanceColors, receiverMap, prefs, colors])
