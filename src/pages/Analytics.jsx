@@ -1092,9 +1092,9 @@ export default function Analytics() {
 
   const DD_TYPE_LABELS = { expense: 'Expense', savings: 'Savings', invest: 'Investment', cash_out: 'Cash Out' }
   function getDdTypeKey(t) {
-    if (t.type === 'expense')                                        return 'expense'
-    if (t.type === 'invest' || t.source === 'savings_out_invest')   return 'invest'
-    if (t.type === 'cash_out')                                       return 'cash_out'
+    if (t.type === 'expense')                                                          return 'expense'
+    if (t.type === 'invest' || t.type === 'transfer' || t.source === 'savings_out_invest') return 'invest'
+    if (t.type === 'cash_out')                                                         return 'cash_out'
     return 'savings'
   }
   function getDdTypeColor(key) {
@@ -1107,8 +1107,9 @@ export default function Analytics() {
   const ddMoneyOut = useMemo(() =>
     filtered.filter(t => !t.is_split_parent && (
       (t.type === 'expense') ||
-      (t.type === 'savings' && Number(t.amount) > 0 && t.source?.startsWith('savings_out')) ||
+      (t.type === 'savings'  && Number(t.amount) > 0 && t.source?.startsWith('savings_out')) ||
       (t.type === 'invest'   && Number(t.amount) > 0) ||
+      (t.type === 'transfer' && Number(t.amount) > 0) ||
       (t.type === 'cash_out' && Number(t.amount) > 0)
     ))
   , [filtered])
@@ -1761,7 +1762,7 @@ export default function Analytics() {
     const totals = {}, colorOf = {}
     ddMoneyOut.forEach(t => {
       const k = getDdTypeKey(t)
-      totals[k] = (totals[k] || 0) + Math.abs(Number(t.amount))
+      totals[k] = (totals[k] || 0) + Number(t.amount)
       if (!colorOf[k]) colorOf[k] = getDdTypeColor(k)
     })
     return Object.entries(totals)
