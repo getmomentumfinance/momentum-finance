@@ -1092,9 +1092,9 @@ export default function Analytics() {
 
   const DD_TYPE_LABELS = { expense: 'Expense', savings: 'Savings', invest: 'Investment', cash_out: 'Cash Out' }
   function getDdTypeKey(t) {
-    if (t.type === 'expense')  return 'expense'
-    if (t.type === 'invest')   return 'invest'
-    if (t.type === 'cash_out') return 'cash_out'
+    if (t.type === 'expense')                                        return 'expense'
+    if (t.type === 'invest' || t.source === 'savings_out_invest')   return 'invest'
+    if (t.type === 'cash_out')                                       return 'cash_out'
     return 'savings'
   }
   function getDdTypeColor(key) {
