@@ -1060,7 +1060,7 @@ export default function Analytics() {
   }, [transactions])
 
   // ── Deep Dive ─────────────────────────────────────────────────
-  const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver' | 'type' | 'purpose'
+  const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver' | 'type'
   const [ddFilter,       setDdFilter]       = useState(null)
   const [ddChartType,    setDdChartType]    = useState('bar')
   const [ddClickedLabel, setDdClickedLabel] = useState(null)
@@ -1104,19 +1104,6 @@ export default function Analytics() {
     if (key === 'cash_out') return colors.cashOut
     return colors.expense
   }
-  function getPurposeLabel(src) {
-    if (src === 'savings_out')          return 'Top-up'
-    if (src === 'savings_out_purchase') return 'Purchase'
-    if (src === 'savings_out_invest')   return 'Investment'
-    return src ?? 'Other'
-  }
-  function getPurposeColor(src, wc) {
-    if (src === 'savings_out')          return wc?.['savings_out']          ?? '#60a5fa'
-    if (src === 'savings_out_purchase') return wc?.['savings_out_purchase'] ?? '#f472b6'
-    if (src === 'savings_out_invest')   return wc?.['savings_out_invest']   ?? '#34d399'
-    return '#888'
-  }
-
   const ddMoneyOut = useMemo(() =>
     filtered.filter(t => !t.is_split_parent && (
       (t.type === 'expense') ||
@@ -1126,47 +1113,35 @@ export default function Analytics() {
     ))
   , [filtered])
 
-  const ddSavingsBase = useMemo(() =>
-    filtered.filter(t => !t.is_split_parent && t.type === 'savings' && Number(t.amount) > 0 && t.source?.startsWith('savings_out'))
-  , [filtered])
-
   const ddTypeOptions = useMemo(() => {
     const seen = new Set()
     ddMoneyOut.forEach(t => seen.add(getDdTypeKey(t)))
     return [...seen].map(k => ({ id: k, name: DD_TYPE_LABELS[k] ?? k }))
   }, [ddMoneyOut])
 
-  const ddPurposeOptions = useMemo(() => {
-    const seen = new Map()
-    ddSavingsBase.forEach(t => { if (t.source && !seen.has(t.source)) seen.set(t.source, getPurposeLabel(t.source)) })
-    return [...seen.entries()].map(([id, name]) => ({ id, name }))
-  }, [ddSavingsBase])
-
   const ddOptions = useMemo(() => {
     if (ddDimension === 'category')    return ddCategories
     if (ddDimension === 'subcategory') return ddAllSubcategories
     if (ddDimension === 'receiver')    return ddReceivers
     if (ddDimension === 'type')        return ddTypeOptions
-    if (ddDimension === 'purpose')     return ddPurposeOptions
     return DEFAULT_IMPORTANCE.map(d => ({ id: d.value, name: d.label }))
-  }, [ddDimension, ddCategories, ddAllSubcategories, ddReceivers, ddTypeOptions, ddPurposeOptions])
+  }, [ddDimension, ddCategories, ddAllSubcategories, ddReceivers, ddTypeOptions])
 
   const ddFiltered = useMemo(() => {
-    const base = ddDimension === 'type' ? ddMoneyOut : ddDimension === 'purpose' ? ddSavingsBase : expenses
+    const base = ddDimension === 'type' ? ddMoneyOut : expenses
     return base.filter(t => {
       if (!ddFilter) return true
       if (ddDimension === 'category')    return t.category_id    === ddFilter
       if (ddDimension === 'subcategory') return t.subcategory_id === ddFilter
       if (ddDimension === 'receiver')    return t.receiver_id    === ddFilter
       if (ddDimension === 'type')        return getDdTypeKey(t)  === ddFilter
-      if (ddDimension === 'purpose')     return t.source         === ddFilter
       if (ddDimension === 'importance') {
         const imp = t.importance
         return imp === ddFilter
       }
       return true
     })
-  }, [ddMoneyOut, ddSavingsBase, expenses, ddDimension, ddFilter])
+  }, [ddMoneyOut, expenses, ddDimension, ddFilter])
 
   const ddTotal   = useMemo(() => ddFiltered.reduce((s, t) => s + netAmt(t), 0), [ddFiltered, paybackMap])
   const ddAvg     = ddFiltered.length ? ddTotal / ddFiltered.length : 0
@@ -1217,15 +1192,6 @@ export default function Analytics() {
       } else {
         getKey   = t => DD_TYPE_LABELS[getDdTypeKey(t)] ?? getDdTypeKey(t)
         getColor = t => getDdTypeColor(getDdTypeKey(t))
-      }
-    } else if (ddDimension === 'purpose') {
-      const wc = prefs['withdrawal_colors'] ?? {}
-      if (ddFilter) {
-        getKey   = t => t.category_id ? (categoryMap[t.category_id]?.name ?? 'Other') : 'Uncategorized'
-        getColor = t => midColor(categoryMap[t.category_id]?.color)
-      } else {
-        getKey   = t => getPurposeLabel(t.source)
-        getColor = t => getPurposeColor(t.source, wc)
       }
     } else {
       // importance
@@ -1305,7 +1271,6 @@ export default function Analytics() {
     if (ddDimension === 'receiver')
       return getMerchantColor(receiverMap[ddFilter]?.name ?? '') || colors.expense
     if (ddDimension === 'type')    return getDdTypeColor(ddFilter)
-    if (ddDimension === 'purpose') { const wc = prefs['withdrawal_colors'] ?? {}; return getPurposeColor(ddFilter, wc) }
     return importanceColors[ddFilter] ?? DEFAULT_IMPORTANCE.find(d => d.value === ddFilter)?.color ?? colors.expense
   }, [ddFilter, ddDimension, categoryMap, importanceColors, receiverMap, prefs, colors])
 
@@ -1792,22 +1757,18 @@ export default function Analytics() {
   }, [filtered, colors.incomeEarned, colors.incomeNotEarned])
 
   // ── Withdrawal purpose donut ─────────────────────────────────────
-  const withdrawalPurposeData = useMemo(() => {
-    const wc = prefs['withdrawal_colors'] ?? {}
-    const SOURCES = {
-      'savings_out':          { name: 'Top-up',     color: wc['savings_out']          ?? '#60a5fa' },
-      'savings_out_purchase': { name: 'Purchase',   color: wc['savings_out_purchase'] ?? '#f472b6' },
-      'savings_out_invest':   { name: 'Investment', color: wc['savings_out_invest']   ?? '#34d399' },
-    }
-    const totals = {}
-    filtered.filter(t => t.type === 'savings' && Number(t.amount) > 0 && SOURCES[t.source]).forEach(t => {
-      totals[t.source] = (totals[t.source] || 0) + Number(t.amount)
+  const moneyOutTypeData = useMemo(() => {
+    const totals = {}, colorOf = {}
+    ddMoneyOut.forEach(t => {
+      const k = getDdTypeKey(t)
+      totals[k] = (totals[k] || 0) + Math.abs(Number(t.amount))
+      if (!colorOf[k]) colorOf[k] = getDdTypeColor(k)
     })
     return Object.entries(totals)
-      .map(([src, value]) => ({ name: SOURCES[src].name, value, color: SOURCES[src].color }))
+      .map(([k, value]) => ({ name: DD_TYPE_LABELS[k] ?? k, value, color: colorOf[k] }))
       .filter(d => d.value > 0)
       .sort((a, b) => b.value - a.value)
-  }, [filtered, prefs])
+  }, [ddMoneyOut])
 
   // ── Top merchants ────────────────────────────────────────────────
   const topMerchantsData = useMemo(() => {
@@ -2493,7 +2454,7 @@ export default function Analytics() {
           <DonutPanel title={t('an.bySubcategory')} data={subcategoryData} />
           <DonutPanel title={t('an.byImportance')}  data={importanceData}  />
           <DonutPanel title={t('an.incomeSource')}  subtitle={t('an.incomeOnly')} data={incomeSourceData} />
-          <DonutPanel title="Withdrawal Purpose" subtitle="Savings withdrawals" data={withdrawalPurposeData} />
+          <DonutPanel title="By Type" subtitle="All money out" data={moneyOutTypeData} />
         </div>}
 
             {/* Daily/Monthly breakdown + per-type stats side by side */}
@@ -2973,7 +2934,6 @@ export default function Analytics() {
                         { id: 'importance',  label: t('an.dimImportance')  },
                         { id: 'receiver',    label: 'Merchant'              },
                         { id: 'type',        label: 'Type'                  },
-                        { id: 'purpose',     label: 'Purpose'               },
                       ].map(d => (
                         <button
                           key={d.id}
@@ -3009,7 +2969,7 @@ export default function Analytics() {
                         onChange={e => { setDdFilter(e.target.value || null); setDdClickedLabel(null) }}
                         className="w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer"
                       >
-                        <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : ddDimension === 'type' ? 'All Types' : ddDimension === 'purpose' ? 'All Purposes' : t('an.allImportance')}</option>
+                        <option value="">{ddDimension === 'category' ? t('an.allCats') : ddDimension === 'subcategory' ? t('an.allSubs') : ddDimension === 'receiver' ? 'All Merchants' : ddDimension === 'type' ? 'All Types' : t('an.allImportance')}</option>
                         {ddOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                       </select>
                       <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
