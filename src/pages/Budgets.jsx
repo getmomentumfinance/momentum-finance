@@ -1706,6 +1706,147 @@ function MerchantSimSelect({ value, onChange, receivers, placeholder }) {
   )
 }
 
+// ── Budget Year Heatmap ───────────────────────────────────────
+function BudgetHeatmap({ budgets, yearExpenses, catMap, importanceLevels, receivers, currentDate }) {
+  const year = currentDate.getFullYear()
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+
+  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const monthKeys = MONTH_LABELS.map((_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+
+  const monthlyBudgets = useMemo(
+    () => budgets.filter(b => !b.period || b.period === 'monthly'),
+    [budgets]
+  )
+
+  const expensesByMonth = useMemo(() => {
+    const map = {}
+    for (const t of yearExpenses) {
+      const mk = t.date.slice(0, 7)
+      if (!map[mk]) map[mk] = []
+      map[mk].push(t)
+    }
+    return map
+  }, [yearExpenses])
+
+  const spendGrid = useMemo(() =>
+    monthlyBudgets.map(b => ({
+      budget: b,
+      months: monthKeys.map(mk => {
+        const txs = expensesByMonth[mk] ?? []
+        return txs
+          .filter(t => (!b.card_id || t.card_id === b.card_id) && txMatchesBudget(t, b))
+          .reduce((s, t) => s + t.amount, 0)
+      }),
+    }))
+  , [monthlyBudgets, expensesByMonth])
+
+  function getBudgetLabel(b) {
+    if (b.name) return b.name
+    if (b.category_ids?.length)    return b.category_ids.map(id => catMap[id]?.name).filter(Boolean).join(' · ') || '—'
+    if (b.category_id)             return catMap[b.category_id]?.name ?? '—'
+    if (b.subcategory_ids?.length) return b.subcategory_ids.map(id => catMap[id]?.name).filter(Boolean).join(' · ') || '—'
+    if (b.subcategory_id)          return catMap[b.subcategory_id]?.name ?? '—'
+    if (b.importance_ids?.length)  return b.importance_ids.map(v => importanceLevels.find(i => i.value === v)?.label).filter(Boolean).join(' · ') || '—'
+    if (b.importance)              return importanceLevels.find(i => i.value === b.importance)?.label ?? '—'
+    if (b.receiver_ids?.length)    return b.receiver_ids.map(id => receivers.find(r => r.id === id)?.name).filter(Boolean).join(' · ') || 'Merchant'
+    if (b.receiver_id)             return receivers.find(r => r.id === b.receiver_id)?.name ?? 'Merchant'
+    return 'Total'
+  }
+
+  const summaryRow = useMemo(() =>
+    monthKeys.map((_, mi) =>
+      spendGrid.reduce((s, { budget: b, months }) => s + (months[mi] - b.monthly_limit), 0)
+    )
+  , [spendGrid])
+
+  function isFuture(mk) { return mk > todayKey }
+
+  function cellProps(spend, limit, mk) {
+    const delta = spend - limit
+    if (isFuture(mk) && spend === 0) return { bg: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.1)', text: '·' }
+    if (Math.abs(delta) < 0.5) return { bg: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.2)', text: '—' }
+    const sign = delta > 0 ? '+' : '−'
+    const abs = Math.abs(delta)
+    const text = abs >= 1000 ? `${sign}€${(abs / 1000).toFixed(1)}k` : `${sign}€${Math.round(abs)}`
+    if (delta > 0) return { bg: 'rgba(239,68,68,0.12)', color: 'var(--color-alert)', text }
+    return { bg: 'rgba(34,197,94,0.1)', color: 'var(--color-progress-bar)', text }
+  }
+
+  function summaryProps(delta, mk) {
+    if (isFuture(mk) && Math.abs(delta) < 0.5) return { bg: 'transparent', color: 'rgba(255,255,255,0.08)', text: '—' }
+    if (Math.abs(delta) < 0.5) return { bg: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.2)', text: '—' }
+    const sign = delta > 0 ? '+' : '−'
+    const abs = Math.abs(delta)
+    const text = abs >= 1000 ? `${sign}€${(abs / 1000).toFixed(1)}k` : `${sign}€${Math.round(abs)}`
+    if (delta > 0) return { bg: 'rgba(239,68,68,0.14)', color: 'var(--color-alert)', text }
+    return { bg: 'rgba(34,197,94,0.12)', color: 'var(--color-progress-bar)', text }
+  }
+
+  if (monthlyBudgets.length === 0) return null
+
+  return (
+    <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      <div>
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Year Overview</h2>
+        <p className="text-[11px] text-muted mt-0.5">Monthly budget variance · {year}</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse" style={{ minWidth: 700 }}>
+          <thead>
+            <tr>
+              <th className="text-left pb-2 pr-4 text-[10px] font-medium text-white/25 uppercase tracking-wider" style={{ minWidth: 130 }}>Budget</th>
+              {MONTH_LABELS.map((m, i) => (
+                <th key={m} className={`pb-2 text-center text-[10px] font-medium uppercase tracking-wider w-14 ${monthKeys[i] === todayKey ? 'text-white/70' : 'text-white/25'}`}>
+                  {m}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.03]">
+            {spendGrid.map(({ budget: b, months }) => (
+              <tr key={b.id}>
+                <td className="py-1.5 pr-4 text-[12px] text-white/55 font-medium truncate" style={{ maxWidth: 130 }} title={getBudgetLabel(b)}>
+                  {getBudgetLabel(b)}
+                </td>
+                {months.map((spend, mi) => {
+                  const { bg, color, text } = cellProps(spend, b.monthly_limit, monthKeys[mi])
+                  return (
+                    <td key={mi} className="py-1.5 px-0.5">
+                      <span className="flex items-center justify-center rounded-md py-1 text-[11px] font-medium tabular-nums"
+                        style={{ background: bg, color }}>
+                        {text}
+                      </span>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td className="pt-2.5 pr-4 text-[10px] font-semibold text-white/25 uppercase tracking-wider border-t border-white/[0.06]">Net</td>
+              {summaryRow.map((delta, mi) => {
+                const { bg, color, text } = summaryProps(delta, monthKeys[mi])
+                return (
+                  <td key={mi} className="pt-2.5 px-0.5 border-t border-white/[0.06]">
+                    <span className="flex items-center justify-center rounded-md py-1 text-[11px] font-semibold tabular-nums"
+                      style={{ background: bg, color }}>
+                      {text}
+                    </span>
+                  </td>
+                )
+              })}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 export default function Budgets() {
   const { user } = useAuth()
@@ -2102,6 +2243,18 @@ export default function Budgets() {
             </button>
           </div>
         </div>
+
+        {/* Budget Year Heatmap */}
+        {!loading && (
+          <BudgetHeatmap
+            budgets={budgets}
+            yearExpenses={yearExpenses}
+            catMap={catMap}
+            importanceLevels={importanceLevels}
+            receivers={receivers}
+            currentDate={currentDate}
+          />
+        )}
 
         {/* Top row: stat cards 2×2 (35%) + main budget */}
         <div className="flex flex-col md:flex-row gap-4 items-start">
