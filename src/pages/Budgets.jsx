@@ -1707,13 +1707,16 @@ function MerchantSimSelect({ value, onChange, receivers, placeholder }) {
 }
 
 // ── Budget Year Heatmap ───────────────────────────────────────
-function BudgetHeatmap({ budgets, yearExpenses, catMap, importanceLevels, receivers, currentDate }) {
-  const year = currentDate.getFullYear()
-  const today = new Date()
-  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+const BAR_MAX_H = 40
 
-  const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  const monthKeys = MONTH_LABELS.map((_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
+function BudgetHeatmap({ budgets, yearExpenses, catMap, importanceLevels, receivers, currentDate }) {
+  const year      = currentDate.getFullYear()
+  const today     = new Date()
+  const todayYear = today.getFullYear()
+  const todayMi   = today.getMonth() // 0-indexed
+
+  const MONTH_LETTERS = ['J','F','M','A','M','J','J','A','S','O','N','D']
+  const monthKeys = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`)
 
   const monthlyBudgets = useMemo(
     () => budgets.filter(b => !b.period || b.period === 'monthly'),
@@ -1755,34 +1758,12 @@ function BudgetHeatmap({ budgets, yearExpenses, catMap, importanceLevels, receiv
     return 'Total'
   }
 
-  const summaryRow = useMemo(() =>
-    monthKeys.map((_, mi) =>
-      spendGrid.reduce((s, { budget: b, months }) => s + (months[mi] - b.monthly_limit), 0)
-    )
-  , [spendGrid])
-
-  function isFuture(mk) { return mk > todayKey }
-
-  function cellProps(spend, limit, mk) {
-    const delta = spend - limit
-    if (isFuture(mk) && spend === 0) return { bg: 'rgba(255,255,255,0.02)', color: 'rgba(255,255,255,0.1)', text: '·' }
-    if (Math.abs(delta) < 0.5) return { bg: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.2)', text: '—' }
-    const sign = delta > 0 ? '+' : '−'
-    const abs = Math.abs(delta)
-    const text = abs >= 1000 ? `${sign}€${(abs / 1000).toFixed(1)}k` : `${sign}€${Math.round(abs)}`
-    if (delta > 0) return { bg: 'rgba(239,68,68,0.12)', color: 'var(--color-alert)', text }
-    return { bg: 'rgba(34,197,94,0.1)', color: 'var(--color-progress-bar)', text }
+  function isFutureMonth(mi) {
+    if (year < todayYear) return false
+    if (year > todayYear) return true
+    return mi > todayMi
   }
-
-  function summaryProps(delta, mk) {
-    if (isFuture(mk) && Math.abs(delta) < 0.5) return { bg: 'transparent', color: 'rgba(255,255,255,0.08)', text: '—' }
-    if (Math.abs(delta) < 0.5) return { bg: 'rgba(255,255,255,0.03)', color: 'rgba(255,255,255,0.2)', text: '—' }
-    const sign = delta > 0 ? '+' : '−'
-    const abs = Math.abs(delta)
-    const text = abs >= 1000 ? `${sign}€${(abs / 1000).toFixed(1)}k` : `${sign}€${Math.round(abs)}`
-    if (delta > 0) return { bg: 'rgba(239,68,68,0.14)', color: 'var(--color-alert)', text }
-    return { bg: 'rgba(34,197,94,0.12)', color: 'var(--color-progress-bar)', text }
-  }
+  function isCurrentMonth(mi) { return year === todayYear && mi === todayMi }
 
   if (monthlyBudgets.length === 0) return null
 
@@ -1790,58 +1771,45 @@ function BudgetHeatmap({ budgets, yearExpenses, catMap, importanceLevels, receiv
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
       <div>
         <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Year Overview</h2>
-        <p className="text-[11px] text-muted mt-0.5">Monthly budget variance · {year}</p>
+        <p className="text-[11px] text-muted mt-0.5">Monthly budget performance · {year}</p>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse" style={{ minWidth: 700 }}>
-          <thead>
-            <tr>
-              <th className="text-left pb-2 pr-4 text-[10px] font-medium text-white/25 uppercase tracking-wider" style={{ minWidth: 130 }}>Budget</th>
-              {MONTH_LABELS.map((m, i) => (
-                <th key={m} className={`pb-2 text-center text-[10px] font-medium uppercase tracking-wider w-14 ${monthKeys[i] === todayKey ? 'text-white/70' : 'text-white/25'}`}>
-                  {m}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.03]">
-            {spendGrid.map(({ budget: b, months }) => (
-              <tr key={b.id}>
-                <td className="py-1.5 pr-4 text-[12px] text-white/55 font-medium truncate" style={{ maxWidth: 130 }} title={getBudgetLabel(b)}>
-                  {getBudgetLabel(b)}
-                </td>
-                {months.map((spend, mi) => {
-                  const { bg, color, text } = cellProps(spend, b.monthly_limit, monthKeys[mi])
-                  return (
-                    <td key={mi} className="py-1.5 px-0.5">
-                      <span className="flex items-center justify-center rounded-md py-1 text-[11px] font-medium tabular-nums"
-                        style={{ background: bg, color }}>
-                        {text}
-                      </span>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td className="pt-2.5 pr-4 text-[10px] font-semibold text-white/25 uppercase tracking-wider border-t border-white/[0.06]">Net</td>
-              {summaryRow.map((delta, mi) => {
-                const { bg, color, text } = summaryProps(delta, monthKeys[mi])
+      {/* Month letter labels */}
+      <div className="flex items-center gap-1" style={{ paddingLeft: 120 }}>
+        {MONTH_LETTERS.map((m, i) => (
+          <div key={i} className={`flex-1 text-center text-[9px] font-medium ${isCurrentMonth(i) ? 'text-white/60' : 'text-white/20'}`}>
+            {m}
+          </div>
+        ))}
+      </div>
+
+      {/* Sparkline rows */}
+      <div className="flex flex-col gap-3">
+        {spendGrid.map(({ budget: b, months }) => {
+          const label = getBudgetLabel(b)
+          return (
+            <div key={b.id} className="flex items-end gap-1">
+              <div className="shrink-0 text-[11px] text-white/50 truncate pb-0.5" style={{ width: 120 }} title={label}>
+                {label}
+              </div>
+              {months.map((spend, mi) => {
+                const pct    = b.monthly_limit > 0 ? spend / b.monthly_limit : 0
+                const over   = pct > 1
+                const fut    = isFutureMonth(mi) && spend === 0
+                const curr   = isCurrentMonth(mi)
+                const barH   = fut ? 3 : Math.max(3, Math.min(BAR_MAX_H, pct * BAR_MAX_H))
+                const bg     = fut  ? 'rgba(255,255,255,0.07)'
+                             : over ? `rgba(239,68,68,${curr ? 0.85 : 0.55})`
+                             :        `rgba(34,197,94,${curr ? 0.70 : 0.40})`
                 return (
-                  <td key={mi} className="pt-2.5 px-0.5 border-t border-white/[0.06]">
-                    <span className="flex items-center justify-center rounded-md py-1 text-[11px] font-semibold tabular-nums"
-                      style={{ background: bg, color }}>
-                      {text}
-                    </span>
-                  </td>
+                  <div key={mi} className="flex-1 flex flex-col justify-end" style={{ height: BAR_MAX_H }}>
+                    <div className="w-full rounded-sm" style={{ height: barH, background: bg }} />
+                  </div>
                 )
               })}
-            </tr>
-          </tfoot>
-        </table>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
