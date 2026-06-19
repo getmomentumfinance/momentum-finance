@@ -2244,18 +2244,6 @@ export default function Budgets() {
           </div>
         </div>
 
-        {/* Budget Year Heatmap */}
-        {!loading && (
-          <BudgetHeatmap
-            budgets={budgets}
-            yearExpenses={yearExpenses}
-            catMap={catMap}
-            importanceLevels={importanceLevels}
-            receivers={receivers}
-            currentDate={currentDate}
-          />
-        )}
-
         {/* Top row: stat cards 2×2 (35%) + main budget */}
         <div className="flex flex-col md:flex-row gap-4 items-start">
           <div className="grid grid-cols-2 gap-3 w-full md:w-[35%] md:shrink-0">
@@ -2655,6 +2643,18 @@ export default function Budgets() {
           </div>
         )}
       </div>
+
+      {/* Budget Year Heatmap */}
+      {!loading && (
+        <BudgetHeatmap
+          budgets={budgets}
+          yearExpenses={yearExpenses}
+          catMap={catMap}
+          importanceLevels={importanceLevels}
+          receivers={receivers}
+          currentDate={currentDate}
+        />
+      )}
 
       {showSimulator && createPortal(
         <div className="modal-backdrop fixed inset-0 z-[9999] flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
