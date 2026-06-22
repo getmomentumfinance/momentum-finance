@@ -19,15 +19,22 @@ function monthsLabel(months) {
 }
 
 export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, onChange, fmt }) {
-  const max = Math.max(Math.ceil(avgSpend * 2), 50)
+  const max = Math.max(Math.ceil(avgSpend * 2), 50, Math.ceil(plannedAmount))
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-white/75 flex items-center gap-2 truncate">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm text-white/75 flex items-center gap-2 truncate min-w-0">
           {category.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: category.color }} />}
-          {category.name}
+          <span className="truncate">{category.name}</span>
         </span>
-        <span className="text-sm font-semibold tabular-nums text-white shrink-0">{fmt(plannedAmount)}</span>
+        <div className="relative w-28 shrink-0">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">€</span>
+          <input
+            type="number" min={0} value={Math.round(plannedAmount)}
+            onChange={e => onChange(Number(e.target.value))}
+            className="w-full bg-white/5 border border-white/10 rounded-lg pl-5 pr-2 py-1 text-sm font-semibold tabular-nums text-white outline-none focus:border-white/25 transition-colors"
+          />
+        </div>
       </div>
       <input
         type="range" min={0} max={max} step={Math.max(1, Math.round(max / 100))}
@@ -309,6 +316,18 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
               {p.label}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted w-40 shrink-0">Or custom %</span>
+          <div className="relative w-28">
+            <input type="number" min="0" max="100" step="0.5" value={config.down_payment_pct}
+              onChange={e => patchConfig({ down_payment_pct: Number(e.target.value) })}
+              className={inputCls} style={{ paddingRight: '1.5rem' }} />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
+          </div>
+          {!DOWN_PAYMENT_PRESETS.some(p => p.value === config.down_payment_pct) && (
+            <span className="text-[11px] text-white/25">custom value</span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Closing costs (% of price)</span>
