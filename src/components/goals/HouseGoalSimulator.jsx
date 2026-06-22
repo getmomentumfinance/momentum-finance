@@ -41,7 +41,7 @@ export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, 
         value={Math.min(plannedAmount, max)}
         onChange={e => onChange(Number(e.target.value))}
         className="w-full cursor-pointer"
-        style={{ accentColor: 'var(--color-progress-bar)' }}
+        style={{ accentColor: 'var(--color-accent)' }}
       />
       <div className="flex items-center justify-between text-[11px] text-white/30">
         <span>This month: {fmt(currentMonthSpend)}</span>
@@ -168,7 +168,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-3xl">
+    <div className="flex flex-col gap-5 max-w-6xl">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
@@ -179,6 +179,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <Trash2 size={14} />
         </button>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      <div className="flex flex-col gap-5">
 
       {/* Income */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
@@ -263,6 +266,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </div>
       </div>
 
+      </div>
+      <div className="flex flex-col gap-5">
+
       {/* Emergency fund */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
         <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Emergency fund</h2>
@@ -278,7 +284,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <span className="text-xs text-muted w-40 shrink-0">Months of expenses</span>
           <input type="range" min={1} max={12} step={1} value={config.emergency_fund_months}
             onChange={e => patchConfig({ emergency_fund_months: Number(e.target.value) })}
-            className="flex-1 cursor-pointer" style={{ accentColor: 'var(--color-progress-bar)' }} />
+            className="flex-1 cursor-pointer" style={{ accentColor: 'var(--color-accent)' }} />
           <span className="text-sm tabular-nums text-white w-10 text-right">{config.emergency_fund_months}</span>
         </div>
         <div className="relative h-3 w-full rounded-full bg-white/8">
@@ -406,6 +412,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             </span>
           </div>
         </div>
+      </div>
+
+      </div>
       </div>
 
       {/* Footer */}
