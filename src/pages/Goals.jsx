@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, Home, Car, Shield, Trash2, ChevronLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -129,25 +130,26 @@ export default function Goals() {
           </>
         )}
 
-        {picking && (
-          <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-6"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-            onClick={e => { if (e.target === e.currentTarget) setPicking(false) }}>
-            <div className="glass-popup border border-white/10 rounded-2xl p-5 w-full max-w-sm flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-white">Choose a goal type</h2>
-              {GOAL_TYPES.map(({ value, label, Icon, enabled }) => (
-                <button key={value} disabled={!enabled} onClick={() => createGoal(value)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left">
-                  <Icon size={16} className="text-white/60" />
-                  <span className="text-sm text-white/80">{label}</span>
-                  {!enabled && <span className="ml-auto text-[10px] text-white/25">Coming soon</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
       </div>
+
+      {picking && createPortal(
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={e => { if (e.target === e.currentTarget) setPicking(false) }}>
+          <div className="glass-popup border border-white/10 rounded-2xl p-5 w-full max-w-sm flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-white">Choose a goal type</h2>
+            {GOAL_TYPES.map(({ value, label, Icon, enabled }) => (
+              <button key={value} disabled={!enabled} onClick={() => createGoal(value)}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.06] hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-left">
+                <Icon size={16} className="text-white/60" />
+                <span className="text-sm text-white/80">{label}</span>
+                {!enabled && <span className="ml-auto text-[10px] text-white/25">Coming soon</span>}
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
