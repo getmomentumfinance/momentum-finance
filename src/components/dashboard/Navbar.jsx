@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal, UserPlus } from 'lucide-react'
+import { Home, PieChart, PiggyBank, Target, BarChart2, LineChart, Gauge, ChevronLeft, ChevronRight, Calendar, Settings, Download, MoreHorizontal, UserPlus, Flag } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import ProfileModal from './ProfileModal'
@@ -20,6 +20,7 @@ export default function Navbar({ currentDate, onPrev, onNext }) {
     { icon: Target,    label: t('nav.budgets'),      path: '/budgets' },
     { icon: BarChart2, label: t('nav.transactions'), path: '/transactions' },
     { icon: LineChart, label: t('nav.portfolio'),    path: '/portfolio' },
+    { icon: Flag,      label: t('nav.goals'),        path: '/goals' },
   ]
   const { pathname } = useLocation()
   const [showProfile, setShowProfile] = useState(false)

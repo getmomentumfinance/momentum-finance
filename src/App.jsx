@@ -25,6 +25,7 @@ import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
 import Portfolio from './pages/Portfolio'
 import CalendarPage from './pages/CalendarPage'
+import Goals from './pages/Goals'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -103,6 +104,7 @@ function AppRoutes() {
         <Route path="/settings"     element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/portfolio"    element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/calendar"     element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+        <Route path="/goals"        element={<ProtectedRoute><Goals /></ProtectedRoute>} />
         <Route path="*"             element={<Navigate to={user ? landingPage : "/"} />} />
       </Routes>
     </div>

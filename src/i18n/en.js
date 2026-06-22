@@ -79,6 +79,7 @@ const en = {
   'nav.budgets':      'Budgets',
   'nav.transactions': 'Transactions',
   'nav.portfolio':    'Portfolio',
+  'nav.goals':        'Goals',
   'nav.exportPng':    'Export page as PNG',
 
   // ── Dashboard ────────────────────────────────────────────────

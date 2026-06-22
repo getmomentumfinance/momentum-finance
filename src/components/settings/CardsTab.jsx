@@ -10,6 +10,7 @@ import { useBanks } from '../../hooks/useBanks'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useUIPrefs } from '../../context/UIPrefContext'
+import { computeCardBalance } from '../../utils/cardBalance'
 
 function resolveIcon(id) { return ICONS_MAP[id] ?? CreditCard }
 
@@ -597,14 +598,6 @@ function TickersSection({ userId }) {
   )
 }
 
-const CREDIT_TYPES = new Set(['income'])
-function computeBalance(card, transactions) {
-  const delta = transactions
-    .filter(t => t.card_id === card.id)
-    .reduce((sum, t) => sum + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
-  return Number(card.initial_balance) + delta
-}
-
 // ── Main tab ──────────────────────────────────────────────────
 export default function CardsTab() {
   const { user } = useAuth()
@@ -624,7 +617,7 @@ export default function CardsTab() {
     return () => window.removeEventListener('transaction-saved', loadTxs)
   }, [user?.id])
 
-  const balanceMap = Object.fromEntries(cards.map(c => [c.id, computeBalance(c, transactions)]))
+  const balanceMap = Object.fromEntries(cards.map(c => [c.id, computeCardBalance(c, transactions)]))
 
   return (
     <div className="grid grid-cols-3 gap-8 h-full">
