@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, Trash2, Check } from 'lucide-react'
+import { Plus, X, Trash2, Check, ChevronDown, ChevronRight, Layers } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
@@ -30,17 +30,18 @@ function StepHeader({ n, children }) {
   )
 }
 
-export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, onChange, fmt }) {
+export function SliderRow({ label, color, plannedAmount, currentMonthSpend, avgSpend, onChange, fmt, leading }) {
   const max   = Math.max(Math.ceil(avgSpend * 2), 50, Math.ceil(plannedAmount))
   const value = Math.min(plannedAmount, max)
   const pct   = max > 0 ? (value / max) * 100 : 0
-  const color = category.color || 'var(--color-accent)'
+  const c     = color || 'var(--color-accent)'
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-white/75 flex items-center gap-2 truncate min-w-0">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-          <span className="truncate">{category.name}</span>
+          {leading}
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />
+          <span className="truncate">{label}</span>
         </span>
         <div className="relative w-28 shrink-0">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">€</span>
@@ -54,14 +55,14 @@ export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, 
       {/* The gradient fill IS the slider — native range sits on top as an invisible drag handle */}
       <div className="relative h-3.5 w-full flex items-center">
         <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c }} />
         </div>
         <input
           type="range" min={0} max={max} step={Math.max(1, Math.round(max / 100))}
           value={value}
           onChange={e => onChange(Number(e.target.value))}
           className="gradient-range absolute inset-0 cursor-pointer"
-          style={{ '--thumb-color': color }}
+          style={{ '--thumb-color': c }}
         />
       </div>
       <div className="flex items-center justify-between text-[11px] text-white/30">
@@ -87,6 +88,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const [config, setConfig] = useState(() => ({
     incomes:              goal.config?.incomes ?? [{ label: 'Income', amount: 0 }],
     category_plan:        goal.config?.category_plan ?? {},
+    category_groups:      goal.config?.category_groups ?? [],
     extra_expenses:       goal.config?.extra_expenses ?? [],
     housing_category_id:  goal.config?.housing_category_id ?? null,
     savings_card_id:      goal.config?.savings_card_id ?? null,
@@ -100,6 +102,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }))
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [managingGroups, setManagingGroups] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set())
 
   const mainCategories = useMemo(() => categories.filter(c => !c.parent_id), [categories])
 
@@ -197,6 +201,74 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
       extra_expenses: c.extra_expenses.filter(e => e.id !== id),
       housing_category_id: c.housing_category_id === id ? null : c.housing_category_id,
     }))
+  }
+
+  // Groups exist only to declutter this slider list — they're just a label over
+  // a set of main category ids, stored on the goal itself (not a global feature).
+  function addGroup() {
+    const id = crypto.randomUUID()
+    setConfig(c => ({ ...c, category_groups: [...c.category_groups, { id, name: 'New group', category_ids: [] }] }))
+  }
+  function renameGroup(id, name) {
+    setConfig(c => ({ ...c, category_groups: c.category_groups.map(g => g.id === id ? { ...g, name } : g) }))
+  }
+  function deleteGroup(id) {
+    setConfig(c => ({ ...c, category_groups: c.category_groups.filter(g => g.id !== id) }))
+    setExpandedGroups(prev => { const next = new Set(prev); next.delete(id); return next })
+  }
+  function setCategoryGroup(categoryId, groupId) {
+    setConfig(c => ({
+      ...c,
+      category_groups: c.category_groups.map(g => ({
+        ...g,
+        category_ids: g.id === groupId
+          ? [...g.category_ids.filter(id => id !== categoryId), categoryId]
+          : g.category_ids.filter(id => id !== categoryId),
+      })),
+    }))
+  }
+  function toggleGroupExpanded(id) {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const groupedCategoryIds = useMemo(
+    () => new Set(config.category_groups.flatMap(g => g.category_ids))
+  , [config.category_groups])
+  const ungroupedCategories = useMemo(
+    () => mainCategories.filter(c => !groupedCategoryIds.has(c.id))
+  , [mainCategories, groupedCategoryIds])
+
+  function groupMembers(group) {
+    return group.category_ids.map(id => mainCategories.find(c => c.id === id)).filter(Boolean)
+  }
+  function groupAggregate(group) {
+    const members = groupMembers(group)
+    return {
+      members,
+      planned: members.reduce((s, c) => s + plannedFor(c.id), 0),
+      avg:     members.reduce((s, c) => s + (avgByCategory[c.id] ?? 0), 0),
+      current: members.reduce((s, c) => s + (currentByCategory[c.id] ?? 0), 0),
+    }
+  }
+  // Dragging the group's combined slider scales every member proportionally,
+  // preserving whatever split they already had (acts like a "master" control).
+  function handleGroupChange(group, newTotal) {
+    const members = groupMembers(group)
+    if (members.length === 0) return
+    const currentTotal = members.reduce((s, c) => s + plannedFor(c.id), 0)
+    const nextPlan = { ...config.category_plan }
+    if (currentTotal <= 0) {
+      const share = newTotal / members.length
+      members.forEach(c => { nextPlan[c.id] = share })
+    } else {
+      const ratio = newTotal / currentTotal
+      members.forEach(c => { nextPlan[c.id] = plannedFor(c.id) * ratio })
+    }
+    patchConfig({ category_plan: nextPlan })
   }
 
   // Kept in sync every render (not just on change) so `save` always reads the
@@ -338,15 +410,99 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
       {/* Step 2 — Spending (breakdown + sliders merged) */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
-        <StepHeader n={2}>Spending</StepHeader>
+        <div className="flex items-center justify-between">
+          <StepHeader n={2}>Spending</StepHeader>
+          {mainCategories.length > 0 && (
+            <button onClick={() => setManagingGroups(v => !v)}
+              className="flex items-center gap-1.5 text-[11px] transition-colors"
+              style={{ color: managingGroups ? 'var(--color-accent)' : 'rgba(255,255,255,0.3)' }}>
+              <Layers size={12} /> {managingGroups ? 'Done' : 'Group categories'}
+            </button>
+          )}
+        </div>
+
         {mainCategories.length === 0 ? (
           <p className="text-[11px] text-muted py-2">No categories yet — add some in Settings.</p>
+        ) : managingGroups ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] text-white/30 uppercase tracking-wider">Groups</span>
+              {config.category_groups.map(g => (
+                <div key={g.id} className="flex items-center gap-2">
+                  <input value={g.name} onChange={e => renameGroup(g.id, e.target.value)}
+                    className={inputCls + ' flex-1'} />
+                  <button onClick={() => deleteGroup(g.id)} className="p-1.5 text-white/25 hover:text-red-400 transition-colors">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <button onClick={addGroup} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors self-start">
+                <Plus size={12} /> New group
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
+              <span className="text-[11px] text-white/30 uppercase tracking-wider">Assign categories</span>
+              {mainCategories.map(c => {
+                const currentGroup = config.category_groups.find(g => g.category_ids.includes(c.id))
+                return (
+                  <div key={c.id} className="flex items-center gap-3">
+                    <span className="text-sm text-white/70 flex-1 truncate">{c.name}</span>
+                    <select value={currentGroup?.id ?? ''} onChange={e => setCategoryGroup(c.id, e.target.value || null)}
+                      className={inputCls + ' w-44'}>
+                      <option value="">Ungrouped</option>
+                      {config.category_groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col gap-5">
-            {mainCategories.map(c => (
-              <CategorySliderRow
+            {config.category_groups.map(g => {
+              const { members, planned, avg, current } = groupAggregate(g)
+              if (members.length === 0) return null
+              const expanded = expandedGroups.has(g.id)
+              return (
+                <div key={g.id} className="flex flex-col gap-3">
+                  <SliderRow
+                    label={g.name}
+                    color={members[0]?.color}
+                    plannedAmount={planned}
+                    currentMonthSpend={current}
+                    avgSpend={avg}
+                    fmt={fmt}
+                    onChange={v => handleGroupChange(g, v)}
+                    leading={
+                      <button onClick={() => toggleGroupExpanded(g.id)} className="text-white/30 hover:text-white/60 transition-colors shrink-0">
+                        {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      </button>
+                    }
+                  />
+                  {expanded && (
+                    <div className="flex flex-col gap-5 pl-6 border-l border-white/[0.06]">
+                      {members.map(c => (
+                        <SliderRow
+                          key={c.id}
+                          label={c.name}
+                          color={c.color}
+                          plannedAmount={plannedFor(c.id)}
+                          currentMonthSpend={currentByCategory[c.id] ?? 0}
+                          avgSpend={avgByCategory[c.id] ?? 0}
+                          fmt={fmt}
+                          onChange={v => patchConfig({ category_plan: { ...config.category_plan, [c.id]: v } })}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {ungroupedCategories.map(c => (
+              <SliderRow
                 key={c.id}
-                category={c}
+                label={c.name}
+                color={c.color}
                 plannedAmount={plannedFor(c.id)}
                 currentMonthSpend={currentByCategory[c.id] ?? 0}
                 avgSpend={avgByCategory[c.id] ?? 0}
