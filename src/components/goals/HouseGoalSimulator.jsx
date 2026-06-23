@@ -199,35 +199,61 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     }))
   }
 
+  // Kept in sync every render (not just on change) so `save` always reads the
+  // latest values even when called from a stale closure — e.g. the unmount
+  // flush below, whose cleanup was created on an earlier render.
+  const nameRef = useRef(name); nameRef.current = name
+  const configRef = useRef(config); configRef.current = config
+  const goalRef = useRef(goal); goalRef.current = goal
+  const isMountedRef = useRef(true)
+  useEffect(() => () => { isMountedRef.current = false }, [])
+
   async function save(nextStatus) {
-    setSaving(true)
-    const status = nextStatus ?? goal.status
+    if (isMountedRef.current) setSaving(true)
+    const g = goalRef.current
+    const status = nextStatus ?? g.status
     const payload = {
-      name,
-      config,
+      name: nameRef.current,
+      config: configRef.current,
       status,
-      started_at: status === 'active' && !goal.started_at ? new Date().toISOString() : goal.started_at,
+      started_at: status === 'active' && !g.started_at ? new Date().toISOString() : g.started_at,
       updated_at: new Date().toISOString(),
     }
-    const { data, error } = await supabase.from('goals').update(payload).eq('id', goal.id).select().single()
-    setSaving(false)
+    const { data, error } = await supabase.from('goals').update(payload).eq('id', g.id).select().single()
+    if (isMountedRef.current) setSaving(false)
     if (error) { console.error('goals update error:', error); return }
     onSaved(data)
-    setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 1800)
+    if (isMountedRef.current) {
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 1800)
+    }
   }
 
   // Autosave: debounce any edit to name/config so a reload never loses input,
   // without writing to the DB on every keystroke. Skips the very first render
   // (the mount sets local state from `goal`, which is already saved).
-  const isFirstRun = useRef(true)
-  const saveTimer  = useRef(null)
+  const isFirstRun     = useRef(true)
+  const saveTimer      = useRef(null)
+  const hasPendingSave = useRef(false)
   useEffect(() => {
     if (isFirstRun.current) { isFirstRun.current = false; return }
+    hasPendingSave.current = true
     clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => { save() }, 800)
+    saveTimer.current = setTimeout(() => { hasPendingSave.current = false; save() }, 800)
     return () => clearTimeout(saveTimer.current)
   }, [name, config])
+
+  // Flush a pending autosave immediately if the component unmounts before the
+  // debounce timer fires — e.g. editing a slider then clicking "All goals"
+  // right away. Without this, that edit would silently never get saved.
+  useEffect(() => {
+    return () => {
+      if (hasPendingSave.current) {
+        clearTimeout(saveTimer.current)
+        save()
+      }
+    }
+  }, [])
 
   return (
     <div className="flex flex-col gap-5">
