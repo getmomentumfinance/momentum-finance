@@ -168,7 +168,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }
 
   return (
-    <div className="flex flex-col gap-5 max-w-6xl">
+    <div className="flex flex-col gap-5">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
