@@ -45,7 +45,7 @@ export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, 
         <div className="relative w-28 shrink-0">
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">€</span>
           <input
-            type="number" min={0} value={Math.round(plannedAmount)}
+            type="number" min={0} value={plannedAmount ? Math.round(plannedAmount) : ''}
             onChange={e => onChange(Number(e.target.value))}
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-5 pr-2 py-1 text-sm font-semibold tabular-nums text-white outline-none focus:border-white/25 transition-colors"
           />
@@ -263,7 +263,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
                 placeholder="Label" className={inputCls + ' flex-1'} />
               <div className="relative w-32 shrink-0">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
-                <input type="number" min="0" value={inc.amount}
+                <input type="number" min="0" value={inc.amount || ''}
                   onChange={e => updateIncome(i, { amount: Number(e.target.value) })}
                   className={inputCls} style={{ paddingLeft: '1.5rem' }} />
               </div>
@@ -378,7 +378,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Or custom %</span>
           <div className="relative w-28">
-            <input type="number" min="0" max="100" step="0.5" value={config.down_payment_pct}
+            <input type="number" min="0" max="100" step="0.5" value={config.down_payment_pct || ''}
               onChange={e => patchConfig({ down_payment_pct: Number(e.target.value) })}
               className={inputCls} style={{ paddingRight: '1.5rem' }} />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
@@ -389,7 +389,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Closing costs (% of price)</span>
-          <input type="number" min="0" step="0.5" value={config.closing_cost_pct}
+          <input type="number" min="0" step="0.5" value={config.closing_cost_pct || ''}
             onChange={e => patchConfig({ closing_cost_pct: Number(e.target.value) })}
             className={inputCls + ' w-24'} />
           <span className="text-[11px] text-white/25">notary + registration, editable estimate</span>
@@ -413,7 +413,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <span className="text-xs text-muted w-40 shrink-0">Loan amount</span>
           <div className="relative flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
-            <input type="number" min="0" value={Math.round(loanAmount)}
+            <input type="number" min="0" value={loanAmount ? Math.round(loanAmount) : ''}
               onChange={e => patchConfig({ loan_amount_override: Number(e.target.value) })}
               className={inputCls} style={{ paddingLeft: '1.5rem' }} />
           </div>
@@ -427,13 +427,13 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted shrink-0">Rate %</span>
-            <input type="number" min="0" step="0.1" value={config.mortgage_rate_pct}
+            <input type="number" min="0" step="0.1" value={config.mortgage_rate_pct || ''}
               onChange={e => patchConfig({ mortgage_rate_pct: Number(e.target.value) })}
               className={inputCls} />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted shrink-0">Years</span>
-            <input type="number" min="1" step="1" value={config.mortgage_years}
+            <input type="number" min="1" step="1" value={config.mortgage_years || ''}
               onChange={e => patchConfig({ mortgage_years: Number(e.target.value) })}
               className={inputCls} />
           </div>
