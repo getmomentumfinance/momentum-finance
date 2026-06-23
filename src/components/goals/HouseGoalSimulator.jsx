@@ -18,13 +18,25 @@ function monthsLabel(months) {
   return rem === 0 ? `${years} yr` : `${years} yr ${rem} mo`
 }
 
-export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, onChange, fmt }) {
+function StepHeader({ n, children }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white"
+        style={{ background: 'var(--color-accent)' }}>
+        {n}
+      </span>
+      <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{children}</h2>
+    </div>
+  )
+}
+
+export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, shareOfTotal, onChange, fmt }) {
   const max = Math.max(Math.ceil(avgSpend * 2), 50, Math.ceil(plannedAmount))
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-white/75 flex items-center gap-2 truncate min-w-0">
-          {category.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: category.color }} />}
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: category.color || 'var(--color-accent)' }} />
           <span className="truncate">{category.name}</span>
         </span>
         <div className="relative w-28 shrink-0">
@@ -35,6 +47,10 @@ export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, 
             className="w-full bg-white/5 border border-white/10 rounded-lg pl-5 pr-2 py-1 text-sm font-semibold tabular-nums text-white outline-none focus:border-white/25 transition-colors"
           />
         </div>
+      </div>
+      {/* Share of total planned spend — keeps the gradient category color */}
+      <div className="h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${shareOfTotal}%`, background: category.color || 'var(--color-accent)' }} />
       </div>
       <input
         type="range" min={0} max={max} step={Math.max(1, Math.round(max / 100))}
@@ -137,6 +153,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const housingCategoryAmount = config.housing_category_id ? plannedFor(config.housing_category_id) : 0
   const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
 
+  const hasIncome = combinedIncome > 0
+  const hasPrice  = config.house_price > 0
+
   function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
 
   function updateIncome(i, patch) {
@@ -180,12 +199,46 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </button>
       </div>
 
+      {/* Hero summary */}
+      <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
+        {!hasIncome || !hasPrice ? (
+          <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
+        ) : monthlySavings <= 0 ? (
+          <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
+            You're not saving anything at this rate — lower planned spending in step 2 to see a timeline.
+          </p>
+        ) : timeline.totalMonths <= 0 ? (
+          <span className="text-3xl font-bold text-white">You're ready now 🎉</span>
+        ) : (
+          <>
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-3xl font-bold text-white">Ready in {monthsLabel(timeline.totalMonths)}</span>
+              <span className="text-sm text-muted">saving {fmt(monthlySavings)}/mo</span>
+            </div>
+            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
+              <div style={{ width: `${(timeline.monthsToEmergencyFund / timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
+              <div style={{ width: `${(timeline.monthsToDownPayment / timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-white/40 flex-wrap gap-2">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-accent-2)' }} />
+                Emergency fund · {monthsLabel(timeline.monthsToEmergencyFund)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-accent)' }} />
+                Down payment · {monthsLabel(timeline.monthsToDownPayment)}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
       <div className="flex flex-col gap-5">
 
-      {/* Income */}
+      {/* Step 1 — Income */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Income</h2>
+        <StepHeader n={1}>Income</StepHeader>
         <div className="flex flex-col gap-2.5">
           {config.incomes.map((inc, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -214,64 +267,47 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </div>
       </div>
 
-      {/* Monthly budget breakdown */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Monthly budget breakdown</h2>
+      {/* Step 2 — Spending (breakdown + sliders merged) */}
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
+        <StepHeader n={2}>Spending</StepHeader>
         {mainCategories.length === 0 ? (
           <p className="text-[11px] text-muted py-2">No categories yet — add some in Settings.</p>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {mainCategories.map(c => {
-              const amount = plannedFor(c.id)
-              const pct = totalPlanned > 0 ? (amount / totalPlanned) * 100 : 0
-              return (
-                <div key={c.id} className="flex items-center gap-3">
-                  <span className="text-sm text-white/70 w-32 shrink-0 truncate">{c.name}</span>
-                  <div className="flex-1 h-2.5 rounded-full bg-white/[0.05] overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.color || 'var(--color-progress-bar)' }} />
-                  </div>
-                  <span className="text-sm tabular-nums text-white/60 w-16 text-right shrink-0">{fmt(amount)}</span>
-                </div>
-              )
-            })}
+          <div className="flex flex-col gap-5">
+            {mainCategories.map(c => (
+              <CategorySliderRow
+                key={c.id}
+                category={c}
+                plannedAmount={plannedFor(c.id)}
+                currentMonthSpend={currentByCategory[c.id] ?? 0}
+                avgSpend={avgByCategory[c.id] ?? 0}
+                shareOfTotal={totalPlanned > 0 ? (plannedFor(c.id) / totalPlanned) * 100 : 0}
+                fmt={fmt}
+                onChange={v => patchConfig({ category_plan: { ...config.category_plan, [c.id]: v } })}
+              />
+            ))}
           </div>
         )}
-        <div className="flex items-center justify-between border-t border-white/[0.06] pt-3">
-          <span className="text-xs text-muted">Total accounted for</span>
-          <span className="text-sm font-bold tabular-nums text-white">{fmt(totalPlanned)} / month</span>
-        </div>
-      </div>
-
-      {/* Sliders */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Adjust your scenario</h2>
-        <div className="flex flex-col gap-5">
-          {mainCategories.map(c => (
-            <CategorySliderRow
-              key={c.id}
-              category={c}
-              plannedAmount={plannedFor(c.id)}
-              currentMonthSpend={currentByCategory[c.id] ?? 0}
-              avgSpend={avgByCategory[c.id] ?? 0}
-              fmt={fmt}
-              onChange={v => patchConfig({ category_plan: { ...config.category_plan, [c.id]: v } })}
-            />
-          ))}
-        </div>
-        <div className="flex items-center justify-between border-t border-white/[0.06] pt-3">
-          <span className="text-xs text-muted">Monthly savings</span>
-          <span className="text-xl font-bold tabular-nums" style={{ color: monthlySavings >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)' }}>
-            {monthlySavings >= 0 ? '+' : ''}{fmt(monthlySavings)}/mo
-          </span>
+        <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted">Total accounted for</span>
+            <span className="font-semibold tabular-nums text-white">{fmt(totalPlanned)} / month</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted">Monthly savings</span>
+            <span className="text-xl font-bold tabular-nums" style={{ color: monthlySavings >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)' }}>
+              {monthlySavings >= 0 ? '+' : ''}{fmt(monthlySavings)}/mo
+            </span>
+          </div>
         </div>
       </div>
 
       </div>
       <div className="flex flex-col gap-5">
 
-      {/* Emergency fund */}
+      {/* Step 3 — Emergency fund */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Emergency fund</h2>
+        <StepHeader n={3}>Emergency fund</StepHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Linked savings card</span>
           <select value={config.savings_card_id ?? ''} onChange={e => patchConfig({ savings_card_id: e.target.value || null })}
@@ -299,9 +335,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </div>
       </div>
 
-      {/* Down payment */}
+      {/* Step 4 — Down payment */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Down payment & closing costs</h2>
+        <StepHeader n={4}>Down payment & closing costs</StepHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">House price</span>
           <div className="relative flex-1">
@@ -351,18 +387,12 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             <span className="text-muted">ETA (after emergency fund)</span>
             <span className="text-white/50">{monthsLabel(timeline.monthsToDownPayment)}</span>
           </div>
-          <div className="flex items-center justify-between text-sm pt-1">
-            <span className="text-white/70 font-medium">Total timeline</span>
-            <span className="font-bold tabular-nums" style={{ color: 'var(--color-progress-bar)' }}>
-              {monthsLabel(timeline.totalMonths)}
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Mortgage estimate */}
+      {/* Step 5 — Mortgage */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Mortgage estimate</h2>
+        <StepHeader n={5}>Mortgage estimate</StepHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Loan amount</span>
           <div className="relative flex-1">
