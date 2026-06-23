@@ -448,7 +448,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
                   <div key={c.id} className="flex items-center gap-3">
                     <span className="text-sm text-white/70 flex-1 truncate">{c.name}</span>
                     <select value={currentGroup?.id ?? ''} onChange={e => setCategoryGroup(c.id, e.target.value || null)}
-                      className={inputCls + ' w-44'}>
+                      className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors w-44 shrink-0">
                       <option value="">Ungrouped</option>
                       {config.category_groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
