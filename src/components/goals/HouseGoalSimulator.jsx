@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Plus, X, Trash2, Check } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -190,6 +190,18 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     setSavedFlash(true)
     setTimeout(() => setSavedFlash(false), 1800)
   }
+
+  // Autosave: debounce any edit to name/config so a reload never loses input,
+  // without writing to the DB on every keystroke. Skips the very first render
+  // (the mount sets local state from `goal`, which is already saved).
+  const isFirstRun = useRef(true)
+  const saveTimer  = useRef(null)
+  useEffect(() => {
+    if (isFirstRun.current) { isFirstRun.current = false; return }
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => { save() }, 800)
+    return () => clearTimeout(saveTimer.current)
+  }, [name, config])
 
   return (
     <div className="flex flex-col gap-5">
@@ -453,11 +465,19 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
       {/* Footer */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        {savedFlash && <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-progress-bar)' }}><Check size={13} /> Saved</span>}
-        <button onClick={() => save(goal.status === 'draft' ? 'active' : undefined)} disabled={saving}
-          className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">
-          {saving ? 'Saving…' : goal.status === 'draft' ? 'Start this goal' : 'Save changes'}
-        </button>
+        <span className="text-xs flex items-center gap-1 text-white/30">
+          {saving
+            ? 'Saving…'
+            : savedFlash
+            ? <span className="flex items-center gap-1" style={{ color: 'var(--color-progress-bar)' }}><Check size={13} /> Saved</span>
+            : 'Changes save automatically'}
+        </span>
+        {goal.status === 'draft' && (
+          <button onClick={() => save('active')} disabled={saving}
+            className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">
+            Start this goal
+          </button>
+        )}
       </div>
 
     </div>
