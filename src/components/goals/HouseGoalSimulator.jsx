@@ -30,13 +30,16 @@ function StepHeader({ n, children }) {
   )
 }
 
-export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, shareOfTotal, onChange, fmt }) {
-  const max = Math.max(Math.ceil(avgSpend * 2), 50, Math.ceil(plannedAmount))
+export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, avgSpend, onChange, fmt }) {
+  const max   = Math.max(Math.ceil(avgSpend * 2), 50, Math.ceil(plannedAmount))
+  const value = Math.min(plannedAmount, max)
+  const pct   = max > 0 ? (value / max) * 100 : 0
+  const color = category.color || 'var(--color-accent)'
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-white/75 flex items-center gap-2 truncate min-w-0">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: category.color || 'var(--color-accent)' }} />
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
           <span className="truncate">{category.name}</span>
         </span>
         <div className="relative w-28 shrink-0">
@@ -48,17 +51,19 @@ export function CategorySliderRow({ category, plannedAmount, currentMonthSpend, 
           />
         </div>
       </div>
-      {/* Share of total planned spend — keeps the gradient category color */}
-      <div className="h-1.5 w-full rounded-full bg-white/[0.05] overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${shareOfTotal}%`, background: category.color || 'var(--color-accent)' }} />
+      {/* The gradient fill IS the slider — native range sits on top as an invisible drag handle */}
+      <div className="relative h-3.5 w-full flex items-center">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+        </div>
+        <input
+          type="range" min={0} max={max} step={Math.max(1, Math.round(max / 100))}
+          value={value}
+          onChange={e => onChange(Number(e.target.value))}
+          className="gradient-range absolute inset-0 cursor-pointer"
+          style={{ '--thumb-color': color }}
+        />
       </div>
-      <input
-        type="range" min={0} max={max} step={Math.max(1, Math.round(max / 100))}
-        value={Math.min(plannedAmount, max)}
-        onChange={e => onChange(Number(e.target.value))}
-        className="w-full cursor-pointer"
-        style={{ accentColor: 'var(--color-accent)' }}
-      />
       <div className="flex items-center justify-between text-[11px] text-white/30">
         <span>This month: {fmt(currentMonthSpend)}</span>
         <span>Avg: {fmt(avgSpend)}</span>
@@ -281,7 +286,6 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
                 plannedAmount={plannedFor(c.id)}
                 currentMonthSpend={currentByCategory[c.id] ?? 0}
                 avgSpend={avgByCategory[c.id] ?? 0}
-                shareOfTotal={totalPlanned > 0 ? (plannedFor(c.id) / totalPlanned) * 100 : 0}
                 fmt={fmt}
                 onChange={v => patchConfig({ category_plan: { ...config.category_plan, [c.id]: v } })}
               />
