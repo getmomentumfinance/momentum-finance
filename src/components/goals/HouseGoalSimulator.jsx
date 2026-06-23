@@ -87,6 +87,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const [config, setConfig] = useState(() => ({
     incomes:              goal.config?.incomes ?? [{ label: 'Income', amount: 0 }],
     category_plan:        goal.config?.category_plan ?? {},
+    extra_expenses:       goal.config?.extra_expenses ?? [],
     housing_category_id:  goal.config?.housing_category_id ?? null,
     savings_card_id:      goal.config?.savings_card_id ?? null,
     emergency_fund_months: goal.config?.emergency_fund_months ?? 3,
@@ -121,9 +122,19 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     return config.category_plan[categoryId] ?? avgByCategory[categoryId] ?? 0
   }
 
+  // Amount for a "housing source" — either a real category or a manually-added
+  // planned expense (e.g. a future rent you don't pay yet, so there's no transaction history for it).
+  function housingAmountFor(id) {
+    if (!id) return 0
+    const extra = config.extra_expenses.find(e => e.id === id)
+    return extra ? (Number(extra.amount) || 0) : plannedFor(id)
+  }
+
+  const extraExpensesTotal = config.extra_expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+
   const totalPlanned = useMemo(() =>
-    mainCategories.reduce((s, c) => s + plannedFor(c.id), 0)
-  , [mainCategories, config.category_plan, avgByCategory])
+    mainCategories.reduce((s, c) => s + plannedFor(c.id), 0) + extraExpensesTotal
+  , [mainCategories, config.category_plan, avgByCategory, extraExpensesTotal])
 
   // Auto-guess the housing category and the main savings card once, the first time data is available.
   useEffect(() => {
@@ -155,7 +166,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const loanAmount      = config.loan_amount_override ?? autoLoanAmount
   const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
 
-  const housingCategoryAmount = config.housing_category_id ? plannedFor(config.housing_category_id) : 0
+  const housingCategoryAmount = housingAmountFor(config.housing_category_id)
   const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
 
   const hasIncome = combinedIncome > 0
@@ -171,6 +182,21 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }
   function removeIncome(i) {
     setConfig(c => ({ ...c, incomes: c.incomes.filter((_, idx) => idx !== i) }))
+  }
+
+  function addExtraExpense() {
+    const id = crypto.randomUUID()
+    setConfig(c => ({ ...c, extra_expenses: [...c.extra_expenses, { id, label: 'Rent', amount: 0 }] }))
+  }
+  function updateExtraExpense(id, patch) {
+    setConfig(c => ({ ...c, extra_expenses: c.extra_expenses.map(e => e.id === id ? { ...e, ...patch } : e) }))
+  }
+  function removeExtraExpense(id) {
+    setConfig(c => ({
+      ...c,
+      extra_expenses: c.extra_expenses.filter(e => e.id !== id),
+      housing_category_id: c.housing_category_id === id ? null : c.housing_category_id,
+    }))
   }
 
   async function save(nextStatus) {
@@ -304,6 +330,31 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             ))}
           </div>
         )}
+
+        {/* Manually-added planned expenses — for costs you don't pay yet (e.g. future rent),
+            so they don't need to match any real transaction history. */}
+        <div className="flex flex-col gap-2.5 border-t border-white/[0.06] pt-4">
+          <span className="text-[11px] text-white/30 uppercase tracking-wider">Other planned expenses</span>
+          {config.extra_expenses.map(e => (
+            <div key={e.id} className="flex items-center gap-2">
+              <input value={e.label} onChange={ev => updateExtraExpense(e.id, { label: ev.target.value })}
+                placeholder="e.g. Future rent" className={inputCls + ' flex-1'} />
+              <div className="relative w-32 shrink-0">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+                <input type="number" min="0" value={e.amount || ''}
+                  onChange={ev => updateExtraExpense(e.id, { amount: Number(ev.target.value) })}
+                  className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+              </div>
+              <button onClick={() => removeExtraExpense(e.id)} className="p-1.5 text-white/25 hover:text-white/60 transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+          <button onClick={addExtraExpense} className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors self-start">
+            <Plus size={12} /> Add a planned expense not in your spending yet
+          </button>
+        </div>
+
         <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted">Total accounted for</span>
@@ -443,7 +494,16 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <select value={config.housing_category_id ?? ''} onChange={e => patchConfig({ housing_category_id: e.target.value || null })}
             className={inputCls}>
             <option value="">None</option>
-            {mainCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {mainCategories.length > 0 && (
+              <optgroup label="Categories">
+                {mainCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </optgroup>
+            )}
+            {config.extra_expenses.length > 0 && (
+              <optgroup label="Other planned expenses">
+                {config.extra_expenses.map(e => <option key={e.id} value={e.id}>{e.label}</option>)}
+              </optgroup>
+            )}
           </select>
         </div>
         <div className="grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
