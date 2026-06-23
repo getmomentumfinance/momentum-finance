@@ -94,8 +94,11 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     savings_card_id:      goal.config?.savings_card_id ?? null,
     emergency_fund_months: goal.config?.emergency_fund_months ?? 3,
     house_price:          goal.config?.house_price ?? 0,
-    down_payment_pct:     goal.config?.down_payment_pct ?? 20,
-    loan_amount_override: goal.config?.loan_amount_override ?? null,
+    // `loan_amount` is the single source of truth — down payment is always derived from
+    // house_price - loan_amount. Falls back to legacy down_payment_pct/loan_amount_override
+    // for goals saved before this field existed.
+    loan_amount: goal.config?.loan_amount ?? goal.config?.loan_amount_override
+      ?? Math.max(0, (goal.config?.house_price ?? 0) * (1 - (goal.config?.down_payment_pct ?? 20) / 100)),
     closing_cost_pct:     goal.config?.closing_cost_pct ?? 3,
     mortgage_rate_pct:    goal.config?.mortgage_rate_pct ?? 3.5,
     mortgage_years:       goal.config?.mortgage_years ?? 25,
@@ -160,14 +163,16 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : 0
   const emergencyTarget = config.emergency_fund_months * totalPlanned
 
-  const downPaymentAmount = config.house_price * (config.down_payment_pct / 100)
+  // loan_amount is the source of truth — down payment is whatever's left of the price.
+  // Only clamp once a real price exists, so loan_amount isn't forced to 0 before it's entered.
+  const loanAmount        = config.house_price > 0 ? Math.min(config.loan_amount, config.house_price) : config.loan_amount
+  const downPaymentAmount = Math.max(0, config.house_price - loanAmount)
+  const downPaymentPct    = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
   const closingCosts      = config.house_price * (config.closing_cost_pct / 100)
   const downPaymentTarget = downPaymentAmount + closingCosts
 
   const timeline = computeHouseTimeline({ monthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
 
-  const autoLoanAmount = Math.max(0, config.house_price - downPaymentAmount)
-  const loanAmount      = config.loan_amount_override ?? autoLoanAmount
   const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
 
   const housingCategoryAmount = housingAmountFor(config.housing_category_id)
@@ -584,9 +589,10 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         </div>
       </div>
 
-      {/* Step 4 — Down payment */}
+      {/* Step 4 — House & Mortgage (price -> loan -> down payment -> closing costs -> mortgage, all in one place) */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <StepHeader n={4}>Down payment & closing costs</StepHeader>
+        <StepHeader n={4}>House & mortgage</StepHeader>
+
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">House price</span>
           <div className="relative flex-1">
@@ -596,40 +602,49 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
               className={inputCls} style={{ paddingLeft: '1.5rem' }} />
           </div>
         </div>
+
         <div className="grid grid-cols-3 gap-2">
           {DOWN_PAYMENT_PRESETS.map(p => (
-            <button key={p.value} onClick={() => patchConfig({ down_payment_pct: p.value })}
+            <button key={p.value}
+              onClick={() => patchConfig({ loan_amount: Math.max(0, config.house_price * (1 - p.value / 100)) })}
               className="px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
               style={{
-                borderColor: config.down_payment_pct === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.08)',
-                color:       config.down_payment_pct === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.5)',
+                borderColor: Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.08)',
+                color:       Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.5)',
               }}>
               {p.label}
             </button>
           ))}
         </div>
+
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted w-40 shrink-0">Or custom %</span>
-          <div className="relative w-28">
-            <input type="number" min="0" max="100" step="0.5" value={config.down_payment_pct || ''}
-              onChange={e => patchConfig({ down_payment_pct: Number(e.target.value) })}
-              className={inputCls} style={{ paddingRight: '1.5rem' }} />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">%</span>
+          <span className="text-xs text-muted w-40 shrink-0">Loan amount</span>
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+            <input type="number" min="0" value={config.loan_amount ? Math.round(config.loan_amount) : ''}
+              onChange={e => patchConfig({ loan_amount: Number(e.target.value) })}
+              className={inputCls} style={{ paddingLeft: '1.5rem' }} />
           </div>
-          {!DOWN_PAYMENT_PRESETS.some(p => p.value === config.down_payment_pct) && (
-            <span className="text-[11px] text-white/25">custom value</span>
-          )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted w-40 shrink-0">Closing costs (% of price)</span>
-          <input type="number" min="0" step="0.5" value={config.closing_cost_pct || ''}
-            onChange={e => patchConfig({ closing_cost_pct: Number(e.target.value) })}
-            className={inputCls + ' w-24'} />
-          <span className="text-[11px] text-white/25">notary + registration, editable estimate</span>
+
+        <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted">Down payment</span>
+            <span className="text-white font-semibold tabular-nums">{fmt(downPaymentAmount)} ({downPaymentPct.toFixed(0)}%)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted flex-1">Closing costs</span>
+            <input type="number" min="0" step="0.5" value={config.closing_cost_pct || ''}
+              onChange={e => patchConfig({ closing_cost_pct: Number(e.target.value) })}
+              className={inputCls} style={{ width: 60 }} />
+            <span className="text-xs text-white/40 shrink-0">% = {fmt(closingCosts)}</span>
+          </div>
+          <p className="text-[11px] text-white/25">notary + registration, editable estimate</p>
         </div>
+
         <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-muted">Down payment + closing costs</span>
+            <span className="text-muted">Cash needed (down payment + closing costs)</span>
             <span className="text-white font-semibold tabular-nums">{fmt(downPaymentTarget)}</span>
           </div>
           <div className="flex items-center justify-between text-xs">
@@ -637,27 +652,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             <span className="text-white/50">{monthsLabel(timeline.monthsToDownPayment)}</span>
           </div>
         </div>
-      </div>
 
-      {/* Step 5 — Mortgage */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <StepHeader n={5}>Mortgage estimate</StepHeader>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted w-40 shrink-0">Loan amount</span>
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
-            <input type="number" min="0" value={loanAmount ? Math.round(loanAmount) : ''}
-              onChange={e => patchConfig({ loan_amount_override: Number(e.target.value) })}
-              className={inputCls} style={{ paddingLeft: '1.5rem' }} />
-          </div>
-          {config.loan_amount_override != null && (
-            <button onClick={() => patchConfig({ loan_amount_override: null })}
-              className="text-[11px] text-white/30 hover:text-white/60 transition-colors shrink-0">
-              Reset to auto
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted shrink-0">Rate %</span>
             <input type="number" min="0" step="0.1" value={config.mortgage_rate_pct || ''}
