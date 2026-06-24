@@ -93,6 +93,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     housing_category_id:  goal.config?.housing_category_id ?? null,
     savings_card_id:      goal.config?.savings_card_id ?? null,
     emergency_fund_months: goal.config?.emergency_fund_months ?? 3,
+    // What-if slider only — doesn't feed into the real timeline/Hero summary.
+    emergency_explore_monthly: goal.config?.emergency_explore_monthly ?? null,
     house_price:          goal.config?.house_price ?? 0,
     // `loan_amount` is the single source of truth — down payment is always derived from
     // house_price - loan_amount. Falls back to legacy down_payment_pct/loan_amount_override
@@ -159,9 +161,23 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const combinedIncome = config.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0)
   const monthlySavings = combinedIncome - totalPlanned
 
+  // Give the what-if slider a sensible starting point — your real savings rate —
+  // the first time it's available, without overwriting a value you've since dragged.
+  useEffect(() => {
+    if (config.emergency_explore_monthly !== null || monthlySavings <= 0) return
+    setConfig(c => ({ ...c, emergency_explore_monthly: monthlySavings }))
+  }, [monthlySavings])
+
   const savingsCard  = cards.find(c => c.id === config.savings_card_id) ?? null
   const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : 0
   const emergencyTarget = config.emergency_fund_months * totalPlanned
+
+  // What-if only — exploring a hypothetical contribution doesn't touch the real
+  // timeline/Hero summary, which still uses the actual combined monthlySavings.
+  const exploreMonthly = config.emergency_explore_monthly ?? 0
+  const exploreMonths  = exploreMonthly > 0
+    ? Math.ceil(Math.max(0, emergencyTarget - currentSaved) / exploreMonthly)
+    : Infinity
 
   // loan_amount is the source of truth — down payment is whatever's left of the price.
   // Only clamp once a real price exists, so loan_amount isn't forced to 0 before it's entered.
@@ -587,6 +603,33 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <span className="text-muted">{fmt(currentSaved)} saved of {fmt(emergencyTarget)} target</span>
           <span className="text-white/50">ETA: {monthsLabel(timeline.monthsToEmergencyFund)}</span>
         </div>
+
+        {/* What-if: explore a hypothetical monthly contribution without affecting
+            the real timeline above or the Hero summary. */}
+        <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-white/30 uppercase tracking-wider">What if I saved...</span>
+            <span className="text-sm font-semibold tabular-nums text-white">{fmt(exploreMonthly)}/mo</span>
+          </div>
+          <div className="relative h-3.5 w-full flex items-center">
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{
+                width: `${Math.min(100, (exploreMonthly / Math.max(monthlySavings * 2, 50)) * 100)}%`,
+                background: 'var(--color-accent)',
+              }} />
+            </div>
+            <input
+              type="range" min={0} max={Math.max(Math.ceil(monthlySavings * 2), 50)} step={Math.max(1, Math.round(Math.max(monthlySavings * 2, 50) / 100))}
+              value={Math.min(exploreMonthly, Math.max(Math.ceil(monthlySavings * 2), 50))}
+              onChange={e => patchConfig({ emergency_explore_monthly: Number(e.target.value) })}
+              className="gradient-range absolute inset-0 cursor-pointer"
+              style={{ '--thumb-color': 'var(--color-accent)' }}
+            />
+          </div>
+          <p className="text-[11px] text-white/40">
+            At {fmt(exploreMonthly)}/mo, ready in <span className="text-white font-medium">{monthsLabel(exploreMonths)}</span>
+          </p>
+        </div>
       </div>
 
       {/* Step 4 — House & Mortgage (price -> loan -> down payment -> closing costs -> mortgage, all in one place) */}
@@ -603,18 +646,21 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {DOWN_PAYMENT_PRESETS.map(p => (
-            <button key={p.value}
-              onClick={() => patchConfig({ loan_amount: Math.max(0, config.house_price * (1 - p.value / 100)) })}
-              className="px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
-              style={{
-                borderColor: Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.08)',
-                color:       Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.5)',
-              }}>
-              {p.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted w-40 shrink-0">Down payment %</span>
+          <div className="grid grid-cols-3 gap-2 flex-1">
+            {DOWN_PAYMENT_PRESETS.map(p => (
+              <button key={p.value}
+                onClick={() => patchConfig({ loan_amount: Math.max(0, config.house_price * (1 - p.value / 100)) })}
+                className="px-3 py-2 rounded-xl text-xs font-medium border transition-colors"
+                style={{
+                  borderColor: Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.08)',
+                  color:       Math.round(downPaymentPct) === p.value ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.5)',
+                }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -639,7 +685,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
               className={inputCls} style={{ width: 60 }} />
             <span className="text-xs text-white/40 shrink-0">% = {fmt(closingCosts)}</span>
           </div>
-          <p className="text-[11px] text-white/25">notary + registration, editable estimate</p>
+          <p className="text-[11px] text-white/25">One-time fees when buying (notary, registration tax) — paid upfront alongside your down payment, editable estimate.</p>
         </div>
 
         <div className="flex flex-col gap-1 border-t border-white/[0.06] pt-3">
@@ -653,19 +699,22 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-white/[0.06] pt-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted shrink-0">Rate %</span>
-            <input type="number" min="0" step="0.1" value={config.mortgage_rate_pct || ''}
-              onChange={e => patchConfig({ mortgage_rate_pct: Number(e.target.value) })}
-              className={inputCls} />
+        <div className="flex flex-col gap-1.5 border-t border-white/[0.06] pt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted shrink-0">Mortgage rate %</span>
+              <input type="number" min="0" step="0.1" value={config.mortgage_rate_pct || ''}
+                onChange={e => patchConfig({ mortgage_rate_pct: Number(e.target.value) })}
+                className={inputCls} />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted shrink-0">Loan term (yrs)</span>
+              <input type="number" min="1" step="1" value={config.mortgage_years || ''}
+                onChange={e => patchConfig({ mortgage_years: Number(e.target.value) })}
+                className={inputCls} />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted shrink-0">Years</span>
-            <input type="number" min="1" step="1" value={config.mortgage_years || ''}
-              onChange={e => patchConfig({ mortgage_years: Number(e.target.value) })}
-              className={inputCls} />
-          </div>
+          <p className="text-[11px] text-white/25">Annual interest rate and repayment period for the mortgage.</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Replaces current</span>
