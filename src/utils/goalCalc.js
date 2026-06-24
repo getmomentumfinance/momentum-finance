@@ -80,10 +80,21 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
     house_price:           rawConfig?.house_price ?? 0,
     loan_amount:           rawConfig?.loan_amount ?? 0,
     closing_cost_pct:      rawConfig?.closing_cost_pct ?? 3,
+    mortgage_rate_pct:     rawConfig?.mortgage_rate_pct ?? 3.5,
+    mortgage_years:        rawConfig?.mortgage_years ?? 25,
+    housing_category_id:   rawConfig?.housing_category_id ?? null,
   }
 
   const mainCategories = categories.filter(c => !c.parent_id)
   const plannedFor = id => config.category_plan[id] ?? monthlyAverage(allTransactions, id)
+
+  // Amount for a "housing source" — either a real category or a manually-added
+  // planned expense (e.g. a future rent you don't pay yet, with no transaction history).
+  function housingAmountFor(id) {
+    if (!id) return 0
+    const extra = config.extra_expenses.find(e => e.id === id)
+    return extra ? (Number(extra.amount) || 0) : plannedFor(id)
+  }
 
   const extraExpensesTotal = config.extra_expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
   const totalPlanned       = mainCategories.reduce((s, c) => s + plannedFor(c.id), 0) + extraExpensesTotal
@@ -102,11 +113,15 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
 
   const timeline = computeHouseTimeline({ monthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
 
+  const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
+  const housingCategoryAmount  = housingAmountFor(config.housing_category_id)
+  const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
+
   return {
     combinedIncome, totalPlanned, monthlySavings,
     currentSaved, emergencyTarget,
     loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
-    timeline,
+    timeline, mortgagePayment, remainingAfterMortgage,
     hasIncome: combinedIncome > 0,
     hasPrice:  config.house_price > 0,
   }

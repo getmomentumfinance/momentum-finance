@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
+import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
@@ -40,7 +40,8 @@ function GoalCard({ goal, onOpen, onDelete }) {
   const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
   const housePrice  = goal.config?.house_price ?? 0
   const fundPct     = summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0
-  const savingsPositive = summary?.hasIncome ? summary.monthlySavings >= 0 : true
+  const savingsPositive   = summary?.hasIncome ? summary.monthlySavings >= 0 : true
+  const remainingPositive = summary?.hasPrice  ? summary.remainingAfterMortgage >= 0 : true
 
   return (
     <div onClick={() => onOpen(goal)}
@@ -86,7 +87,7 @@ function GoalCard({ goal, onOpen, onDelete }) {
 
       {/* Stat strip */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-white/[0.06] pt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-white/[0.06] pt-4">
           <Stat label="House price" Icon={Home} value={housePrice ? fmt(housePrice) : '—'} />
           <Stat label="Down payment" Icon={Wallet} color="var(--color-accent)"
             value={summary.hasPrice ? fmt(summary.downPaymentAmount) : '—'} />
@@ -95,6 +96,11 @@ function GoalCard({ goal, onOpen, onDelete }) {
           <Stat label="Monthly savings" Icon={savingsPositive ? TrendingUp : TrendingDown}
             color={summary.hasIncome ? (savingsPositive ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined}
             value={summary.hasIncome ? `${fmt(summary.monthlySavings)}/mo` : '—'} />
+          <Stat label="Mortgage payment" Icon={Receipt}
+            value={summary.hasPrice ? `${fmt(summary.mortgagePayment)}/mo` : '—'} />
+          <Stat label="Left for living + saving" Icon={remainingPositive ? TrendingUp : TrendingDown}
+            color={summary.hasPrice ? (remainingPositive ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined}
+            value={summary.hasPrice ? `${fmt(summary.remainingAfterMortgage)}/mo` : '—'} />
         </div>
       )}
 

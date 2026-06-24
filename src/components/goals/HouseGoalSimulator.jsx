@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import {
-  mainCategorySpend, monthlyAverage, computeMortgagePayment,
+  mainCategorySpend, monthlyAverage,
   monthsLabel, computeHouseGoalSummary,
 } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
@@ -126,14 +126,6 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     return config.category_plan[categoryId] ?? avgByCategory[categoryId] ?? 0
   }
 
-  // Amount for a "housing source" — either a real category or a manually-added
-  // planned expense (e.g. a future rent you don't pay yet, so there's no transaction history for it).
-  function housingAmountFor(id) {
-    if (!id) return 0
-    const extra = config.extra_expenses.find(e => e.id === id)
-    return extra ? (Number(extra.amount) || 0) : plannedFor(id)
-  }
-
   const extraExpensesTotal = config.extra_expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
 
   const totalPlanned = useMemo(() =>
@@ -162,7 +154,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   const {
     combinedIncome, monthlySavings, currentSaved, emergencyTarget,
     loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
-    timeline, hasIncome, hasPrice,
+    timeline, mortgagePayment, remainingAfterMortgage, hasIncome, hasPrice,
   } = summary
   const downPaymentPct = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
 
@@ -180,10 +172,6 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     ? Math.ceil(Math.max(0, emergencyTarget - currentSaved) / exploreMonthly)
     : Infinity
 
-  const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
-
-  const housingCategoryAmount = housingAmountFor(config.housing_category_id)
-  const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
 
   function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
 
