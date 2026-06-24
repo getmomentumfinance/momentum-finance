@@ -17,12 +17,13 @@ const GOAL_TYPES = [
 ]
 
 function Stat({ label, value, color, Icon }) {
+  const bg = color ? `color-mix(in srgb, ${color} 14%, transparent)` : 'rgba(255,255,255,0.04)'
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <Icon size={14} className="shrink-0" style={{ color: color ?? 'rgba(255,255,255,0.3)' }} />
+    <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 min-w-0" style={{ background: bg }}>
+      <Icon size={16} className="shrink-0" style={{ color: color ?? 'rgba(255,255,255,0.4)' }} />
       <div className="flex flex-col gap-0.5 min-w-0">
-        <span className="text-[10px] text-white/30 uppercase tracking-wider truncate">{label}</span>
-        <span className="text-sm font-semibold tabular-nums truncate" style={{ color: color ?? '#fff' }}>{value}</span>
+        <span className="text-[10px] text-white/35 uppercase tracking-wider truncate">{label}</span>
+        <span className="text-sm font-bold tabular-nums truncate text-white">{value}</span>
       </div>
     </div>
   )
@@ -45,19 +46,24 @@ function GoalCard({ goal, onOpen, onDelete }) {
 
   return (
     <div onClick={() => onOpen(goal)}
-      className="group w-full glass-card rounded-2xl p-5 flex gap-5 cursor-pointer hover:border-white/15 transition-colors">
+      className="group relative w-full glass-card rounded-2xl p-5 flex gap-5 cursor-pointer hover:border-white/15 transition-colors overflow-hidden">
 
       {summary && (
-        <div className="relative shrink-0 hidden sm:flex items-center justify-center">
-          <ProgressRing pct={fundPct} color="var(--color-accent-2)" size={72} strokeWidth={6} />
+        <div className="absolute -top-16 -left-16 w-64 h-64 rounded-full pointer-events-none"
+          style={{ background: 'var(--color-accent-2)', opacity: 0.1, filter: 'blur(50px)' }} />
+      )}
+
+      {summary && (
+        <div className="relative z-10 shrink-0 hidden sm:flex items-center justify-center">
+          <ProgressRing pct={fundPct} color="var(--color-accent-2)" size={88} strokeWidth={7} />
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <span className="text-sm font-bold tabular-nums text-white">{Math.round(fundPct)}%</span>
+            <span className="text-lg font-bold tabular-nums text-white">{Math.round(fundPct)}%</span>
             <span className="text-[8px] text-white/30 uppercase tracking-wider">fund</span>
           </div>
         </div>
       )}
 
-      <div className="flex-1 min-w-0 flex flex-col gap-4">
+      <div className="relative z-10 flex-1 min-w-0 flex flex-col gap-4">
 
       {/* Identity + status */}
       <div className="flex items-center justify-between gap-3">
@@ -85,9 +91,29 @@ function GoalCard({ goal, onOpen, onDelete }) {
         </div>
       </div>
 
+      {/* Timeline headline — the punchline, so it leads */}
+      {hasTimeline ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <span className="text-2xl font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
+            <span className="text-[11px] text-white/30">
+              Emergency fund · {monthsLabel(summary.timeline.monthsToEmergencyFund)} &nbsp;·&nbsp; Down payment · {monthsLabel(summary.timeline.monthsToDownPayment)}
+            </span>
+          </div>
+          <div className="flex w-full h-2.5 rounded-full overflow-hidden bg-white/[0.05]">
+            <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
+            <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
+          </div>
+        </div>
+      ) : (
+        <p className="text-[13px] text-white/30">
+          Add income and a house price to see your timeline.
+        </p>
+      )}
+
       {/* Stat strip */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-t border-white/[0.06] pt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-white/[0.06] pt-4">
           <Stat label="House price" Icon={Home} value={housePrice ? fmt(housePrice) : '—'} />
           <Stat label="Down payment" Icon={Wallet} color="var(--color-accent)"
             value={summary.hasPrice ? fmt(summary.downPaymentAmount) : '—'} />
@@ -102,25 +128,6 @@ function GoalCard({ goal, onOpen, onDelete }) {
             color={summary.hasPrice ? (remainingPositive ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined}
             value={summary.hasPrice ? `${fmt(summary.remainingAfterMortgage)}/mo` : '—'} />
         </div>
-      )}
-
-      {/* Timeline */}
-      {hasTimeline ? (
-        <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-4">
-          <span className="text-base font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
-          <div className="flex w-full h-2 rounded-full overflow-hidden bg-white/[0.05]">
-            <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
-            <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-white/30">
-            <span>Emergency fund · {monthsLabel(summary.timeline.monthsToEmergencyFund)}</span>
-            <span>Down payment · {monthsLabel(summary.timeline.monthsToDownPayment)}</span>
-          </div>
-        </div>
-      ) : (
-        <p className="text-[11px] text-white/25 border-t border-white/[0.06] pt-4">
-          Add income and a house price to see your timeline.
-        </p>
       )}
 
       </div>
