@@ -11,25 +11,6 @@ function midColor(colorValue) {
   return '#' + [Math.round((r1+r2)/2), Math.round((g1+g2)/2), Math.round((b1+b2)/2)].map(x => x.toString(16).padStart(2,'0')).join('')
 }
 
-function ProgressRing({ pct, color, size = 80, strokeWidth = 5 }) {
-  const r    = (size - strokeWidth * 2) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ - (Math.min(pct, 100) / 100) * circ
-  const cx = size / 2
-  return (
-    <svg width={size} height={size}>
-      <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={strokeWidth} />
-      <circle cx={cx} cy={cx} r={r} fill="none"
-        stroke={color} strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={`${circ}`}
-        strokeDashoffset={`${offset}`}
-        transform={`rotate(-90 ${cx} ${cx})`}
-        style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1)' }} />
-    </svg>
-  )
-}
-
 import { useCollapsed } from '../../hooks/useCollapsed'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
@@ -40,6 +21,7 @@ import CardCustomizationPopup from '../shared/CardCustomizationPopup'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { SkeletonCard } from '../shared/Skeleton'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
+import { ProgressRing } from '../shared/ProgressRing'
 
 export default function SavingsGoals({ totalBalance: totalBalanceProp, showSlider = false }) {
   const { user } = useAuth()

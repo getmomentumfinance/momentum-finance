@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Home, Car, Shield, Trash2, ChevronLeft } from 'lucide-react'
+import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { computeHouseGoalSummary, monthsLabel } from '../utils/goalCalc'
+import { ProgressRing } from '../components/shared/ProgressRing'
 import Navbar from '../components/dashboard/Navbar'
 import HouseGoalSimulator from '../components/goals/HouseGoalSimulator'
 
@@ -15,11 +16,14 @@ const GOAL_TYPES = [
   { value: 'fund',  label: 'Build emergency fund', Icon: Shield, enabled: false },
 ]
 
-function Stat({ label, value, color }) {
+function Stat({ label, value, color, Icon }) {
   return (
-    <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-[10px] text-white/30 uppercase tracking-wider truncate">{label}</span>
-      <span className="text-sm font-semibold tabular-nums truncate" style={{ color: color ?? '#fff' }}>{value}</span>
+    <div className="flex items-center gap-2 min-w-0">
+      <Icon size={14} className="shrink-0" style={{ color: color ?? 'rgba(255,255,255,0.3)' }} />
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="text-[10px] text-white/30 uppercase tracking-wider truncate">{label}</span>
+        <span className="text-sm font-semibold tabular-nums truncate" style={{ color: color ?? '#fff' }}>{value}</span>
+      </div>
     </div>
   )
 }
@@ -35,10 +39,24 @@ function GoalCard({ goal, onOpen, onDelete }) {
     : null
   const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
   const housePrice  = goal.config?.house_price ?? 0
+  const fundPct     = summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0
+  const savingsPositive = summary?.hasIncome ? summary.monthlySavings >= 0 : true
 
   return (
     <div onClick={() => onOpen(goal)}
-      className="group w-full glass-card rounded-2xl p-5 flex flex-col gap-4 cursor-pointer hover:border-white/15 transition-colors">
+      className="group w-full glass-card rounded-2xl p-5 flex gap-5 cursor-pointer hover:border-white/15 transition-colors">
+
+      {summary && (
+        <div className="relative shrink-0 hidden sm:flex items-center justify-center">
+          <ProgressRing pct={fundPct} color="var(--color-accent-2)" size={72} strokeWidth={6} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className="text-sm font-bold tabular-nums text-white">{Math.round(fundPct)}%</span>
+            <span className="text-[8px] text-white/30 uppercase tracking-wider">fund</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0 flex flex-col gap-4">
 
       {/* Identity + status */}
       <div className="flex items-center justify-between gap-3">
@@ -69,11 +87,14 @@ function GoalCard({ goal, onOpen, onDelete }) {
       {/* Stat strip */}
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-white/[0.06] pt-4">
-          <Stat label="House price"     value={housePrice ? fmt(housePrice) : '—'} />
-          <Stat label="Down payment"    value={summary.hasPrice ? fmt(summary.downPaymentAmount) : '—'} />
-          <Stat label="Emergency fund"  value={`${fmt(summary.currentSaved)} / ${fmt(summary.emergencyTarget)}`} />
-          <Stat label="Monthly savings" value={summary.hasIncome ? `${fmt(summary.monthlySavings)}/mo` : '—'}
-            color={summary.hasIncome ? (summary.monthlySavings >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined} />
+          <Stat label="House price" Icon={Home} value={housePrice ? fmt(housePrice) : '—'} />
+          <Stat label="Down payment" Icon={Wallet} color="var(--color-accent)"
+            value={summary.hasPrice ? fmt(summary.downPaymentAmount) : '—'} />
+          <Stat label="Emergency fund" Icon={Shield} color="var(--color-accent-2)"
+            value={`${fmt(summary.currentSaved)} / ${fmt(summary.emergencyTarget)}`} />
+          <Stat label="Monthly savings" Icon={savingsPositive ? TrendingUp : TrendingDown}
+            color={summary.hasIncome ? (savingsPositive ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined}
+            value={summary.hasIncome ? `${fmt(summary.monthlySavings)}/mo` : '—'} />
         </div>
       )}
 
@@ -95,6 +116,8 @@ function GoalCard({ goal, onOpen, onDelete }) {
           Add income and a house price to see your timeline.
         </p>
       )}
+
+      </div>
     </div>
   )
 }
