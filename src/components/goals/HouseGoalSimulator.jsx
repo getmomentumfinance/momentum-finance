@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, Trash2, Check, ChevronDown, ChevronRight, Layers } from 'lucide-react'
+import { Plus, X, Trash2, Check, ChevronDown, ChevronRight, Layers, PartyPopper } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
@@ -379,7 +379,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             You're not saving anything at this rate — lower planned spending in step 2 to see a timeline.
           </p>
         ) : timeline.totalMonths <= 0 ? (
-          <span className="text-3xl font-bold text-white">You're ready now 🎉</span>
+          <span className="text-3xl font-bold text-white flex items-center gap-2">
+            You're ready now <PartyPopper size={26} style={{ color: 'var(--color-accent)' }} />
+          </span>
         ) : (
           <>
             <div className="flex items-baseline gap-2 flex-wrap">
@@ -777,7 +779,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
               color: 'var(--color-progress-bar)',
               animation: 'savedFlash 2.8s ease-out forwards',
             }}>
-            <Check size={15} /> Goal started — let's go! 🎉
+            <PartyPopper size={15} /> Goal started — let's go!
           </span>
         ) : goal.status === 'draft' && (
           <button onClick={() => save('active')} disabled={saving}
