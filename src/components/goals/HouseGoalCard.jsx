@@ -196,7 +196,8 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
       <div className={`flip-card-inner ${flipped ? 'flipped' : ''}`}>
 
         {/* FRONT */}
-        <div className="group flip-card-face glass-card rounded-2xl cursor-pointer hover:border-white/15 transition-colors overflow-hidden"
+        <div className="group flip-card-face rounded-2xl cursor-pointer hover:border-white/15 border border-white/10 transition-colors overflow-hidden"
+          style={{ background: 'rgba(8,7,16,0.78)', backdropFilter: 'blur(14px)' }}
           onClick={() => onOpen(goal)}>
           <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
             <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
@@ -205,7 +206,7 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
               <Trash2 size={14} />
             </button>
           </div>
-          <div className="relative h-28" style={{ background: 'rgba(0,0,0,0.22)' }}>
+          <div className="relative h-48 sm:h-52">
             <span className="absolute top-2.5 right-2.5 text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--color-progress-bar)' }}>
               Active
@@ -279,7 +280,8 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
         </div>
 
         {/* BACK */}
-        <div className="flip-card-face flip-card-back glass-card rounded-2xl p-4 flex flex-col">
+        <div className="flip-card-face flip-card-back rounded-2xl border border-white/10 p-4 flex flex-col"
+          style={{ background: 'rgba(8,7,16,0.78)', backdropFilter: 'blur(14px)' }}>
           <div className="flex items-center justify-between mb-3 shrink-0">
             <span className="text-sm font-semibold text-white">Road to your home</span>
             <button onClick={e => { e.stopPropagation(); setFlipped(false) }}
