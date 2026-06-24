@@ -4,20 +4,13 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
-import { computeCardBalance } from '../../utils/cardBalance'
-import { mainCategorySpend, monthlyAverage, computeMortgagePayment, computeHouseTimeline } from '../../utils/goalCalc'
+import {
+  mainCategorySpend, monthlyAverage, computeMortgagePayment,
+  monthsLabel, computeHouseGoalSummary,
+} from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
-
-function monthsLabel(months) {
-  if (!Number.isFinite(months)) return '—'
-  if (months <= 0) return 'now'
-  const years = Math.floor(months / 12)
-  const rem   = months % 12
-  if (years === 0) return `${months} mo`
-  return rem === 0 ? `${years} yr` : `${years} yr ${rem} mo`
-}
 
 function StepHeader({ n, children }) {
   return (
@@ -160,8 +153,18 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     if (main) setConfig(c => ({ ...c, savings_card_id: main.id }))
   }, [cards])
 
-  const combinedIncome = config.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0)
-  const monthlySavings = combinedIncome - totalPlanned
+  // Single source of truth for the headline numbers — shared with the goal list
+  // card (src/utils/goalCalc.js) so the two never disagree.
+  const summary = useMemo(
+    () => computeHouseGoalSummary(config, { categories, cards, allTransactions }),
+    [config, categories, cards, allTransactions]
+  )
+  const {
+    combinedIncome, monthlySavings, currentSaved, emergencyTarget,
+    loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
+    timeline, hasIncome, hasPrice,
+  } = summary
+  const downPaymentPct = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
 
   // Give the what-if slider a sensible starting point — your real savings rate —
   // the first time it's available, without overwriting a value you've since dragged.
@@ -170,10 +173,6 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     setConfig(c => ({ ...c, emergency_explore_monthly: monthlySavings }))
   }, [monthlySavings])
 
-  const savingsCard  = cards.find(c => c.id === config.savings_card_id) ?? null
-  const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : 0
-  const emergencyTarget = config.emergency_fund_months * totalPlanned
-
   // What-if only — exploring a hypothetical contribution doesn't touch the real
   // timeline/Hero summary, which still uses the actual combined monthlySavings.
   const exploreMonthly = config.emergency_explore_monthly ?? 0
@@ -181,23 +180,10 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     ? Math.ceil(Math.max(0, emergencyTarget - currentSaved) / exploreMonthly)
     : Infinity
 
-  // loan_amount is the source of truth — down payment is whatever's left of the price.
-  // Only clamp once a real price exists, so loan_amount isn't forced to 0 before it's entered.
-  const loanAmount        = config.house_price > 0 ? Math.min(config.loan_amount, config.house_price) : config.loan_amount
-  const downPaymentAmount = Math.max(0, config.house_price - loanAmount)
-  const downPaymentPct    = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
-  const closingCosts      = config.house_price * (config.closing_cost_pct / 100)
-  const downPaymentTarget = downPaymentAmount + closingCosts
-
-  const timeline = computeHouseTimeline({ monthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
-
   const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
 
   const housingCategoryAmount = housingAmountFor(config.housing_category_id)
   const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
-
-  const hasIncome = combinedIncome > 0
-  const hasPrice  = config.house_price > 0
 
   function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
 

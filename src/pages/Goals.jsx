@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { Plus, Home, Car, Shield, Trash2, ChevronLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useSharedData } from '../context/SharedDataContext'
+import { usePreferences } from '../context/UserPreferencesContext'
+import { computeHouseGoalSummary, monthsLabel } from '../utils/goalCalc'
 import Navbar from '../components/dashboard/Navbar'
 import HouseGoalSimulator from '../components/goals/HouseGoalSimulator'
 
@@ -14,6 +17,15 @@ const GOAL_TYPES = [
 
 function GoalCard({ goal, onOpen, onDelete }) {
   const meta = GOAL_TYPES.find(g => g.value === goal.type) ?? GOAL_TYPES[0]
+  const { fmt } = usePreferences()
+  const { categories, cards, allTransactions } = useSharedData()
+
+  const isActive = goal.status === 'active'
+  const summary = goal.type === 'house'
+    ? computeHouseGoalSummary(goal.config, { categories, cards, allTransactions })
+    : null
+  const hasTimeline = isActive && summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
+
   return (
     <div onClick={() => onOpen(goal)}
       className="group glass-card rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:border-white/15 transition-colors">
@@ -32,13 +44,31 @@ function GoalCard({ goal, onOpen, onDelete }) {
           <Trash2 size={13} />
         </button>
       </div>
-      <span className="text-[11px] font-medium px-2 py-1 rounded-full self-start"
-        style={{
-          background: goal.status === 'active' ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
-          color:       goal.status === 'active' ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
-        }}>
-        {goal.status === 'active' ? 'Active' : 'Draft'}
-      </span>
+
+      {hasTimeline ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0"
+              style={{ background: 'rgba(34,197,94,0.12)', color: 'var(--color-progress-bar)' }}>
+              Active
+            </span>
+          </div>
+          <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/[0.05]">
+            <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
+            <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
+          </div>
+          <span className="text-[11px] text-white/30">saving {fmt(summary.monthlySavings)}/mo</span>
+        </div>
+      ) : (
+        <span className="text-[11px] font-medium px-2 py-1 rounded-full self-start"
+          style={{
+            background: isActive ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+            color:      isActive ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
+          }}>
+          {isActive ? 'Active' : 'Draft'}
+        </span>
+      )}
     </div>
   )
 }

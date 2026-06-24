@@ -2,6 +2,7 @@
  * Pure calculation helpers for goal simulators. No React, no Supabase —
  * easy to reuse across goal types and to reason about by hand.
  */
+import { computeCardBalance } from './cardBalance'
 
 /** Sum of expense amounts for a main category, optionally scoped to one 'YYYY-MM' month. */
 export function mainCategorySpend(transactions, categoryId, monthKey = null) {
@@ -50,5 +51,63 @@ export function computeHouseTimeline({ monthlySavings, currentSaved, emergencyTa
     monthsToEmergencyFund,
     monthsToDownPayment,
     totalMonths: monthsToEmergencyFund + monthsToDownPayment,
+  }
+}
+
+/** Formats a month count as "X mo" / "X yr" / "X yr Y mo". */
+export function monthsLabel(months) {
+  if (!Number.isFinite(months)) return '—'
+  if (months <= 0) return 'now'
+  const years = Math.floor(months / 12)
+  const rem   = months % 12
+  if (years === 0) return `${months} mo`
+  return rem === 0 ? `${years} yr` : `${years} yr ${rem} mo`
+}
+
+/**
+ * The same headline numbers the house simulator shows, computed from a raw
+ * goal.config (which may be sparse/partial — e.g. a fresh draft) plus live
+ * shared data. Used by both the simulator and the goal list card so they
+ * never disagree with each other.
+ */
+export function computeHouseGoalSummary(rawConfig, { categories, cards, allTransactions }) {
+  const config = {
+    incomes:               rawConfig?.incomes ?? [],
+    category_plan:         rawConfig?.category_plan ?? {},
+    extra_expenses:        rawConfig?.extra_expenses ?? [],
+    emergency_fund_months: rawConfig?.emergency_fund_months ?? 3,
+    savings_card_id:       rawConfig?.savings_card_id ?? null,
+    house_price:           rawConfig?.house_price ?? 0,
+    loan_amount:           rawConfig?.loan_amount ?? 0,
+    closing_cost_pct:      rawConfig?.closing_cost_pct ?? 3,
+  }
+
+  const mainCategories = categories.filter(c => !c.parent_id)
+  const plannedFor = id => config.category_plan[id] ?? monthlyAverage(allTransactions, id)
+
+  const extraExpensesTotal = config.extra_expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+  const totalPlanned       = mainCategories.reduce((s, c) => s + plannedFor(c.id), 0) + extraExpensesTotal
+
+  const combinedIncome = config.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+  const monthlySavings = combinedIncome - totalPlanned
+
+  const savingsCard  = cards.find(c => c.id === config.savings_card_id) ?? null
+  const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : 0
+  const emergencyTarget = config.emergency_fund_months * totalPlanned
+
+  const loanAmount        = config.house_price > 0 ? Math.min(config.loan_amount, config.house_price) : config.loan_amount
+  const downPaymentAmount = Math.max(0, config.house_price - loanAmount)
+  const closingCosts      = config.house_price * (config.closing_cost_pct / 100)
+  const downPaymentTarget = downPaymentAmount + closingCosts
+
+  const timeline = computeHouseTimeline({ monthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
+
+  return {
+    combinedIncome, totalPlanned, monthlySavings,
+    currentSaved, emergencyTarget,
+    loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
+    timeline,
+    hasIncome: combinedIncome > 0,
+    hasPrice:  config.house_price > 0,
   }
 }
