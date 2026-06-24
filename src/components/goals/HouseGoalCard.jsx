@@ -31,7 +31,8 @@ function NightScene() {
   }, [])
 
   return (
-    <svg width="100%" height="100%" viewBox="0 0 600 170" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <svg width="100%" height="100%" viewBox="0 0 600 170" preserveAspectRatio="xMidYMid meet"
+      style={{ display: 'block' }} xmlns="http://www.w3.org/2000/svg">
       <circle cx="480" cy="38" r="28" fill="#2a2240" />
       <circle cx="500" cy="32" r="22" fill="#322a50" />
       <ellipse cx="80" cy="148" rx="55" ry="12" fill="#1e1a30" />
@@ -191,36 +192,36 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
   ]
 
   return (
-    <div className="flip-card-outer w-full" style={{ minHeight: 470 }}>
-      <div className={`flip-card-inner ${flipped ? 'flipped' : ''}`} style={{ minHeight: 470 }}>
+    <div className="flip-card-outer w-full">
+      <div className={`flip-card-inner ${flipped ? 'flipped' : ''}`}>
 
         {/* FRONT */}
         <div className="group flip-card-face glass-card rounded-2xl cursor-pointer hover:border-white/15 transition-colors overflow-hidden"
           onClick={() => onOpen(goal)}>
-          <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
             <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
             <button onClick={e => { e.stopPropagation(); onDelete(goal.id) }}
               className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
               <Trash2 size={14} />
             </button>
           </div>
-          <div className="relative h-36 sm:h-40" style={{ background: 'rgba(0,0,0,0.22)' }}>
-            <span className="absolute top-3 right-3 text-[11px] font-medium px-2.5 py-1 rounded-full"
+          <div className="relative h-28" style={{ background: 'rgba(0,0,0,0.22)' }}>
+            <span className="absolute top-2.5 right-2.5 text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{ background: 'rgba(34,197,94,0.15)', color: 'var(--color-progress-bar)' }}>
               Active
             </span>
             <button onClick={e => { e.stopPropagation(); setFlipped(true) }}
-              className="absolute bottom-3 right-3 flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-full transition-colors"
+              className="absolute bottom-2.5 right-2.5 flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full transition-colors"
               style={{ background: 'color-mix(in srgb, var(--color-accent-2) 14%, transparent)', color: 'var(--color-accent-2)' }}>
-              Milestones <ChevronRight size={12} />
+              Milestones <ChevronRight size={11} />
             </button>
             <NightScene />
           </div>
 
-          <div className="p-5 flex flex-col gap-4">
+          <div className="p-4 flex flex-col gap-3">
             <div>
-              <p className="text-2xl font-bold leading-tight" style={{ color: readyColor }}>Ready in {monthsLabel(exploreTimeline.totalMonths)}</p>
-              <p className="text-[13px] text-white/40 mt-0.5">
+              <p className="text-xl font-bold leading-tight" style={{ color: readyColor }}>Ready in {monthsLabel(exploreTimeline.totalMonths)}</p>
+              <p className="text-[12px] text-white/40 mt-0.5">
                 putting aside <span className="font-medium" style={{ color: 'var(--color-accent-2)' }}>{fmt(exploreSavings)}/mo</span> toward your home
               </p>
             </div>
@@ -234,39 +235,39 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
                   </>
                 )}
               </div>
-              <div className="flex items-center justify-between text-[11px] text-white/30 mt-1.5">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between text-[10px] text-white/30 mt-1.5 flex-wrap gap-1">
+                <span className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent-2)' }} />
                   Emergency fund · {monthsLabel(exploreTimeline.monthsToEmergencyFund)}
                 </span>
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)' }} />
                   Down payment · {monthsLabel(exploreTimeline.monthsToDownPayment)}
                 </span>
               </div>
             </div>
 
-            <div className="rounded-xl p-3"
+            <div className="rounded-xl p-2.5"
               style={{
                 background: 'color-mix(in srgb, var(--color-accent-2) 7%, transparent)',
                 border: '0.5px solid color-mix(in srgb, var(--color-accent-2) 18%, transparent)',
               }}
               onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-white/40">What if I saved more?</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] text-white/40">What if I saved more?</span>
                 <span className="text-sm font-semibold" style={{ color: 'var(--color-accent-2)' }}>{fmt(exploreSavings)}/mo</span>
               </div>
               <input type="range" min={0} max={sliderMax} step={Math.max(1, Math.round(sliderMax / 100))}
                 value={Math.min(exploreSavings, sliderMax)}
                 onChange={e => setExploreSavings(Number(e.target.value))}
                 className="w-full cursor-pointer" style={{ accentColor: 'var(--color-accent-2)' }} />
-              <div className="flex items-center justify-between text-xs mt-2 text-white/30">
+              <div className="flex items-center justify-between text-[11px] mt-1.5 text-white/30">
                 <span>Ready in <span className="font-medium" style={{ color: readyColor }}>{monthsLabel(exploreTimeline.totalMonths)}</span></span>
                 <span>Left for living <span className="font-medium" style={{ color: leftoverColor }}>{fmt(Math.max(0, leftover))}</span></span>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <StatBox label="House price" value={housePrice ? fmt(housePrice) : '—'} />
               <StatBox label="Down payment" value={fmt(summary.downPaymentAmount)} color="var(--color-accent)" />
               <StatBox label="Emergency fund" value={`${fmt(summary.currentSaved)} / ${fmt(summary.emergencyTarget)}`} />
@@ -278,8 +279,8 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
         </div>
 
         {/* BACK */}
-        <div className="flip-card-face flip-card-back glass-card rounded-2xl p-5 flex flex-col">
-          <div className="flex items-center justify-between mb-4 shrink-0">
+        <div className="flip-card-face flip-card-back glass-card rounded-2xl p-4 flex flex-col">
+          <div className="flex items-center justify-between mb-3 shrink-0">
             <span className="text-sm font-semibold text-white">Road to your home</span>
             <button onClick={e => { e.stopPropagation(); setFlipped(false) }}
               className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1.5 rounded-full transition-colors"
