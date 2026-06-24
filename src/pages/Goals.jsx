@@ -28,47 +28,43 @@ function GoalCard({ goal, onOpen, onDelete }) {
 
   return (
     <div onClick={() => onOpen(goal)}
-      className="group glass-card rounded-2xl p-5 flex flex-col gap-3 cursor-pointer hover:border-white/15 transition-colors">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/[0.06] shrink-0">
-            <meta.Icon size={16} className="text-white/60" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
-            <span className="text-[11px] text-white/30">{meta.label}</span>
-          </div>
-        </div>
-        <button onClick={e => { e.stopPropagation(); onDelete(goal.id) }}
-          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
-          <Trash2 size={13} />
-        </button>
+      className="group w-full glass-card rounded-2xl p-5 flex items-center gap-5 cursor-pointer hover:border-white/15 transition-colors">
+      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-white/[0.06] shrink-0">
+        <meta.Icon size={18} className="text-white/60" />
+      </div>
+
+      <div className="flex flex-col min-w-0 w-48 shrink-0">
+        <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
+        <span className="text-[11px] text-white/30">{meta.label}</span>
       </div>
 
       {hasTimeline ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0"
-              style={{ background: 'rgba(34,197,94,0.12)', color: 'var(--color-progress-bar)' }}>
-              Active
-            </span>
+            <span className="text-[11px] text-white/30">saving {fmt(summary.monthlySavings)}/mo</span>
           </div>
           <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/[0.05]">
             <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
             <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
           </div>
-          <span className="text-[11px] text-white/30">saving {fmt(summary.monthlySavings)}/mo</span>
         </div>
       ) : (
-        <span className="text-[11px] font-medium px-2 py-1 rounded-full self-start"
-          style={{
-            background: isActive ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
-            color:      isActive ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
-          }}>
-          {isActive ? 'Active' : 'Draft'}
-        </span>
+        <div className="flex-1" />
       )}
+
+      <span className="text-[11px] font-medium px-2 py-1 rounded-full shrink-0"
+        style={{
+          background: isActive ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+          color:      isActive ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
+        }}>
+        {isActive ? 'Active' : 'Draft'}
+      </span>
+
+      <button onClick={e => { e.stopPropagation(); onDelete(goal.id) }}
+        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
+        <Trash2 size={14} />
+      </button>
     </div>
   )
 }
@@ -153,7 +149,7 @@ export default function Goals() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col gap-4">
                 {goals.map(g => <GoalCard key={g.id} goal={g} onOpen={setActiveGoal} onDelete={deleteGoal} />)}
               </div>
             )}
