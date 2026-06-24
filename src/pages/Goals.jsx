@@ -15,6 +15,15 @@ const GOAL_TYPES = [
   { value: 'fund',  label: 'Build emergency fund', Icon: Shield, enabled: false },
 ]
 
+function Stat({ label, value, color }) {
+  return (
+    <div className="flex flex-col gap-0.5 min-w-0">
+      <span className="text-[10px] text-white/30 uppercase tracking-wider truncate">{label}</span>
+      <span className="text-sm font-semibold tabular-nums truncate" style={{ color: color ?? '#fff' }}>{value}</span>
+    </div>
+  )
+}
+
 function GoalCard({ goal, onOpen, onDelete }) {
   const meta = GOAL_TYPES.find(g => g.value === goal.type) ?? GOAL_TYPES[0]
   const { fmt } = usePreferences()
@@ -24,47 +33,68 @@ function GoalCard({ goal, onOpen, onDelete }) {
   const summary = goal.type === 'house'
     ? computeHouseGoalSummary(goal.config, { categories, cards, allTransactions })
     : null
-  const hasTimeline = isActive && summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
+  const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
+  const housePrice  = goal.config?.house_price ?? 0
 
   return (
     <div onClick={() => onOpen(goal)}
-      className="group w-full glass-card rounded-2xl p-5 flex items-center gap-5 cursor-pointer hover:border-white/15 transition-colors">
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-white/[0.06] shrink-0">
-        <meta.Icon size={18} className="text-white/60" />
-      </div>
+      className="group w-full glass-card rounded-2xl p-5 flex flex-col gap-4 cursor-pointer hover:border-white/15 transition-colors">
 
-      <div className="flex flex-col min-w-0 w-48 shrink-0">
-        <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
-        <span className="text-[11px] text-white/30">{meta.label}</span>
-      </div>
-
-      {hasTimeline ? (
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-sm font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
-            <span className="text-[11px] text-white/30">saving {fmt(summary.monthlySavings)}/mo</span>
+      {/* Identity + status */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.06] shrink-0">
+            <meta.Icon size={17} className="text-white/60" />
           </div>
-          <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/[0.05]">
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-semibold text-white truncate">{goal.name}</span>
+            <span className="text-[11px] text-white/30">{meta.label}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-medium px-2 py-1 rounded-full"
+            style={{
+              background: isActive ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+              color:      isActive ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
+            }}>
+            {isActive ? 'Active' : 'Draft'}
+          </span>
+          <button onClick={e => { e.stopPropagation(); onDelete(goal.id) }}
+            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Stat strip */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-white/[0.06] pt-4">
+          <Stat label="House price"     value={housePrice ? fmt(housePrice) : '—'} />
+          <Stat label="Down payment"    value={summary.hasPrice ? fmt(summary.downPaymentAmount) : '—'} />
+          <Stat label="Emergency fund"  value={`${fmt(summary.currentSaved)} / ${fmt(summary.emergencyTarget)}`} />
+          <Stat label="Monthly savings" value={summary.hasIncome ? `${fmt(summary.monthlySavings)}/mo` : '—'}
+            color={summary.hasIncome ? (summary.monthlySavings >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined} />
+        </div>
+      )}
+
+      {/* Timeline */}
+      {hasTimeline ? (
+        <div className="flex flex-col gap-2 border-t border-white/[0.06] pt-4">
+          <span className="text-base font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
+          <div className="flex w-full h-2 rounded-full overflow-hidden bg-white/[0.05]">
             <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
             <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
           </div>
+          <div className="flex items-center justify-between text-[11px] text-white/30">
+            <span>Emergency fund · {monthsLabel(summary.timeline.monthsToEmergencyFund)}</span>
+            <span>Down payment · {monthsLabel(summary.timeline.monthsToDownPayment)}</span>
+          </div>
         </div>
       ) : (
-        <div className="flex-1" />
+        <p className="text-[11px] text-white/25 border-t border-white/[0.06] pt-4">
+          Add income and a house price to see your timeline.
+        </p>
       )}
-
-      <span className="text-[11px] font-medium px-2 py-1 rounded-full shrink-0"
-        style={{
-          background: isActive ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
-          color:      isActive ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
-        }}>
-        {isActive ? 'Active' : 'Draft'}
-      </span>
-
-      <button onClick={e => { e.stopPropagation(); onDelete(goal.id) }}
-        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
-        <Trash2 size={14} />
-      </button>
     </div>
   )
 }
