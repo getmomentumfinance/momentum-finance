@@ -9,6 +9,7 @@ import { computeHouseGoalSummary, monthsLabel } from '../utils/goalCalc'
 import { ProgressRing } from '../components/shared/ProgressRing'
 import Navbar from '../components/dashboard/Navbar'
 import HouseGoalSimulator from '../components/goals/HouseGoalSimulator'
+import HouseGoalCard from '../components/goals/HouseGoalCard'
 
 const GOAL_TYPES = [
   { value: 'house', label: 'Buy a house',          Icon: Home,   enabled: true  },
@@ -43,6 +44,14 @@ function GoalCard({ goal, onOpen, onDelete }) {
   const fundPct     = summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0
   const savingsPositive   = summary?.hasIncome ? summary.monthlySavings >= 0 : true
   const remainingPositive = summary?.hasPrice  ? summary.remainingAfterMortgage >= 0 : true
+
+  if (goal.type === 'house' && isActive && hasTimeline) {
+    const savingsCardName = cards.find(c => c.id === goal.config?.savings_card_id)?.name ?? null
+    return (
+      <HouseGoalCard goal={goal} summary={summary} savingsCardName={savingsCardName} fmt={fmt}
+        onOpen={onOpen} onDelete={onDelete} />
+    )
+  }
 
   return (
     <div onClick={() => onOpen(goal)}

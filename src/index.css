@@ -684,6 +684,30 @@ input[type="range"] {
   cursor: pointer;
 }
 
+/* Flip card (goal cards) — front/back faces of a 3D-rotated card. */
+.flip-card-outer {
+  perspective: 1600px;
+}
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flip-card-face {
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-card-face.flip-card-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+}
+
 .recharts-wrapper,
 .recharts-wrapper:focus,
 .recharts-wrapper svg,
