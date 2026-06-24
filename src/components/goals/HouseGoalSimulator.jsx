@@ -6,6 +6,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { computeCardBalance } from '../../utils/cardBalance'
 import { mainCategorySpend, monthlyAverage, computeMortgagePayment, computeHouseTimeline } from '../../utils/goalCalc'
+import { ConfettiBurst } from '../shared/ConfettiBurst'
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
 
@@ -107,6 +108,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }))
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [justStarted, setJustStarted] = useState(false)
   const [managingGroups, setManagingGroups] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState(() => new Set())
 
@@ -305,6 +307,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     if (isMountedRef.current) setSaving(true)
     const g = goalRef.current
     const status = nextStatus ?? g.status
+    const wasDraft = g.status === 'draft'
     const payload = {
       name: nameRef.current,
       config: configRef.current,
@@ -317,8 +320,13 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     if (error) { console.error('goals update error:', error); return }
     onSaved(data)
     if (isMountedRef.current) {
-      setSavedFlash(true)
-      setTimeout(() => setSavedFlash(false), 1800)
+      if (status === 'active' && wasDraft) {
+        setJustStarted(true)
+        setTimeout(() => { if (isMountedRef.current) setJustStarted(false) }, 2800)
+      } else {
+        setSavedFlash(true)
+        setTimeout(() => setSavedFlash(false), 1800)
+      }
     }
   }
 
@@ -362,7 +370,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
       </div>
 
       {/* Hero summary */}
-      <div className="glass-card rounded-2xl p-6 flex flex-col gap-4">
+      <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+        {justStarted && <ConfettiBurst color="var(--color-accent)" />}
         {!hasIncome || !hasPrice ? (
           <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
         ) : monthlySavings <= 0 ? (
@@ -752,14 +761,25 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
       {/* Footer */}
       <div className="flex items-center justify-end gap-3 pb-4">
-        <span className="text-xs flex items-center gap-1 text-white/30">
-          {saving
-            ? 'Saving…'
-            : savedFlash
-            ? <span className="flex items-center gap-1" style={{ color: 'var(--color-progress-bar)' }}><Check size={13} /> Saved</span>
-            : 'Changes save automatically'}
-        </span>
-        {goal.status === 'draft' && (
+        {!justStarted && (
+          <span className="text-xs flex items-center gap-1 text-white/30">
+            {saving
+              ? 'Saving…'
+              : savedFlash
+              ? <span className="flex items-center gap-1" style={{ color: 'var(--color-progress-bar)' }}><Check size={13} /> Saved</span>
+              : 'Changes save automatically'}
+          </span>
+        )}
+        {justStarted ? (
+          <span className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold"
+            style={{
+              background: 'rgba(34,197,94,0.15)',
+              color: 'var(--color-progress-bar)',
+              animation: 'savedFlash 2.8s ease-out forwards',
+            }}>
+            <Check size={15} /> Goal started — let's go! 🎉
+          </span>
+        ) : goal.status === 'draft' && (
           <button onClick={() => save('active')} disabled={saving}
             className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">
             Start this goal
