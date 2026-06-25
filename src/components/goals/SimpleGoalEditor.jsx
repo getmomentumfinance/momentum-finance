@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Trash2, Check, PartyPopper, ChevronRight } from 'lucide-react'
+import { Trash2, Check, PartyPopper, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
@@ -91,12 +91,14 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
   return (
     <>
       {/* Breadcrumb header */}
-      <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10">
+      <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2 text-sm min-w-0">
-          <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors shrink-0">All goals</button>
-          <ChevronRight size={14} className="text-white/20 shrink-0" />
+          <button onClick={onBack} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0">
+            <ChevronLeft size={14} /> All goals
+          </button>
+          <ChevronRight size={11} className="text-white/25 shrink-0" />
           <input value={name} onChange={e => setName(e.target.value)}
-            className="bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
+            className="bg-transparent text-white/50 outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[11px] font-medium px-2.5 py-1 rounded-full"
@@ -107,50 +109,65 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
             {goal.status === 'active' ? 'Active' : 'Draft'}
           </span>
           <button onClick={() => onDelete(goal.id)}
-            className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Illustration banner */}
-      <div className="relative w-full h-80 overflow-hidden">
-        <typeConfig.Scene fit="slice" />
-      </div>
-
-      <div className="relative w-full flex flex-col gap-5">
-
-      {/* Hero summary */}
-      <div className="relative flex flex-col gap-3">
+      {/* Hero banner — illustration with the summary overlaid at the bottom */}
+      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]">
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
-        {typeConfig.recurring ? (
-          <>
-            <span className="text-3xl font-bold text-white">Fills up every year</span>
-            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
-              <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
-            </div>
-            <span className="text-sm text-muted">{fmt(summary.currentSaved)} saved of {fmt(summary.target)} annual · {Math.round(summary.pct)}%</span>
-          </>
-        ) : !summary.hasTarget ? (
-          <p className="text-sm text-muted">Set a target amount below to see your timeline.</p>
-        ) : !summary.hasContribution ? (
-          <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
-            Set a monthly contribution below to see your timeline.
-          </p>
-        ) : summary.monthsToTarget <= 0 ? (
-          <span className="text-3xl font-bold text-white flex items-center gap-2">
-            You're ready now <PartyPopper size={26} style={{ color: typeConfig.primaryColor }} />
-          </span>
-        ) : (
-          <>
-            <span className="text-3xl font-bold text-white">Ready in {monthsLabel(summary.monthsToTarget)}</span>
-            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
-              <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
-            </div>
-            <span className="text-sm text-muted">{fmt(summary.currentSaved)} saved of {fmt(summary.target)} · {Math.round(summary.pct)}%</span>
-          </>
-        )}
+        <typeConfig.Scene fit="slice" />
+        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"
+          style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
+          {typeConfig.recurring ? (
+            <>
+              <div>
+                <span className="text-[34px] font-semibold text-white leading-tight tracking-tight">Fills up every year</span>
+                <p className="text-[13px] text-white/50 mt-0.5">{subtitle}</p>
+              </div>
+              <div className="w-[340px] shrink-0">
+                <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/10 mb-1.5">
+                  <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-white/45">
+                  <span>{fmt(summary.currentSaved)} saved of {fmt(summary.target)} annual</span>
+                  <span style={{ color: typeConfig.primaryColor, fontWeight: 500 }}>{Math.round(summary.pct)}%</span>
+                </div>
+              </div>
+            </>
+          ) : !summary.hasTarget ? (
+            <p className="text-sm text-white/50">Set a target amount below to see your timeline.</p>
+          ) : !summary.hasContribution ? (
+            <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
+              Set a monthly contribution below to see your timeline.
+            </p>
+          ) : summary.monthsToTarget <= 0 ? (
+            <span className="text-3xl font-bold text-white flex items-center gap-2">
+              You're ready now <PartyPopper size={26} style={{ color: typeConfig.primaryColor }} />
+            </span>
+          ) : (
+            <>
+              <div>
+                <span className="text-[34px] font-semibold text-white leading-tight tracking-tight">Ready in {monthsLabel(summary.monthsToTarget)}</span>
+                <p className="text-[13px] text-white/50 mt-0.5">{subtitle}</p>
+              </div>
+              <div className="w-[340px] shrink-0">
+                <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/10 mb-1.5">
+                  <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-white/45">
+                  <span>{fmt(summary.currentSaved)} saved of {fmt(summary.target)}</span>
+                  <span style={{ color: typeConfig.primaryColor, fontWeight: 500 }}>{Math.round(summary.pct)}%</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      <div className="relative w-full flex flex-col gap-5 mt-5">
 
       {/* Inputs, two columns on wide screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">

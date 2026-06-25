@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, Trash2, Check, ChevronDown, ChevronRight, Layers, PartyPopper } from 'lucide-react'
+import { Plus, X, Trash2, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, PartyPopper } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
@@ -334,12 +334,14 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
   return (
     <>
       {/* Breadcrumb header */}
-      <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10">
+      <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2 text-sm min-w-0">
-          <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors shrink-0">All goals</button>
-          <ChevronRight size={14} className="text-white/20 shrink-0" />
+          <button onClick={onBack} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0">
+            <ChevronLeft size={14} /> All goals
+          </button>
+          <ChevronRight size={11} className="text-white/25 shrink-0" />
           <input value={name} onChange={e => setName(e.target.value)}
-            className="bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
+            className="bg-transparent text-white/50 outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-[11px] font-medium px-2.5 py-1 rounded-full"
@@ -350,61 +352,66 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
             {goal.status === 'active' ? 'Active' : 'Draft'}
           </span>
           <button onClick={() => onDelete(goal.id)}
-            className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors">
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Illustration banner */}
-      <div className="relative w-full h-80 overflow-hidden">
-        <HouseScene fit="slice" />
-      </div>
-
-      <div className="relative w-full flex flex-col gap-5">
-
-      {/* Hero summary */}
-      <div className="relative flex flex-col gap-4">
+      {/* Hero banner — illustration with the summary overlaid at the bottom */}
+      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]">
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
-        {!hasIncome || !hasPrice ? (
-          <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
-        ) : effectiveMonthlySavings <= 0 ? (
-          <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
-            You're not saving anything at this rate — lower planned spending in step 2 to see a timeline.
-          </p>
-        ) : timeline.totalMonths <= 0 ? (
-          <span className="text-3xl font-bold text-white flex items-center gap-2">
-            You're ready now <PartyPopper size={26} style={{ color: 'var(--color-accent)' }} />
-          </span>
-        ) : (
-          <>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-3xl font-bold text-white">Ready in {monthsLabel(timeline.totalMonths)}</span>
-              <span className="text-sm text-muted">saving {fmt(effectiveMonthlySavings)}/mo</span>
-              {hasSavingsOverride && (
-                <button onClick={() => patchConfig({ monthly_savings_override: null })}
-                  className="text-[11px] text-white/30 hover:text-white/60 transition-colors underline">
-                  using custom rate · reset
-                </button>
-              )}
-            </div>
-            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
-              <div style={{ width: `${(timeline.monthsToEmergencyFund / timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
-              <div style={{ width: `${(timeline.monthsToDownPayment / timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-white/40 flex-wrap gap-2">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-accent-2)' }} />
-                Emergency fund · {monthsLabel(timeline.monthsToEmergencyFund)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-accent)' }} />
-                Down payment · {monthsLabel(timeline.monthsToDownPayment)}
-              </span>
-            </div>
-          </>
-        )}
+        <HouseScene fit="slice" />
+        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"
+          style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
+          {!hasIncome || !hasPrice ? (
+            <p className="text-sm text-white/50">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
+          ) : effectiveMonthlySavings <= 0 ? (
+            <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
+              You're not saving anything at this rate — lower planned spending in step 2 to see a timeline.
+            </p>
+          ) : timeline.totalMonths <= 0 ? (
+            <span className="text-3xl font-bold text-white flex items-center gap-2">
+              You're ready now <PartyPopper size={26} style={{ color: 'var(--color-accent)' }} />
+            </span>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-[34px] font-semibold text-white leading-tight tracking-tight">Ready in {monthsLabel(timeline.totalMonths)}</span>
+                </div>
+                <p className="text-[13px] text-white/50 mt-0.5">
+                  saving <span className="font-medium" style={{ color: 'var(--color-accent)' }}>{fmt(effectiveMonthlySavings)}/mo</span> toward your home
+                  {hasSavingsOverride && (
+                    <button onClick={() => patchConfig({ monthly_savings_override: null })}
+                      className="ml-2 text-white/30 hover:text-white/60 transition-colors underline">
+                      using custom rate · reset
+                    </button>
+                  )}
+                </p>
+              </div>
+              <div className="w-[340px] shrink-0">
+                <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/10 mb-1.5">
+                  <div style={{ width: `${(timeline.monthsToEmergencyFund / timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />
+                  <div style={{ width: `${(timeline.monthsToDownPayment / timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-white/45 flex-wrap gap-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent-2)' }} />
+                    Emergency fund · {monthsLabel(timeline.monthsToEmergencyFund)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)' }} />
+                    Down payment · {monthsLabel(timeline.monthsToDownPayment)}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+
+      <div className="relative w-full flex flex-col gap-5 mt-5">
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
       <div className="flex flex-col gap-5">
