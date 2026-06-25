@@ -332,7 +332,13 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }, [])
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
+
+      {/* Ambient illustration banner, fading into the page below */}
+      <div className="absolute inset-x-0 top-0 h-64 -z-10 overflow-hidden rounded-3xl opacity-[0.16] pointer-events-none">
+        <HouseScene />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
@@ -346,11 +352,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
       {/* Hero summary */}
       <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.14] pointer-events-none">
-          <HouseScene />
-        </div>
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
-        <div className="relative z-10 flex flex-col gap-4">
         {!hasIncome || !hasPrice ? (
           <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
         ) : effectiveMonthlySavings <= 0 ? (
@@ -389,7 +391,6 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             </div>
           </>
         )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
