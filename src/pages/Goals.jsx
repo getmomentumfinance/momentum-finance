@@ -1,21 +1,26 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt } from 'lucide-react'
+import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt, Palmtree } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { usePreferences } from '../context/UserPreferencesContext'
-import { computeHouseGoalSummary, monthsLabel } from '../utils/goalCalc'
+import { computeHouseGoalSummary, computeSimpleSavingsGoalSummary, monthsLabel } from '../utils/goalCalc'
 import { ProgressRing } from '../components/shared/ProgressRing'
 import Navbar from '../components/dashboard/Navbar'
 import HouseGoalSimulator from '../components/goals/HouseGoalSimulator'
 import HouseGoalCard from '../components/goals/HouseGoalCard'
+import SimpleGoalCard from '../components/goals/SimpleGoalCard'
+import SimpleGoalEditor from '../components/goals/SimpleGoalEditor'
+import { SIMPLE_GOAL_TYPES } from '../components/goals/simpleGoalTypes'
 
 const GOAL_TYPES = [
-  { value: 'house', label: 'Buy a house',          Icon: Home,   enabled: true  },
-  { value: 'car',   label: 'Buy a car',            Icon: Car,    enabled: false },
-  { value: 'fund',  label: 'Build emergency fund', Icon: Shield, enabled: false },
+  { value: 'house',    label: 'Buy a house',          Icon: Home,     enabled: true },
+  { value: 'car',      label: 'Buy a car',            Icon: Car,      enabled: true },
+  { value: 'vacation', label: 'Save for a trip',      Icon: Palmtree, enabled: true },
+  { value: 'fund',     label: 'Build emergency fund', Icon: Shield,   enabled: true },
 ]
+const SIMPLE_TYPES = new Set(['car', 'vacation', 'fund'])
 
 function Stat({ label, value, color, Icon }) {
   const bg = color ? `color-mix(in srgb, ${color} 14%, transparent)` : 'rgba(255,255,255,0.04)'
@@ -30,18 +35,28 @@ function Stat({ label, value, color, Icon }) {
   )
 }
 
-function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
+function GoalCard({ goal, onOpen, onDelete, onSetSavings, onPatchConfig }) {
   const meta = GOAL_TYPES.find(g => g.value === goal.type) ?? GOAL_TYPES[0]
   const { fmt } = usePreferences()
   const { categories, cards, allTransactions } = useSharedData()
 
   const isActive = goal.status === 'active'
+  const isSimpleType = SIMPLE_TYPES.has(goal.type)
+
   const summary = goal.type === 'house'
     ? computeHouseGoalSummary(goal.config, { categories, cards, allTransactions })
+    : isSimpleType
+    ? computeSimpleSavingsGoalSummary(goal.type, goal.config, { categories, cards, allTransactions })
     : null
-  const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.effectiveMonthlySavings > 0
+  const hasTimeline = goal.type === 'house'
+    ? summary?.hasIncome && summary?.hasPrice && summary.effectiveMonthlySavings > 0
+    : isSimpleType
+    ? summary?.hasTarget && summary?.hasContribution
+    : false
   const housePrice  = goal.config?.house_price ?? 0
-  const fundPct     = summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0
+  const fundPct     = goal.type === 'house'
+    ? (summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0)
+    : (summary?.pct ?? 0)
   const savingsPositive   = summary?.hasIncome ? summary.monthlySavings >= 0 : true
   const remainingPositive = summary?.hasPrice  ? summary.remainingAfterMortgage >= 0 : true
 
@@ -50,6 +65,14 @@ function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
     return (
       <HouseGoalCard goal={goal} summary={summary} savingsCardName={savingsCardName} fmt={fmt}
         onOpen={onOpen} onDelete={onDelete} onSetSavings={onSetSavings} />
+    )
+  }
+
+  if (isSimpleType && isActive && hasTimeline) {
+    const savingsCardName = cards.find(c => c.id === goal.config?.savings_card_id)?.name ?? null
+    return (
+      <SimpleGoalCard goal={goal} summary={summary} typeConfig={SIMPLE_GOAL_TYPES[goal.type]} savingsCardName={savingsCardName} fmt={fmt}
+        onOpen={onOpen} onDelete={onDelete} onPatchConfig={onPatchConfig} />
     )
   }
 
@@ -101,7 +124,7 @@ function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
       </div>
 
       {/* Timeline headline — the punchline, so it leads */}
-      {hasTimeline ? (
+      {goal.type === 'house' && hasTimeline ? (
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
             <span className="text-2xl font-bold text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</span>
@@ -114,14 +137,23 @@ function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
             <div style={{ width: `${(summary.timeline.monthsToDownPayment / summary.timeline.totalMonths) * 100}%`, background: 'var(--color-accent)' }} />
           </div>
         </div>
+      ) : isSimpleType && hasTimeline ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-2xl font-bold text-white">Ready in {monthsLabel(summary.monthsToTarget)}</span>
+          <div className="flex w-full h-2.5 rounded-full overflow-hidden bg-white/[0.05]">
+            <div style={{ width: `${summary.pct}%`, background: 'var(--color-accent-2)' }} />
+          </div>
+        </div>
       ) : (
         <p className="text-[13px] text-white/30">
-          Add income and a house price to see your timeline.
+          {goal.type === 'house'
+            ? 'Add income and a house price to see your timeline.'
+            : 'Set a target amount and monthly contribution to see your timeline.'}
         </p>
       )}
 
       {/* Stat strip */}
-      {summary && (
+      {goal.type === 'house' && summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-white/[0.06] pt-4">
           <Stat label="House price" Icon={Home} value={housePrice ? fmt(housePrice) : '—'} />
           <Stat label="Down payment" Icon={Wallet} color="var(--color-accent)"
@@ -136,6 +168,14 @@ function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
           <Stat label="Left for living + saving" Icon={remainingPositive ? TrendingUp : TrendingDown}
             color={summary.hasPrice ? (remainingPositive ? 'var(--color-progress-bar)' : 'var(--color-alert)') : undefined}
             value={summary.hasPrice ? `${fmt(summary.remainingAfterMortgage)}/mo` : '—'} />
+        </div>
+      )}
+      {isSimpleType && summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-white/[0.06] pt-4">
+          <Stat label="Target" Icon={Wallet} value={summary.hasTarget ? fmt(summary.target) : '—'} />
+          <Stat label="Saved so far" Icon={TrendingUp} color="var(--color-accent-2)" value={fmt(summary.currentSaved)} />
+          <Stat label="Monthly savings" Icon={summary.monthlyContribution >= 0 ? TrendingUp : TrendingDown}
+            color="var(--color-accent-2)" value={summary.hasContribution ? `${fmt(summary.monthlyContribution)}/mo` : '—'} />
         </div>
       )}
 
@@ -196,6 +236,19 @@ export default function Goals() {
     setGoals(prev => prev.map(g => g.id === goalId ? data : g))
   }
 
+  // Generic version of the above for the simple savings goal types (car,
+  // vacation, fund) — their "Set as new monthly savings" patches a plain
+  // monthly_contribution field rather than an override of a derived value.
+  async function patchGoalConfig(goalId, patch) {
+    const goal = goals.find(g => g.id === goalId)
+    if (!goal) return
+    const config = { ...goal.config, ...patch }
+    const { data, error } = await supabase.from('goals')
+      .update({ config, updated_at: new Date().toISOString() }).eq('id', goalId).select().single()
+    if (error) { console.error('goals update error:', error); return }
+    setGoals(prev => prev.map(g => g.id === goalId ? data : g))
+  }
+
   return (
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={() => {}} onNext={() => {}} />
@@ -210,6 +263,9 @@ export default function Goals() {
             </button>
             {activeGoal.type === 'house' && (
               <HouseGoalSimulator goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} />
+            )}
+            {SIMPLE_TYPES.has(activeGoal.type) && (
+              <SimpleGoalEditor goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} />
             )}
           </>
         ) : (
@@ -237,7 +293,7 @@ export default function Goals() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                {goals.map(g => <GoalCard key={g.id} goal={g} onOpen={setActiveGoal} onDelete={deleteGoal} onSetSavings={setSavingsOverride} />)}
+                {goals.map(g => <GoalCard key={g.id} goal={g} onOpen={setActiveGoal} onDelete={deleteGoal} onSetSavings={setSavingsOverride} onPatchConfig={patchGoalConfig} />)}
               </div>
             )}
           </>

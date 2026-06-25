@@ -134,3 +134,42 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
     hasPrice:  config.house_price > 0,
   }
 }
+
+/**
+ * Single-target savings goals (car, vacation, emergency fund) — much simpler
+ * than the house goal: one target amount, one directly-set monthly
+ * contribution (not derived from income/spending — each of these is its own
+ * separate "envelope"), one optional linked card for the real current balance.
+ */
+export function computeSimpleSavingsGoalSummary(type, rawConfig, { categories, cards, allTransactions }) {
+  const config = {
+    target_amount:          rawConfig?.target_amount ?? 0,
+    emergency_fund_months:  rawConfig?.emergency_fund_months ?? 3,
+    monthly_contribution:   rawConfig?.monthly_contribution ?? 0,
+    savings_card_id:        rawConfig?.savings_card_id ?? null,
+    manual_saved_amount:    rawConfig?.manual_saved_amount ?? 0,
+  }
+
+  let target
+  if (type === 'fund') {
+    const mainCategories = categories.filter(c => !c.parent_id)
+    const totalPlanned = mainCategories.reduce((s, c) => s + monthlyAverage(allTransactions, c.id), 0)
+    target = config.emergency_fund_months * totalPlanned
+  } else {
+    target = config.target_amount
+  }
+
+  const savingsCard  = cards.find(c => c.id === config.savings_card_id) ?? null
+  const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : config.manual_saved_amount
+
+  const monthlyContribution = config.monthly_contribution
+  const remaining = Math.max(0, target - currentSaved)
+  const monthsToTarget = monthlyContribution > 0 ? Math.ceil(remaining / monthlyContribution) : Infinity
+  const pct = target > 0 ? Math.min(100, (currentSaved / target) * 100) : 0
+
+  return {
+    target, currentSaved, monthlyContribution, remaining, monthsToTarget, pct,
+    hasTarget: target > 0,
+    hasContribution: monthlyContribution > 0,
+  }
+}

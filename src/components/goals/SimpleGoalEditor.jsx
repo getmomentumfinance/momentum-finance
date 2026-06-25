@@ -1,0 +1,212 @@
+import { useState, useEffect, useRef } from 'react'
+import { Trash2, Check, PartyPopper } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { useSharedData } from '../../context/SharedDataContext'
+import { usePreferences } from '../../context/UserPreferencesContext'
+import { computeSimpleSavingsGoalSummary, monthsLabel } from '../../utils/goalCalc'
+import { ConfettiBurst } from '../shared/ConfettiBurst'
+import { SIMPLE_GOAL_TYPES } from './simpleGoalTypes'
+
+const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
+
+export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
+  const { fmt } = usePreferences()
+  const { categories, cards, allTransactions } = useSharedData()
+  const typeConfig = SIMPLE_GOAL_TYPES[goal.type]
+
+  const [name, setName] = useState(goal.name)
+  const [config, setConfig] = useState(() => ({
+    target_amount:         goal.config?.target_amount ?? 0,
+    emergency_fund_months: goal.config?.emergency_fund_months ?? 3,
+    monthly_contribution:  goal.config?.monthly_contribution ?? 0,
+    savings_card_id:       goal.config?.savings_card_id ?? null,
+    manual_saved_amount:   goal.config?.manual_saved_amount ?? 0,
+    extra_stats:           goal.config?.extra_stats ?? typeConfig.extraStatLabels.map(label => ({ label, value: '' })),
+  }))
+  const [saving, setSaving] = useState(false)
+  const [savedFlash, setSavedFlash] = useState(false)
+  const [justStarted, setJustStarted] = useState(false)
+
+  const summary = computeSimpleSavingsGoalSummary(goal.type, config, { categories, cards, allTransactions })
+  const savingsCard = cards.find(c => c.id === config.savings_card_id) ?? null
+
+  function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
+  function updateExtraStat(i, value) {
+    setConfig(c => ({ ...c, extra_stats: c.extra_stats.map((s, idx) => idx === i ? { ...s, value } : s) }))
+  }
+
+  const nameRef = useRef(name); nameRef.current = name
+  const configRef = useRef(config); configRef.current = config
+  const goalRef = useRef(goal); goalRef.current = goal
+  const isMountedRef = useRef(true)
+  useEffect(() => () => { isMountedRef.current = false }, [])
+
+  async function save(nextStatus) {
+    if (isMountedRef.current) setSaving(true)
+    const g = goalRef.current
+    const status = nextStatus ?? g.status
+    const wasDraft = g.status === 'draft'
+    const payload = {
+      name: nameRef.current,
+      config: configRef.current,
+      status,
+      started_at: status === 'active' && !g.started_at ? new Date().toISOString() : g.started_at,
+      updated_at: new Date().toISOString(),
+    }
+    const { data, error } = await supabase.from('goals').update(payload).eq('id', g.id).select().single()
+    if (isMountedRef.current) setSaving(false)
+    if (error) { console.error('goals update error:', error); return }
+    onSaved(data)
+    if (isMountedRef.current) {
+      if (status === 'active' && wasDraft) {
+        setJustStarted(true)
+        setTimeout(() => { if (isMountedRef.current) setJustStarted(false) }, 2800)
+      } else {
+        setSavedFlash(true)
+        setTimeout(() => setSavedFlash(false), 1800)
+      }
+    }
+  }
+
+  const isFirstRun = useRef(true)
+  const saveTimer = useRef(null)
+  const hasPendingSave = useRef(false)
+  useEffect(() => {
+    if (isFirstRun.current) { isFirstRun.current = false; return }
+    hasPendingSave.current = true
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => { hasPendingSave.current = false; save() }, 800)
+    return () => clearTimeout(saveTimer.current)
+  }, [name, config])
+
+  useEffect(() => {
+    return () => {
+      if (hasPendingSave.current) {
+        clearTimeout(saveTimer.current)
+        save()
+      }
+    }
+  }, [])
+
+  return (
+    <div className="flex flex-col gap-5 max-w-xl">
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <input value={name} onChange={e => setName(e.target.value)}
+          className="bg-transparent text-2xl font-bold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors" />
+        <button onClick={() => onDelete(goal.id)}
+          className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+          <Trash2 size={14} />
+        </button>
+      </div>
+
+      {/* Hero summary */}
+      <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-3 overflow-hidden">
+        {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
+        {!summary.hasTarget ? (
+          <p className="text-sm text-muted">Set a target amount below to see your timeline.</p>
+        ) : !summary.hasContribution ? (
+          <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
+            Set a monthly contribution below to see your timeline.
+          </p>
+        ) : summary.monthsToTarget <= 0 ? (
+          <span className="text-3xl font-bold text-white flex items-center gap-2">
+            You're ready now <PartyPopper size={26} style={{ color: typeConfig.primaryColor }} />
+          </span>
+        ) : (
+          <>
+            <span className="text-3xl font-bold text-white">Ready in {monthsLabel(summary.monthsToTarget)}</span>
+            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
+              <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
+            </div>
+            <span className="text-sm text-muted">{fmt(summary.currentSaved)} saved of {fmt(summary.target)} · {Math.round(summary.pct)}%</span>
+          </>
+        )}
+      </div>
+
+      {/* Target */}
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
+        {goal.type === 'fund' ? (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted w-40 shrink-0">Months of expenses</span>
+            <input type="range" min={1} max={12} step={1} value={config.emergency_fund_months}
+              onChange={e => patchConfig({ emergency_fund_months: Number(e.target.value) })}
+              className="flex-1 cursor-pointer" style={{ accentColor: typeConfig.primaryColor }} />
+            <span className="text-sm tabular-nums text-white w-10 text-right">{config.emergency_fund_months}</span>
+          </div>
+        ) : (
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+            <input type="number" min="0" value={config.target_amount || ''} placeholder="e.g. 10000"
+              onChange={e => patchConfig({ target_amount: Number(e.target.value) })}
+              className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Monthly contribution + savings */}
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Monthly contribution</h2>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+          <input type="number" min="0" value={config.monthly_contribution || ''} placeholder="e.g. 250"
+            onChange={e => patchConfig({ monthly_contribution: Number(e.target.value) })}
+            className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted w-40 shrink-0">Linked savings card</span>
+          <select value={config.savings_card_id ?? ''} onChange={e => patchConfig({ savings_card_id: e.target.value || null })}
+            className={inputCls}>
+            <option value="">None</option>
+            {cards.filter(c => c.type === 'savings').map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+        {!savingsCard && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted w-40 shrink-0">Already saved</span>
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+              <input type="number" min="0" value={config.manual_saved_amount || ''} placeholder="0"
+                onChange={e => patchConfig({ manual_saved_amount: Number(e.target.value) })}
+                className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Extra stats */}
+      {config.extra_stats.length > 0 && (
+        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+          <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Extra details</h2>
+          {config.extra_stats.map((s, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-xs text-muted w-40 shrink-0">{s.label}</span>
+              <input value={s.value} onChange={e => updateExtraStat(i, e.target.value)}
+                placeholder="e.g. ~€85/mo" className={inputCls} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-end gap-3 pb-4">
+        <span className="text-xs flex items-center gap-1 text-white/30">
+          {saving
+            ? 'Saving…'
+            : savedFlash
+            ? <span className="flex items-center gap-1" style={{ color: 'var(--color-progress-bar)' }}><Check size={13} /> Saved</span>
+            : 'Changes save automatically'}
+        </span>
+        {goal.status === 'draft' && (
+          <button onClick={() => save('active')} disabled={saving}
+            className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium disabled:opacity-50">
+            Start this goal
+          </button>
+        )}
+      </div>
+
+    </div>
+  )
+}

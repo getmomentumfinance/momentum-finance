@@ -1,34 +1,14 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronRight, ChevronLeft, Check, Shield, Landmark, Home, Key, Trash2 } from 'lucide-react'
 import { computeHouseTimeline, monthsLabel } from '../../utils/goalCalc'
+import { useTwinkle } from './scenes/useTwinkle'
 
 function monthsBetween(start, end) {
   return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
 }
 
 function NightScene() {
-  const starsRef = useRef(null)
-
-  useEffect(() => {
-    const stars = starsRef.current?.querySelectorAll('[data-star]') ?? []
-    const timers = []
-    stars.forEach(star => {
-      const base = 0.35 + Math.random() * 0.25
-      star.style.opacity = base
-      function twinkle() {
-        const peak = 0.75 + Math.random() * 0.25
-        const low  = 0.1 + Math.random() * 0.2
-        const duration = 1800 + Math.random() * 2200
-        const anim = star.animate(
-          [{ opacity: base }, { opacity: peak }, { opacity: low }, { opacity: base }],
-          { duration, easing: 'ease-in-out' }
-        )
-        anim.onfinish = () => { timers.push(setTimeout(twinkle, Math.random() * 2000)) }
-      }
-      timers.push(setTimeout(twinkle, Math.random() * 3000))
-    })
-    return () => timers.forEach(clearTimeout)
-  }, [])
+  const starsRef = useTwinkle()
 
   return (
     <svg width="100%" height="100%" viewBox="0 0 600 170" preserveAspectRatio="xMidYMid meet"
@@ -66,18 +46,18 @@ function NightScene() {
       <path d="M378 155 Q397 120 416 155" fill="none" stroke="#2e2848" strokeWidth="1.5" />
       <rect x="393" y="147" width="8" height="8" rx="1" fill="#2a2240" />
       <g ref={starsRef}>
-        <circle data-star cx="460" cy="50" r="1.5" fill="var(--color-accent-2)" />
-        <circle data-star cx="490" cy="22" r="1"   fill="var(--color-accent-2)" />
-        <circle data-star cx="140" cy="30" r="1.5" fill="var(--color-accent-2)" />
-        <circle data-star cx="160" cy="48" r="1"   fill="var(--color-accent-2)" />
-        <circle data-star cx="60"  cy="50" r="1"   fill="var(--color-accent-2)" />
-        <circle data-star cx="420" cy="35" r="1"   fill="var(--color-accent)" />
-        <circle data-star cx="560" cy="28" r="1.5" fill="var(--color-accent)" />
-        <circle data-star cx="200" cy="18" r="1"   fill="var(--color-accent-2)" />
-        <circle data-star cx="370" cy="24" r="1.2" fill="var(--color-accent-2)" />
-        <circle data-star cx="110" cy="55" r="1"   fill="var(--color-accent)" />
-        <circle data-star cx="540" cy="55" r="1"   fill="var(--color-accent-2)" />
-        <circle data-star cx="310" cy="30" r="1"   fill="var(--color-accent-2)" />
+        <circle data-star cx="460" cy="50" r="1.5" fill="var(--color-accent-2)" opacity="0.5" />
+        <circle data-star cx="490" cy="22" r="1"   fill="var(--color-accent-2)" opacity="0.4" />
+        <circle data-star cx="140" cy="30" r="1.5" fill="var(--color-accent-2)" opacity="0.5" />
+        <circle data-star cx="160" cy="48" r="1"   fill="var(--color-accent-2)" opacity="0.35" />
+        <circle data-star cx="60"  cy="50" r="1"   fill="var(--color-accent-2)" opacity="0.4" />
+        <circle data-star cx="420" cy="35" r="1"   fill="var(--color-accent)" opacity="0.5" />
+        <circle data-star cx="560" cy="28" r="1.5" fill="var(--color-accent)" opacity="0.4" />
+        <circle data-star cx="200" cy="18" r="1"   fill="var(--color-accent-2)" opacity="0.45" />
+        <circle data-star cx="370" cy="24" r="1.2" fill="var(--color-accent-2)" opacity="0.5" />
+        <circle data-star cx="110" cy="55" r="1"   fill="var(--color-accent)" opacity="0.4" />
+        <circle data-star cx="540" cy="55" r="1"   fill="var(--color-accent-2)" opacity="0.4" />
+        <circle data-star cx="310" cy="30" r="1"   fill="var(--color-accent-2)" opacity="0.45" />
       </g>
     </svg>
   )
