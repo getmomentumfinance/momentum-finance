@@ -103,7 +103,11 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
 
       {/* Hero summary */}
       <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-3 overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.14] pointer-events-none">
+          <typeConfig.Scene />
+        </div>
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
+        <div className="relative z-10 flex flex-col gap-3">
         {typeConfig.recurring ? (
           <>
             <span className="text-3xl font-bold text-white">Fills up every year</span>
@@ -131,6 +135,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
             <span className="text-sm text-muted">{fmt(summary.currentSaved)} saved of {fmt(summary.target)} · {Math.round(summary.pct)}%</span>
           </>
         )}
+        </div>
       </div>
 
       {/* Target */}

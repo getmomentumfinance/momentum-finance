@@ -9,6 +9,7 @@ import {
   monthsLabel, computeHouseGoalSummary,
 } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
+import HouseScene from './scenes/HouseScene'
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
 
@@ -345,7 +346,11 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
       {/* Hero summary */}
       <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.14] pointer-events-none">
+          <HouseScene />
+        </div>
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
+        <div className="relative z-10 flex flex-col gap-4">
         {!hasIncome || !hasPrice ? (
           <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
         ) : effectiveMonthlySavings <= 0 ? (
@@ -384,6 +389,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
             </div>
           </>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
