@@ -91,7 +91,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
   return (
     <>
       {/* Ambient illustration banner, pinned to the top while content scrolls over it */}
-      <div className="fixed inset-x-0 top-0 h-72 overflow-hidden pointer-events-none opacity-[0.55]">
+      <div className="fixed inset-x-0 top-0 h-44 overflow-hidden pointer-events-none opacity-[0.55]">
         <typeConfig.Scene fit="slice" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
       </div>
