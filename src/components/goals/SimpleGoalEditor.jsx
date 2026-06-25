@@ -91,7 +91,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
   return (
     <>
       {/* Ambient illustration covering the entire viewport as a backdrop */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none opacity-[0.16]">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-[0.16]">
         <typeConfig.Scene fit="slice" />
       </div>
 
