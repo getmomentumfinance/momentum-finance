@@ -256,7 +256,8 @@ export default function Goals() {
   }
 
   return (
-    <div className="min-h-screen bg-dash-bg text-white">
+    <div className={`min-h-screen text-white ${activeGoal ? '' : 'bg-dash-bg'}`}
+      style={activeGoal ? { background: 'rgba(8,7,16,0.78)' } : undefined}>
       <Navbar currentDate={currentDate} onPrev={() => {}} onNext={() => {}} />
 
       <div id="page-content" className="py-6 px-4 md:px-8 lg:px-16 pb-24 lg:pb-6 flex flex-col gap-6">
