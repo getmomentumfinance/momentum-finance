@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt, Palmtree } from 'lucide-react'
+import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt, Palmtree, Heart, Baby, Sofa, Briefcase, Gift, Palette } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
@@ -15,12 +15,18 @@ import SimpleGoalEditor from '../components/goals/SimpleGoalEditor'
 import { SIMPLE_GOAL_TYPES } from '../components/goals/simpleGoalTypes'
 
 const GOAL_TYPES = [
-  { value: 'house',    label: 'Buy a house',          Icon: Home,     enabled: true },
-  { value: 'car',      label: 'Buy a car',            Icon: Car,      enabled: true },
-  { value: 'vacation', label: 'Save for a trip',      Icon: Palmtree, enabled: true },
-  { value: 'fund',     label: 'Build emergency fund', Icon: Shield,   enabled: true },
+  { value: 'house',     label: 'Buy a house',          Icon: Home,     enabled: true },
+  { value: 'car',       label: 'Buy a car',            Icon: Car,      enabled: true },
+  { value: 'vacation',  label: 'Save for a trip',      Icon: Palmtree, enabled: true },
+  { value: 'fund',      label: 'Build emergency fund', Icon: Shield,   enabled: true },
+  { value: 'wedding',   label: 'Plan a wedding',          Icon: Heart,     enabled: true },
+  { value: 'baby',      label: 'Save for a baby',         Icon: Baby,      enabled: true },
+  { value: 'furniture', label: 'Furnish your home',       Icon: Sofa,      enabled: true },
+  { value: 'business',  label: 'Start a business',        Icon: Briefcase, enabled: true },
+  { value: 'gift',      label: 'Build a gift fund',       Icon: Gift,      enabled: true },
+  { value: 'art',       label: 'Fund a creative project',  Icon: Palette,   enabled: true },
 ]
-const SIMPLE_TYPES = new Set(['car', 'vacation', 'fund'])
+const SIMPLE_TYPES = new Set(['car', 'vacation', 'fund', 'wedding', 'baby', 'furniture', 'business', 'gift', 'art'])
 
 function Stat({ label, value, color, Icon }) {
   const bg = color ? `color-mix(in srgb, ${color} 14%, transparent)` : 'rgba(255,255,255,0.04)'

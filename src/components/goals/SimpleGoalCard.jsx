@@ -41,7 +41,7 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
   const [flipped, setFlipped] = useState(false)
   const [exploreContribution, setExploreContribution] = useState(() => summary.monthlyContribution)
 
-  const { Scene, primaryColor, targetStatLabel, subtitleNoun, backTitle, milestones } = typeConfig
+  const { Scene, primaryColor, targetStatLabel, subtitleNoun, backTitle, milestones, recurring } = typeConfig
 
   const exploreRemaining = Math.max(0, summary.target - summary.currentSaved)
   const exploreMonths = exploreContribution > 0 ? Math.ceil(exploreRemaining / exploreContribution) : Infinity
@@ -49,12 +49,18 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
   const hasExploreChange = Math.round(exploreContribution) !== Math.round(summary.monthlyContribution)
   const sliderMax = Math.max(Math.ceil(summary.monthlyContribution * 2), 100)
 
+  const subtitle = typeConfig.subtitle
+    ? typeConfig.subtitle(fmt, summary.monthlyContribution)
+    : `putting aside ${fmt(summary.monthlyContribution)}/mo toward your ${subtitleNoun}`
+  const sliderLabel = typeConfig.sliderLabel ?? 'What if I saved more?'
+  const commitLabel = recurring ? 'Set as new monthly top-up' : 'Set as new monthly savings'
+
   const extraStats = goal.type === 'fund'
     ? [
         { label: 'Months covered', value: `${goal.config?.emergency_fund_months ?? 3} months` },
         { label: 'Linked account', value: savingsCardName ?? '—' },
       ]
-    : (goal.config?.extra_stats ?? []).slice(0, 2)
+    : (goal.config?.extra_stats ?? []).slice(0, recurring ? 3 : 2)
 
   const milestoneList = milestones(summary, fmt, savingsCardName).map(m => ({ ...m, color: primaryColor }))
 
@@ -88,10 +94,10 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
 
           <div className="p-4 flex flex-col gap-3">
             <div>
-              <p className="text-xl font-bold leading-tight text-white">Ready in {monthsLabel(summary.monthsToTarget)}</p>
-              <p className="text-[12px] text-white/40 mt-0.5">
-                putting aside <span className="font-medium" style={{ color: primaryColor }}>{fmt(summary.monthlyContribution)}/mo</span> toward your {subtitleNoun}
+              <p className="text-xl font-bold leading-tight text-white">
+                {recurring ? 'Fills up every year' : `Ready in ${monthsLabel(summary.monthsToTarget)}`}
               </p>
+              <p className="text-[12px] text-white/40 mt-0.5">{subtitle}</p>
             </div>
 
             <div>
@@ -99,7 +105,7 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
                 <div style={{ width: `${summary.pct}%`, background: primaryColor }} />
               </div>
               <div className="flex items-center justify-between text-[10px] text-white/30 mt-1.5">
-                <span>{fmt(summary.currentSaved)} saved of {fmt(summary.target)}</span>
+                <span>{fmt(summary.currentSaved)} saved of {fmt(summary.target)}{recurring ? ' annual' : ''}</span>
                 <span style={{ color: primaryColor, fontWeight: 500 }}>{Math.round(summary.pct)}%</span>
               </div>
             </div>
@@ -111,7 +117,7 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
               }}
               onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] text-white/40">What if I saved more?</span>
+                <span className="text-[11px] text-white/40">{sliderLabel}</span>
                 <span className="text-sm font-semibold" style={{ color: primaryColor }}>{fmt(exploreContribution)}/mo</span>
               </div>
               <input type="range" min={0} max={sliderMax} step={Math.max(1, Math.round(sliderMax / 100))}
@@ -120,13 +126,15 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
                 className="w-full cursor-pointer" style={{ accentColor: primaryColor }} />
               <div className="flex items-center justify-between mt-1.5">
                 <span className="text-[11px] text-white/30">
-                  Ready in <span className="font-medium" style={{ color: exploreColor }}>{monthsLabel(exploreMonths)}</span>
+                  {recurring
+                    ? <>Annual budget <span className="font-medium" style={{ color: primaryColor }}>{fmt(exploreContribution * 12)}</span></>
+                    : <>Ready in <span className="font-medium" style={{ color: exploreColor }}>{monthsLabel(exploreMonths)}</span></>}
                 </span>
                 {hasExploreChange && (
                   <button onClick={e => { e.stopPropagation(); onPatchConfig(goal.id, { monthly_contribution: exploreContribution }) }}
                     className="text-[11px] font-medium px-2 py-1 rounded-full transition-colors"
                     style={{ background: `color-mix(in srgb, ${primaryColor} 20%, transparent)`, color: primaryColor }}>
-                    Set as new monthly savings
+                    {commitLabel}
                   </button>
                 )}
               </div>
@@ -135,8 +143,8 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
             <div className="grid grid-cols-2 gap-2">
               <StatBox label={targetStatLabel} value={summary.hasTarget ? fmt(summary.target) : '—'} />
               <StatBox label="Saved so far" value={fmt(summary.currentSaved)} color={primaryColor} />
-              <StatBox label="Still needed" value={fmt(summary.remaining)} />
-              <StatBox label="Monthly savings" value={`${fmt(summary.monthlyContribution)}/mo`} color={primaryColor} />
+              {!recurring && <StatBox label="Still needed" value={fmt(summary.remaining)} />}
+              <StatBox label={recurring ? 'Monthly top-up' : 'Monthly savings'} value={`${fmt(summary.monthlyContribution)}/mo`} color={primaryColor} />
               {extraStats.map((s, i) => <StatBox key={i} label={s.label} value={s.value || '—'} />)}
             </div>
           </div>

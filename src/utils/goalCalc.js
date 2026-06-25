@@ -155,6 +155,10 @@ export function computeSimpleSavingsGoalSummary(type, rawConfig, { categories, c
     const mainCategories = categories.filter(c => !c.parent_id)
     const totalPlanned = mainCategories.reduce((s, c) => s + monthlyAverage(allTransactions, c.id), 0)
     target = config.emergency_fund_months * totalPlanned
+  } else if (type === 'gift') {
+    // Recurring annual pot — the "target" is derived from the monthly top-up,
+    // not the other way around (there's no fixed end date to save toward).
+    target = config.monthly_contribution * 12
   } else {
     target = config.target_amount
   }

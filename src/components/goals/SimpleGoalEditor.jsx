@@ -104,7 +104,15 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
       {/* Hero summary */}
       <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-3 overflow-hidden">
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
-        {!summary.hasTarget ? (
+        {typeConfig.recurring ? (
+          <>
+            <span className="text-3xl font-bold text-white">Fills up every year</span>
+            <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
+              <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
+            </div>
+            <span className="text-sm text-muted">{fmt(summary.currentSaved)} saved of {fmt(summary.target)} annual · {Math.round(summary.pct)}%</span>
+          </>
+        ) : !summary.hasTarget ? (
           <p className="text-sm text-muted">Set a target amount below to see your timeline.</p>
         ) : !summary.hasContribution ? (
           <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
@@ -126,29 +134,31 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
       </div>
 
       {/* Target */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
-        {goal.type === 'fund' ? (
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted w-40 shrink-0">Months of expenses</span>
-            <input type="range" min={1} max={12} step={1} value={config.emergency_fund_months}
-              onChange={e => patchConfig({ emergency_fund_months: Number(e.target.value) })}
-              className="flex-1 cursor-pointer" style={{ accentColor: typeConfig.primaryColor }} />
-            <span className="text-sm tabular-nums text-white w-10 text-right">{config.emergency_fund_months}</span>
-          </div>
-        ) : (
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
-            <input type="number" min="0" value={config.target_amount || ''} placeholder="e.g. 10000"
-              onChange={e => patchConfig({ target_amount: Number(e.target.value) })}
-              className={inputCls} style={{ paddingLeft: '1.5rem' }} />
-          </div>
-        )}
-      </div>
+      {!typeConfig.recurring && (
+        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+          <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
+          {goal.type === 'fund' ? (
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted w-40 shrink-0">Months of expenses</span>
+              <input type="range" min={1} max={12} step={1} value={config.emergency_fund_months}
+                onChange={e => patchConfig({ emergency_fund_months: Number(e.target.value) })}
+                className="flex-1 cursor-pointer" style={{ accentColor: typeConfig.primaryColor }} />
+              <span className="text-sm tabular-nums text-white w-10 text-right">{config.emergency_fund_months}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+              <input type="number" min="0" value={config.target_amount || ''} placeholder="e.g. 10000"
+                onChange={e => patchConfig({ target_amount: Number(e.target.value) })}
+                className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Monthly contribution + savings */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Monthly contribution</h2>
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.recurring ? 'Monthly top-up' : 'Monthly contribution'}</h2>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
           <input type="number" min="0" value={config.monthly_contribution || ''} placeholder="e.g. 250"
