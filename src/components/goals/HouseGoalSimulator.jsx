@@ -332,12 +332,13 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   }, [])
 
   return (
-    <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
-
-      {/* Ambient illustration covering the whole page as a backdrop */}
-      <div className="absolute inset-0 -z-10 overflow-hidden rounded-3xl pointer-events-none opacity-[0.16]">
+    <>
+      {/* Ambient illustration covering the entire viewport as a backdrop */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none opacity-[0.16]">
         <HouseScene fit="slice" />
       </div>
+
+      <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
@@ -775,6 +776,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         )}
       </div>
 
-    </div>
+      </div>
+    </>
   )
 }
