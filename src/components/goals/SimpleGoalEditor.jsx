@@ -29,6 +29,9 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
 
   const summary = computeSimpleSavingsGoalSummary(goal.type, config, { categories, cards, allTransactions })
   const savingsCard = cards.find(c => c.id === config.savings_card_id) ?? null
+  const subtitle = typeConfig.subtitle
+    ? typeConfig.subtitle(fmt, summary.monthlyContribution)
+    : `putting aside ${fmt(summary.monthlyContribution)}/mo toward your ${typeConfig.subtitleNoun}`
 
   function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
   function updateExtraStat(i, patch) {
