@@ -338,7 +338,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         <HouseScene fit="slice" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
+      <div className="relative w-full flex flex-col gap-5">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
