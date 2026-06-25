@@ -21,7 +21,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
     monthly_contribution:  goal.config?.monthly_contribution ?? 0,
     savings_card_id:       goal.config?.savings_card_id ?? null,
     manual_saved_amount:   goal.config?.manual_saved_amount ?? 0,
-    extra_stats:           goal.config?.extra_stats ?? typeConfig.extraStatLabels.map(label => ({ label, value: '' })),
+    extra_stats:           goal.config?.extra_stats ?? typeConfig.extraStatLabels.map(label => ({ label, amount: 0, frequency: 'once' })),
   }))
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
@@ -31,8 +31,8 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
   const savingsCard = cards.find(c => c.id === config.savings_card_id) ?? null
 
   function patchConfig(patch) { setConfig(c => ({ ...c, ...patch })) }
-  function updateExtraStat(i, value) {
-    setConfig(c => ({ ...c, extra_stats: c.extra_stats.map((s, idx) => idx === i ? { ...s, value } : s) }))
+  function updateExtraStat(i, patch) {
+    setConfig(c => ({ ...c, extra_stats: c.extra_stats.map((s, idx) => idx === i ? { ...s, ...patch } : s) }))
   }
 
   const nameRef = useRef(name); nameRef.current = name
@@ -192,9 +192,25 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Extra details</h2>
           {config.extra_stats.map((s, i) => (
             <div key={i} className="flex items-center gap-3">
-              <span className="text-xs text-muted w-40 shrink-0">{s.label}</span>
-              <input value={s.value} onChange={e => updateExtraStat(i, e.target.value)}
-                placeholder="e.g. ~€85/mo" className={inputCls} />
+              <span className="text-xs text-muted w-32 shrink-0 truncate">{s.label}</span>
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+                <input type="number" min="0" value={s.amount || ''} placeholder="0"
+                  onChange={e => updateExtraStat(i, { amount: Number(e.target.value) })}
+                  className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+              </div>
+              <div className="flex rounded-xl border border-white/10 overflow-hidden shrink-0">
+                {['once', 'monthly'].map(freq => (
+                  <button key={freq} type="button" onClick={() => updateExtraStat(i, { frequency: freq })}
+                    className="px-2.5 py-2 text-xs font-medium transition-colors"
+                    style={{
+                      background: s.frequency === freq ? `color-mix(in srgb, ${typeConfig.primaryColor} 20%, transparent)` : 'transparent',
+                      color:      s.frequency === freq ? typeConfig.primaryColor : 'rgba(255,255,255,0.35)',
+                    }}>
+                    {freq === 'once' ? 'Once' : 'Monthly'}
+                  </button>
+                ))}
+              </div>
             </div>
           ))}
         </div>

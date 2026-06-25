@@ -94,7 +94,7 @@ export const SIMPLE_GOAL_TYPES = {
     secondaryColor: '#ff6090',
     targetStatLabel: 'Total budget',
     subtitleNoun: 'big day',
-    extraStatLabels: ['Venue deposit', 'Rings budget'],
+    extraStatLabels: ['Venue deposit', 'Rings budget', 'Food & catering', 'Dress & attire'],
     backTitle: 'Road to your big day',
     milestones: (summary, fmt, savingsCardName) => buildMilestones(summary, [0, 0.25, 0.7, 1], [
       { Icon: Check, title: 'Saving started', desc: savingsCardName ? `Savings card linked · ${savingsCardName}` : `${fmt(summary.currentSaved)} set aside · goal created` },

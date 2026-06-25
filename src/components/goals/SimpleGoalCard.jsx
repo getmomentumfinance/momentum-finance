@@ -60,7 +60,10 @@ export default function SimpleGoalCard({ goal, summary, typeConfig, savingsCardN
         { label: 'Months covered', value: `${goal.config?.emergency_fund_months ?? 3} months` },
         { label: 'Linked account', value: savingsCardName ?? '—' },
       ]
-    : (goal.config?.extra_stats ?? []).slice(0, recurring ? 3 : 2)
+    : (goal.config?.extra_stats ?? []).map(s => ({
+        label: s.label,
+        value: s.amount ? `${fmt(s.amount)}${s.frequency === 'monthly' ? '/mo' : ''}` : '—',
+      }))
 
   const milestoneList = milestones(summary, fmt, savingsCardName).map(m => ({ ...m, color: primaryColor }))
 
