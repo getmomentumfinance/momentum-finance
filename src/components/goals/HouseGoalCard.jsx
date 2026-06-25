@@ -120,9 +120,9 @@ function Milestone({ Icon, status, title, desc, tag }) {
   )
 }
 
-export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onOpen, onDelete }) {
+export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onOpen, onDelete, onSetSavings }) {
   const [flipped, setFlipped] = useState(false)
-  const [exploreSavings, setExploreSavings] = useState(() => summary.monthlySavings)
+  const [exploreSavings, setExploreSavings] = useState(() => summary.effectiveMonthlySavings)
 
   const exploreTimeline = useMemo(() => computeHouseTimeline({
     monthlySavings: exploreSavings,
@@ -131,11 +131,12 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
     downPaymentTarget: summary.downPaymentTarget,
   }), [exploreSavings, summary.currentSaved, summary.emergencyTarget, summary.downPaymentTarget])
 
-  const leftover = summary.combinedIncome - exploreSavings
-  const leftoverColor = leftover >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)'
-  const readyColor = exploreTimeline.totalMonths <= summary.timeline.totalMonths ? 'var(--color-progress-bar)' : 'var(--color-warning)'
+  const realLeftover = summary.combinedIncome - summary.effectiveMonthlySavings
+  const realLeftoverColor = realLeftover >= 0 ? 'var(--color-progress-bar)' : 'var(--color-alert)'
+  const exploreColor = exploreTimeline.totalMonths <= summary.timeline.totalMonths ? 'var(--color-progress-bar)' : 'var(--color-warning)'
+  const hasExploreChange = Math.round(exploreSavings) !== Math.round(summary.effectiveMonthlySavings)
 
-  const sliderMax = Math.max(Math.ceil(summary.monthlySavings * 2), 200)
+  const sliderMax = Math.max(Math.ceil(summary.effectiveMonthlySavings * 2), 200)
   const housePrice = goal.config?.house_price ?? 0
 
   // Milestone marks (months from goal start), all derived from the real timeline.
@@ -221,29 +222,37 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
 
           <div className="p-4 flex flex-col gap-3">
             <div>
-              <p className="text-xl font-bold leading-tight" style={{ color: readyColor }}>Ready in {monthsLabel(exploreTimeline.totalMonths)}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xl font-bold leading-tight text-white">Ready in {monthsLabel(summary.timeline.totalMonths)}</p>
+                {summary.hasSavingsOverride && (
+                  <button onClick={e => { e.stopPropagation(); onSetSavings(goal.id, null) }}
+                    className="text-[10px] text-white/30 hover:text-white/60 transition-colors underline">
+                    custom rate · reset
+                  </button>
+                )}
+              </div>
               <p className="text-[12px] text-white/40 mt-0.5">
-                putting aside <span className="font-medium" style={{ color: 'var(--color-accent-2)' }}>{fmt(exploreSavings)}/mo</span> toward your home
+                putting aside <span className="font-medium" style={{ color: 'var(--color-accent-2)' }}>{fmt(summary.effectiveMonthlySavings)}/mo</span> toward your home
               </p>
             </div>
 
             <div>
               <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/[0.05]">
-                {Number.isFinite(exploreTimeline.totalMonths) && (
+                {Number.isFinite(summary.timeline.totalMonths) && (
                   <>
-                    <div style={{ width: `${(exploreTimeline.monthsToEmergencyFund / Math.max(1, exploreTimeline.totalMonths)) * 100}%`, background: 'var(--color-accent-2)' }} />
-                    <div style={{ width: `${(exploreTimeline.monthsToDownPayment / Math.max(1, exploreTimeline.totalMonths)) * 100}%`, background: 'var(--color-accent)' }} />
+                    <div style={{ width: `${(summary.timeline.monthsToEmergencyFund / Math.max(1, summary.timeline.totalMonths)) * 100}%`, background: 'var(--color-accent-2)' }} />
+                    <div style={{ width: `${(summary.timeline.monthsToDownPayment / Math.max(1, summary.timeline.totalMonths)) * 100}%`, background: 'var(--color-accent)' }} />
                   </>
                 )}
               </div>
               <div className="flex items-center justify-between text-[10px] text-white/30 mt-1.5 flex-wrap gap-1">
                 <span className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent-2)' }} />
-                  Emergency fund · {monthsLabel(exploreTimeline.monthsToEmergencyFund)}
+                  Emergency fund · {monthsLabel(summary.timeline.monthsToEmergencyFund)}
                 </span>
                 <span className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-accent)' }} />
-                  Down payment · {monthsLabel(exploreTimeline.monthsToDownPayment)}
+                  Down payment · {monthsLabel(summary.timeline.monthsToDownPayment)}
                 </span>
               </div>
             </div>
@@ -262,9 +271,17 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
                 value={Math.min(exploreSavings, sliderMax)}
                 onChange={e => setExploreSavings(Number(e.target.value))}
                 className="w-full cursor-pointer" style={{ accentColor: 'var(--color-accent-2)' }} />
-              <div className="flex items-center justify-between text-[11px] mt-1.5 text-white/30">
-                <span>Ready in <span className="font-medium" style={{ color: readyColor }}>{monthsLabel(exploreTimeline.totalMonths)}</span></span>
-                <span>Left for living <span className="font-medium" style={{ color: leftoverColor }}>{fmt(Math.max(0, leftover))}</span></span>
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="text-[11px] text-white/30">
+                  Ready in <span className="font-medium" style={{ color: exploreColor }}>{monthsLabel(exploreTimeline.totalMonths)}</span>
+                </span>
+                {hasExploreChange && (
+                  <button onClick={e => { e.stopPropagation(); onSetSavings(goal.id, exploreSavings) }}
+                    className="text-[11px] font-medium px-2 py-1 rounded-full transition-colors"
+                    style={{ background: 'color-mix(in srgb, var(--color-accent-2) 20%, transparent)', color: 'var(--color-accent-2)' }}>
+                    Set as new monthly savings
+                  </button>
+                )}
               </div>
             </div>
 
@@ -272,9 +289,9 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
               <StatBox label="House price" value={housePrice ? fmt(housePrice) : '—'} />
               <StatBox label="Down payment" value={fmt(summary.downPaymentAmount)} color="var(--color-accent)" />
               <StatBox label="Emergency fund" value={`${fmt(summary.currentSaved)} / ${fmt(summary.emergencyTarget)}`} />
-              <StatBox label="Monthly savings" value={`${fmt(exploreSavings)}/mo`} color="var(--color-accent-2)" />
+              <StatBox label="Monthly savings" value={`${fmt(summary.effectiveMonthlySavings)}/mo`} color="var(--color-accent-2)" />
               <StatBox label="Mortgage" value={fmt(summary.mortgagePayment)} />
-              <StatBox label="Left for living" value={fmt(Math.max(0, leftover))} color={leftoverColor} />
+              <StatBox label="Left for living" value={fmt(Math.max(0, realLeftover))} color={realLeftoverColor} />
             </div>
           </div>
         </div>

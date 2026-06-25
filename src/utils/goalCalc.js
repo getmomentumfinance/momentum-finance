@@ -83,6 +83,7 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
     mortgage_rate_pct:     rawConfig?.mortgage_rate_pct ?? 3.5,
     mortgage_years:        rawConfig?.mortgage_years ?? 25,
     housing_category_id:   rawConfig?.housing_category_id ?? null,
+    monthly_savings_override: rawConfig?.monthly_savings_override ?? null,
   }
 
   const mainCategories = categories.filter(c => !c.parent_id)
@@ -100,7 +101,14 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
   const totalPlanned       = mainCategories.reduce((s, c) => s + plannedFor(c.id), 0) + extraExpensesTotal
 
   const combinedIncome = config.incomes.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+  // `monthlySavings` stays an honest income-minus-spending number always (so the
+  // Spending step's own breakdown never lies about what your categories add up to).
+  // `effectiveMonthlySavings` is what timelines are actually computed from — it's the
+  // same number unless the user has explicitly pinned a different target via the
+  // goal card's "Set as new monthly savings" action (monthly_savings_override).
   const monthlySavings = combinedIncome - totalPlanned
+  const hasSavingsOverride   = config.monthly_savings_override != null
+  const effectiveMonthlySavings = hasSavingsOverride ? config.monthly_savings_override : monthlySavings
 
   const savingsCard  = cards.find(c => c.id === config.savings_card_id) ?? null
   const currentSaved = savingsCard ? computeCardBalance(savingsCard, allTransactions) : 0
@@ -111,14 +119,14 @@ export function computeHouseGoalSummary(rawConfig, { categories, cards, allTrans
   const closingCosts      = config.house_price * (config.closing_cost_pct / 100)
   const downPaymentTarget = downPaymentAmount + closingCosts
 
-  const timeline = computeHouseTimeline({ monthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
+  const timeline = computeHouseTimeline({ monthlySavings: effectiveMonthlySavings, currentSaved, emergencyTarget, downPaymentTarget })
 
   const mortgagePayment = computeMortgagePayment(loanAmount, config.mortgage_rate_pct, config.mortgage_years)
   const housingCategoryAmount  = housingAmountFor(config.housing_category_id)
   const remainingAfterMortgage = combinedIncome - mortgagePayment - (totalPlanned - housingCategoryAmount)
 
   return {
-    combinedIncome, totalPlanned, monthlySavings,
+    combinedIncome, totalPlanned, monthlySavings, effectiveMonthlySavings, hasSavingsOverride,
     currentSaved, emergencyTarget,
     loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
     timeline, mortgagePayment, remainingAfterMortgage,

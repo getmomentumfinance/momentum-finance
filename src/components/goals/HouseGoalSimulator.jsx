@@ -152,7 +152,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
     [config, categories, cards, allTransactions]
   )
   const {
-    combinedIncome, monthlySavings, currentSaved, emergencyTarget,
+    combinedIncome, monthlySavings, effectiveMonthlySavings, hasSavingsOverride, currentSaved, emergencyTarget,
     loanAmount, downPaymentAmount, closingCosts, downPaymentTarget,
     timeline, mortgagePayment, remainingAfterMortgage, hasIncome, hasPrice,
   } = summary
@@ -348,7 +348,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
         {!hasIncome || !hasPrice ? (
           <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
-        ) : monthlySavings <= 0 ? (
+        ) : effectiveMonthlySavings <= 0 ? (
           <p className="text-sm" style={{ color: 'var(--color-alert)' }}>
             You're not saving anything at this rate — lower planned spending in step 2 to see a timeline.
           </p>
@@ -360,7 +360,13 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
           <>
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-3xl font-bold text-white">Ready in {monthsLabel(timeline.totalMonths)}</span>
-              <span className="text-sm text-muted">saving {fmt(monthlySavings)}/mo</span>
+              <span className="text-sm text-muted">saving {fmt(effectiveMonthlySavings)}/mo</span>
+              {hasSavingsOverride && (
+                <button onClick={() => patchConfig({ monthly_savings_override: null })}
+                  className="text-[11px] text-white/30 hover:text-white/60 transition-colors underline">
+                  using custom rate · reset
+                </button>
+              )}
             </div>
             <div className="flex w-full h-3 rounded-full overflow-hidden bg-white/[0.05]">
               <div style={{ width: `${(timeline.monthsToEmergencyFund / timeline.totalMonths) * 100}%`, background: 'var(--color-accent-2)' }} />

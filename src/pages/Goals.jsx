@@ -30,7 +30,7 @@ function Stat({ label, value, color, Icon }) {
   )
 }
 
-function GoalCard({ goal, onOpen, onDelete }) {
+function GoalCard({ goal, onOpen, onDelete, onSetSavings }) {
   const meta = GOAL_TYPES.find(g => g.value === goal.type) ?? GOAL_TYPES[0]
   const { fmt } = usePreferences()
   const { categories, cards, allTransactions } = useSharedData()
@@ -39,7 +39,7 @@ function GoalCard({ goal, onOpen, onDelete }) {
   const summary = goal.type === 'house'
     ? computeHouseGoalSummary(goal.config, { categories, cards, allTransactions })
     : null
-  const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.monthlySavings > 0
+  const hasTimeline = summary?.hasIncome && summary?.hasPrice && summary.effectiveMonthlySavings > 0
   const housePrice  = goal.config?.house_price ?? 0
   const fundPct     = summary?.emergencyTarget > 0 ? Math.min(100, (summary.currentSaved / summary.emergencyTarget) * 100) : 0
   const savingsPositive   = summary?.hasIncome ? summary.monthlySavings >= 0 : true
@@ -49,7 +49,7 @@ function GoalCard({ goal, onOpen, onDelete }) {
     const savingsCardName = cards.find(c => c.id === goal.config?.savings_card_id)?.name ?? null
     return (
       <HouseGoalCard goal={goal} summary={summary} savingsCardName={savingsCardName} fmt={fmt}
-        onOpen={onOpen} onDelete={onDelete} />
+        onOpen={onOpen} onDelete={onDelete} onSetSavings={onSetSavings} />
     )
   }
 
@@ -184,6 +184,18 @@ export default function Goals() {
     setActiveGoal(updated)
   }
 
+  // Lets a goal card commit (or clear) a pinned monthly-savings target without
+  // opening the full simulator — used by the "Set as new monthly savings" button.
+  async function setSavingsOverride(goalId, value) {
+    const goal = goals.find(g => g.id === goalId)
+    if (!goal) return
+    const config = { ...goal.config, monthly_savings_override: value }
+    const { data, error } = await supabase.from('goals')
+      .update({ config, updated_at: new Date().toISOString() }).eq('id', goalId).select().single()
+    if (error) { console.error('goals update error:', error); return }
+    setGoals(prev => prev.map(g => g.id === goalId ? data : g))
+  }
+
   return (
     <div className="min-h-screen bg-dash-bg text-white">
       <Navbar currentDate={currentDate} onPrev={() => {}} onNext={() => {}} />
@@ -225,7 +237,7 @@ export default function Goals() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-                {goals.map(g => <GoalCard key={g.id} goal={g} onOpen={setActiveGoal} onDelete={deleteGoal} />)}
+                {goals.map(g => <GoalCard key={g.id} goal={g} onOpen={setActiveGoal} onDelete={deleteGoal} onSetSavings={setSavingsOverride} />)}
               </div>
             )}
           </>
