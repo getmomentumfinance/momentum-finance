@@ -333,9 +333,10 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
   return (
     <>
-      {/* Ambient illustration covering the entire viewport as a backdrop */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-[0.16]">
+      {/* Ambient illustration banner, pinned to the top while content scrolls over it */}
+      <div className="fixed inset-x-0 top-0 h-72 overflow-hidden pointer-events-none opacity-[0.16]">
         <HouseScene fit="slice" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
       </div>
 
       <div className="relative w-full flex flex-col gap-5">
