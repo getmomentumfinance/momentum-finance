@@ -89,12 +89,11 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
   }, [])
 
   return (
-    <div className="relative max-w-2xl mx-auto w-full flex flex-col gap-5">
+    <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
 
-      {/* Ambient illustration banner, fading into the page below */}
-      <div className="absolute inset-x-0 top-0 h-64 -z-10 overflow-hidden rounded-3xl opacity-[0.16] pointer-events-none">
-        <typeConfig.Scene />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
+      {/* Ambient illustration covering the whole page as a backdrop */}
+      <div className="absolute inset-0 -z-10 overflow-hidden rounded-3xl pointer-events-none opacity-[0.16]">
+        <typeConfig.Scene fit="slice" />
       </div>
 
       {/* Header */}
@@ -138,6 +137,10 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
           </>
         )}
       </div>
+
+      {/* Inputs, two columns on wide screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      <div className="flex flex-col gap-5">
 
       {/* Target */}
       {!typeConfig.recurring && (
@@ -192,6 +195,9 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
         )}
       </div>
 
+      </div>
+      <div className="flex flex-col gap-5">
+
       {/* Extra stats */}
       {config.extra_stats.length > 0 && (
         <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
@@ -221,6 +227,9 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
           ))}
         </div>
       )}
+
+      </div>
+      </div>
 
       {/* Footer */}
       <div className="flex items-center justify-end gap-3 pb-4">

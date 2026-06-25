@@ -1,10 +1,10 @@
 import { useTwinkle } from './useTwinkle'
 
-export default function HouseScene() {
+export default function HouseScene({ fit = 'meet' } = {}) {
   const starsRef = useTwinkle()
 
   return (
-    <svg width="100%" height="100%" viewBox="0 0 600 170" preserveAspectRatio="xMidYMid meet"
+    <svg width="100%" height="100%" viewBox="0 0 600 170" preserveAspectRatio={`xMidYMid ${fit}`}
       style={{ display: 'block' }} xmlns="http://www.w3.org/2000/svg">
       <circle cx="480" cy="38" r="28" fill="#2a2240" />
       <circle cx="500" cy="32" r="22" fill="#322a50" />

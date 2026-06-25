@@ -1,9 +1,9 @@
 import { useTwinkle } from './useTwinkle'
 
-export default function CarScene() {
+export default function CarScene({ fit = 'meet' } = {}) {
   const starsRef = useTwinkle()
   return (
-    <svg width="100%" height="100%" viewBox="0 0 600 160" preserveAspectRatio="xMidYMid meet"
+    <svg width="100%" height="100%" viewBox="0 0 600 160" preserveAspectRatio={`xMidYMid ${fit}`}
       style={{ display: 'block' }} xmlns="http://www.w3.org/2000/svg">
       <rect width="600" height="160" fill="#0f1520" />
       <circle cx="520" cy="35" r="22" fill="#1a2540" />

@@ -334,10 +334,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
   return (
     <div className="relative max-w-4xl mx-auto w-full flex flex-col gap-5">
 
-      {/* Ambient illustration banner, fading into the page below */}
-      <div className="absolute inset-x-0 top-0 h-64 -z-10 overflow-hidden rounded-3xl opacity-[0.16] pointer-events-none">
-        <HouseScene />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
+      {/* Ambient illustration covering the whole page as a backdrop */}
+      <div className="absolute inset-0 -z-10 overflow-hidden rounded-3xl pointer-events-none opacity-[0.16]">
+        <HouseScene fit="slice" />
       </div>
 
       {/* Header */}

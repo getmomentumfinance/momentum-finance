@@ -1,13 +1,13 @@
 import { useTwinkle } from './useTwinkle'
 
-export default function EmergencyFundScene({ pct = 0 }) {
+export default function EmergencyFundScene({ pct = 0, fit = 'meet' }) {
   const starsRef = useTwinkle()
   // Shield fill rises from the bottom of its silhouette in proportion to pct.
   const fillHeight = (Math.min(100, Math.max(0, pct)) / 100) * 60
   const fillY = 132 - fillHeight
 
   return (
-    <svg width="100%" height="100%" viewBox="0 0 600 165" preserveAspectRatio="xMidYMid meet"
+    <svg width="100%" height="100%" viewBox="0 0 600 165" preserveAspectRatio={`xMidYMid ${fit}`}
       style={{ display: 'block' }} xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="efSkyGrad" x1="0" y1="0" x2="0" y2="1">
