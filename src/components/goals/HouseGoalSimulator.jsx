@@ -74,7 +74,7 @@ const DOWN_PAYMENT_PRESETS = [
   { label: 'Minimal (10%)',      value: 10 },
 ]
 
-export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
+export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) {
   const { user } = useAuth()
   const { fmt }  = usePreferences()
   const { categories, cards, allTransactions } = useSharedData()
@@ -333,26 +333,38 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete }) {
 
   return (
     <>
-      {/* Ambient illustration banner, pinned to the top while content scrolls over it */}
-      <div className="fixed inset-x-0 top-0 h-44 overflow-hidden pointer-events-none opacity-[0.55]">
+      {/* Breadcrumb header */}
+      <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10">
+        <div className="flex items-center gap-2 text-sm min-w-0">
+          <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors shrink-0">All goals</button>
+          <ChevronRight size={14} className="text-white/20 shrink-0" />
+          <input value={name} onChange={e => setName(e.target.value)}
+            className="bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-medium px-2.5 py-1 rounded-full"
+            style={{
+              background: goal.status === 'active' ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+              color:      goal.status === 'active' ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
+            }}>
+            {goal.status === 'active' ? 'Active' : 'Draft'}
+          </span>
+          <button onClick={() => onDelete(goal.id)}
+            className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Illustration banner */}
+      <div className="relative w-full h-80 overflow-hidden">
         <HouseScene fit="slice" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
       </div>
 
       <div className="relative w-full flex flex-col gap-5">
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <input value={name} onChange={e => setName(e.target.value)}
-          className="bg-transparent text-2xl font-bold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors" />
-        <button onClick={() => onDelete(goal.id)}
-          className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-          <Trash2 size={14} />
-        </button>
-      </div>
-
       {/* Hero summary */}
-      <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-4 overflow-hidden">
+      <div className="relative flex flex-col gap-4">
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
         {!hasIncome || !hasPrice ? (
           <p className="text-sm text-muted">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>

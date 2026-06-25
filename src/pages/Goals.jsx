@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Plus, Home, Car, Shield, Trash2, ChevronLeft, Wallet, TrendingUp, TrendingDown, Receipt, Palmtree, Heart, Baby, Sofa, Briefcase, Gift, Palette } from 'lucide-react'
+import { Plus, Home, Car, Shield, Trash2, Wallet, TrendingUp, TrendingDown, Receipt, Palmtree, Heart, Baby, Sofa, Briefcase, Gift, Palette } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSharedData } from '../context/SharedDataContext'
@@ -263,15 +263,11 @@ export default function Goals() {
 
         {activeGoal ? (
           <>
-            <button onClick={() => setActiveGoal(null)}
-              className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors self-start">
-              <ChevronLeft size={14} /> All goals
-            </button>
             {activeGoal.type === 'house' && (
-              <HouseGoalSimulator goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} />
+              <HouseGoalSimulator goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} onBack={() => setActiveGoal(null)} />
             )}
             {SIMPLE_TYPES.has(activeGoal.type) && (
-              <SimpleGoalEditor goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} />
+              <SimpleGoalEditor goal={activeGoal} onSaved={handleSaved} onDelete={deleteGoal} onBack={() => setActiveGoal(null)} />
             )}
           </>
         ) : (

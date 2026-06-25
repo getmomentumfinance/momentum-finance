@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Trash2, Check, PartyPopper } from 'lucide-react'
+import { Trash2, Check, PartyPopper, ChevronRight } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
@@ -9,7 +9,7 @@ import { SIMPLE_GOAL_TYPES } from './simpleGoalTypes'
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
 
-export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
+export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
   const { fmt } = usePreferences()
   const { categories, cards, allTransactions } = useSharedData()
   const typeConfig = SIMPLE_GOAL_TYPES[goal.type]
@@ -90,26 +90,38 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete }) {
 
   return (
     <>
-      {/* Ambient illustration banner, pinned to the top while content scrolls over it */}
-      <div className="fixed inset-x-0 top-0 h-44 overflow-hidden pointer-events-none opacity-[0.55]">
+      {/* Breadcrumb header */}
+      <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10">
+        <div className="flex items-center gap-2 text-sm min-w-0">
+          <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors shrink-0">All goals</button>
+          <ChevronRight size={14} className="text-white/20 shrink-0" />
+          <input value={name} onChange={e => setName(e.target.value)}
+            className="bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors min-w-0" />
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-medium px-2.5 py-1 rounded-full"
+            style={{
+              background: goal.status === 'active' ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+              color:      goal.status === 'active' ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.4)',
+            }}>
+            {goal.status === 'active' ? 'Active' : 'Draft'}
+          </span>
+          <button onClick={() => onDelete(goal.id)}
+            className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Illustration banner */}
+      <div className="relative w-full h-80 overflow-hidden">
         <typeConfig.Scene fit="slice" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dash-bg)]" />
       </div>
 
       <div className="relative w-full flex flex-col gap-5">
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <input value={name} onChange={e => setName(e.target.value)}
-          className="bg-transparent text-2xl font-bold text-white outline-none border-b border-transparent focus:border-white/20 transition-colors" />
-        <button onClick={() => onDelete(goal.id)}
-          className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-          <Trash2 size={14} />
-        </button>
-      </div>
-
       {/* Hero summary */}
-      <div className="relative glass-card rounded-2xl p-6 flex flex-col gap-3 overflow-hidden">
+      <div className="relative flex flex-col gap-3">
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
         {typeConfig.recurring ? (
           <>
