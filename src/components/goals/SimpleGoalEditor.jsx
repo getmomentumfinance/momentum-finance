@@ -119,7 +119,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
       </div>
 
       {/* Hero banner — illustration with the summary overlaid at the bottom */}
-      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: 'rgba(8,7,16,0.78)' }}>
+      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: typeConfig.bgColor }}>
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
         <typeConfig.Scene fit="meet" />
         <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"
