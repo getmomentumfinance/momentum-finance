@@ -417,7 +417,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       <div className="flex flex-col gap-5">
 
       {/* Step 1 — Income */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
         <StepHeader n={1}>Income</StepHeader>
         <div className="flex flex-col gap-2.5">
           {config.incomes.map((inc, i) => (
@@ -448,7 +449,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       </div>
 
       {/* Step 2 — Spending (breakdown + sliders merged) */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-5">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-5 border"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
         <div className="flex items-center justify-between">
           <StepHeader n={2}>Spending</StepHeader>
           {mainCategories.length > 0 && (
@@ -594,7 +596,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       <div className="flex flex-col gap-5">
 
       {/* Step 3 — Emergency fund */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
         <StepHeader n={3}>Emergency fund</StepHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Linked savings card</span>
@@ -651,7 +654,8 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       </div>
 
       {/* Step 4 — House & Mortgage (price -> loan -> down payment -> closing costs -> mortgage, all in one place) */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
         <StepHeader n={4}>House & mortgage</StepHeader>
 
         <div className="flex items-center gap-3">

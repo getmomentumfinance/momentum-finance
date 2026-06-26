@@ -178,7 +178,8 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
 
       {/* Target */}
       {!typeConfig.recurring && (
-        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+          style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
           {goal.type === 'fund' ? (
             <div className="flex items-center gap-3">
@@ -200,7 +201,8 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
       )}
 
       {/* Monthly contribution + savings */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+        style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
         <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.recurring ? 'Monthly top-up' : 'Monthly contribution'}</h2>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
@@ -234,7 +236,8 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
 
       {/* Extra stats */}
       {config.extra_stats.length > 0 && (
-        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
+        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
+          style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Extra details</h2>
           {config.extra_stats.map((s, i) => (
             <div key={i} className="flex items-center gap-3">
