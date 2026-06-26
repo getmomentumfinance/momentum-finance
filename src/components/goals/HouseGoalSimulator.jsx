@@ -359,7 +359,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       </div>
 
       {/* Hero banner — illustration with the summary overlaid at the bottom */}
-      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: '#19152c' }}>
+      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: '#13101e' }}>
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
         <HouseScene fit="meet" />
         <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"

@@ -14,7 +14,7 @@ import SimpleGoalCard from '../components/goals/SimpleGoalCard'
 import SimpleGoalEditor from '../components/goals/SimpleGoalEditor'
 import { SIMPLE_GOAL_TYPES } from '../components/goals/simpleGoalTypes'
 
-const HOUSE_BG_COLOR = '#19152c'
+const HOUSE_BG_COLOR = '#13101e'
 
 const GOAL_TYPES = [
   { value: 'house',     label: 'Buy a house',          Icon: Home,     enabled: true },
