@@ -94,7 +94,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
   return (
     <>
       {/* Breadcrumb header */}
-      <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between gap-3 pb-3.5">
         <div className="flex items-center gap-2 text-sm min-w-0">
           <button onClick={onBack} className="flex items-center gap-1.5 text-white/40 hover:text-white/70 transition-colors shrink-0">
             <ChevronLeft size={14} /> All goals
@@ -119,10 +119,10 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
       </div>
 
       {/* Hero banner — illustration with the summary overlaid at the bottom */}
-      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: typeConfig.bgColor }}>
+      <div className="relative h-60 overflow-hidden" style={{ background: typeConfig.bgColor }}>
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
         <typeConfig.SceneWide />
-        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"
+        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex flex-col items-start gap-3"
           style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
           {typeConfig.recurring ? (
             <>
@@ -130,7 +130,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
                 <span className="text-[34px] font-semibold text-white leading-tight tracking-tight">Fills up every year</span>
                 <p className="text-[13px] text-white/50 mt-0.5">{subtitle}</p>
               </div>
-              <div className="w-[340px] shrink-0">
+              <div className="w-[340px]">
                 <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/10 mb-1.5">
                   <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
                 </div>
@@ -156,7 +156,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
                 <span className="text-[34px] font-semibold text-white leading-tight tracking-tight">Ready in {monthsLabel(summary.monthsToTarget)}</span>
                 <p className="text-[13px] text-white/50 mt-0.5">{subtitle}</p>
               </div>
-              <div className="w-[340px] shrink-0">
+              <div className="w-[340px]">
                 <div className="flex w-full h-1.5 rounded-full overflow-hidden bg-white/10 mb-1.5">
                   <div style={{ width: `${summary.pct}%`, background: typeConfig.primaryColor }} />
                 </div>
