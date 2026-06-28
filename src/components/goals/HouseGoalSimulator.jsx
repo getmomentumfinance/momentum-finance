@@ -10,7 +10,6 @@ import {
 } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 import HouseSceneWide from './scenes/HouseSceneWide'
-import DuotoneFilter from './scenes/DuotoneFilter'
 
 const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
 
@@ -360,12 +359,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       </div>
 
       {/* Hero banner — illustration with the summary overlaid at the bottom */}
-      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: '#060606' }}>
-        <DuotoneFilter id="duo-house" highlight="var(--color-accent)" />
+      <div className="relative h-60 overflow-hidden border-b border-white/[0.06]" style={{ background: '#13101e' }}>
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
-        <div style={{ filter: 'url(#duo-house)', width: '100%', height: '100%' }}>
-          <HouseSceneWide />
-        </div>
+        <HouseSceneWide />
         <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex items-end justify-between gap-8"
           style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
           {!hasIncome || !hasPrice ? (

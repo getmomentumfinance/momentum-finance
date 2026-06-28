@@ -14,6 +14,8 @@ import SimpleGoalCard from '../components/goals/SimpleGoalCard'
 import SimpleGoalEditor from '../components/goals/SimpleGoalEditor'
 import { SIMPLE_GOAL_TYPES } from '../components/goals/simpleGoalTypes'
 
+const HOUSE_BG_COLOR = '#13101e'
+
 const GOAL_TYPES = [
   { value: 'house',     label: 'Buy a house',          Icon: Home,     enabled: true },
   { value: 'car',       label: 'Buy a car',            Icon: Car,      enabled: true },
@@ -255,7 +257,9 @@ export default function Goals() {
     setGoals(prev => prev.map(g => g.id === goalId ? data : g))
   }
 
-  const activeGoalBgColor = activeGoal ? '#060606' : null
+  const activeGoalBgColor = activeGoal
+    ? (activeGoal.type === 'house' ? HOUSE_BG_COLOR : SIMPLE_GOAL_TYPES[activeGoal.type]?.bgColor)
+    : null
 
   return (
     <div className={`min-h-screen text-white ${activeGoalBgColor ? '' : 'bg-dash-bg'}`}
