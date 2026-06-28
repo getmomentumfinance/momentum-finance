@@ -1012,13 +1012,17 @@ export default function Analytics() {
 
 
   // ── Projected spend ───────────────────────────────────────────
-  // Always computed against today's real month, independent of the chart range.
+  // Tracks whichever month is selected via the navbar (currentDate), not always
+  // the real-world today — a past month shows its final totals (fully elapsed),
+  // the real current month still projects the rest of the way.
   const projectedSpend = useMemo(() => {
     const today = new Date()
-    const y = today.getFullYear()
-    const m = today.getMonth()
-    const dayOfMonth = today.getDate()
+    const y = currentDate.getFullYear()
+    const m = currentDate.getMonth()
     const daysInMonth = new Date(y, m + 1, 0).getDate()
+    const isRealCurrentMonth = y === today.getFullYear() && m === today.getMonth()
+    const isFutureMonth = new Date(y, m, 1) > new Date(today.getFullYear(), today.getMonth(), 1)
+    const dayOfMonth = isFutureMonth ? 0 : isRealCurrentMonth ? today.getDate() : daysInMonth
     const monthPfx = `${y}-${String(m + 1).padStart(2, '0')}`
     const soFar = transactions
       .filter(t => t.type === 'expense' && !t.is_split_parent && t.date.startsWith(monthPfx))
@@ -1057,7 +1061,7 @@ export default function Analytics() {
     }
 
     return { projected, dailyAvg, dayOfMonth, daysInMonth, soFar, indicator }
-  }, [transactions])
+  }, [transactions, currentDate])
 
   // ── Deep Dive ─────────────────────────────────────────────────
   const [ddDimension,    setDdDimension]    = useState('category') // 'category' | 'subcategory' | 'importance' | 'receiver' | 'type'
