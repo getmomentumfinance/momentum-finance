@@ -422,8 +422,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       <div className="relative h-60 overflow-hidden" style={{ background: '#13101e' }}>
         {justStarted && <ConfettiBurst color="var(--color-accent)" />}
         <HouseScene align="Max" />
-        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex flex-col items-start gap-3"
-          style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
+        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex flex-col items-start gap-3">
           {!hasIncome || !hasPrice ? (
             <p className="text-sm text-white/50">Add your income (step 1) and a target house price (step 4) to see your timeline.</p>
           ) : effectiveMonthlySavings <= 0 ? (

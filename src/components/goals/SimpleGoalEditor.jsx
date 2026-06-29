@@ -123,8 +123,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
       <div className="relative h-60 overflow-hidden" style={{ background: typeConfig.bgColor }}>
         {justStarted && <ConfettiBurst color={typeConfig.primaryColor} />}
         <typeConfig.SceneWide align="Max" pct={summary.pct} />
-        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex flex-col items-start gap-3"
-          style={{ background: 'linear-gradient(to top, rgba(13,10,24,0.92) 0%, rgba(13,10,24,0.6) 60%, transparent 100%)' }}>
+        <div className="absolute inset-x-0 bottom-0 px-9 pb-6 flex flex-col items-start gap-3">
           {typeConfig.recurring ? (
             <>
               <div>
