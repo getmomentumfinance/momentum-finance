@@ -561,7 +561,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
             </div>
           </div>
         ) : (
-          <div className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
             {config.category_groups.map(g => {
               const { members, planned, avg, current } = groupAggregate(g)
               if (members.length === 0) return null
