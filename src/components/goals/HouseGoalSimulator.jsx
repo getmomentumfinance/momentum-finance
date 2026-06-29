@@ -10,7 +10,7 @@ import {
 } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 import HouseScene from './scenes/HouseScene'
-import { Milestone } from '../shared/Milestone'
+import { HorizontalTimeline } from '../shared/HorizontalTimeline'
 
 function monthsBetween(start, end) {
   return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
@@ -474,9 +474,9 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       <div className="relative w-full flex flex-col mt-5">
 
       {/* Timeline — chronological summary of what's happened and what's next */}
-      <div className="flex flex-col gap-1 pb-6">
-        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest mb-3">Timeline</h2>
-        {milestones.map((m, i) => <Milestone key={i} {...m} color={HOUSE_PINK} />)}
+      <div className="flex flex-col gap-4 pb-6">
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Timeline</h2>
+        <HorizontalTimeline milestones={milestones} color={HOUSE_PINK} />
       </div>
 
       {/* Step 1 — Income */}
