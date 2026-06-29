@@ -5,6 +5,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { computeSimpleSavingsGoalSummary, monthsLabel } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
+import { Milestone } from '../shared/Milestone'
 import { SIMPLE_GOAL_TYPES } from './simpleGoalTypes'
 
 const inputCls = 'w-full bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-1.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/20 tabular-nums'
@@ -172,9 +173,16 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
 
       <div className="relative w-full flex flex-col mt-5">
 
+      {/* Timeline — chronological summary of what's happened and what's next */}
+      <div className="flex flex-col gap-1 pb-6">
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest mb-3">Timeline</h2>
+        {typeConfig.milestones(summary, fmt, savingsCard?.name ?? null).map((m, i) =>
+          <Milestone key={i} {...m} color={typeConfig.primaryColor} />)}
+      </div>
+
       {/* Target */}
       {!typeConfig.recurring && (
-        <div className="flex flex-col gap-4 pb-6">
+        <div className="flex flex-col gap-4 pb-6 border-t border-white/[0.08] pt-6">
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
           {goal.type === 'fund' ? (
             <div className="flex items-center gap-3">

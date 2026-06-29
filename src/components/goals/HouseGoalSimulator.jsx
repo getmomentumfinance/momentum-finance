@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { Plus, X, Trash2, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, PartyPopper } from 'lucide-react'
+import { Plus, X, Trash2, Check, ChevronDown, ChevronLeft, ChevronRight, Layers, PartyPopper, Shield, Landmark, Home, Key } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { useSharedData } from '../../context/SharedDataContext'
@@ -10,6 +10,11 @@ import {
 } from '../../utils/goalCalc'
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 import HouseScene from './scenes/HouseScene'
+import { Milestone } from '../shared/Milestone'
+
+function monthsBetween(start, end) {
+  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+}
 
 const HOUSE_PINK = '#ff9ec4'
 const inputCls = 'w-full bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-1.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/20 tabular-nums'
@@ -159,6 +164,60 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
     timeline, mortgagePayment, remainingAfterMortgage, hasIncome, hasPrice,
   } = summary
   const downPaymentPct = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
+
+  // Chronological milestones — same derivation HouseGoalCard uses, so the
+  // "what's happened / what's next" timeline never disagrees with the card.
+  const savingsCardName = cards.find(c => c.id === config.savings_card_id)?.name ?? null
+  const efMark = timeline.monthsToEmergencyFund
+  const dpMark = timeline.totalMonths
+  const monthsSinceStart = goal.started_at ? Math.max(0, monthsBetween(new Date(goal.started_at), new Date())) : 0
+  const efDone = emergencyTarget > 0 && currentSaved >= emergencyTarget
+  const marks = [0, efMark, efMark, dpMark, dpMark]
+  const firstNotDoneIdx = marks.findIndex((m, i) => i > 0 && (i === 1 ? !efDone : monthsSinceStart < m))
+  function milestoneStatus(idx) {
+    if (idx === 0) return 'done'
+    if (idx === 1) return efDone ? 'done' : (idx === firstNotDoneIdx ? 'active' : 'future')
+    if (monthsSinceStart >= marks[idx]) return 'done'
+    return idx === firstNotDoneIdx ? 'active' : 'future'
+  }
+  function milestoneTag(idx, prefix = 'In') {
+    const status = milestoneStatus(idx)
+    if (status === 'done') return 'Done'
+    const remaining = Math.max(0, marks[idx] - monthsSinceStart)
+    return `${prefix} ${monthsLabel(remaining)}`
+  }
+  const milestones = [
+    {
+      Icon: Check, status: milestoneStatus(0),
+      title: 'Started saving',
+      desc: savingsCardName ? `Savings card linked · ${savingsCardName}` : 'Building your savings habit',
+      tag: 'Done',
+    },
+    {
+      Icon: Shield, status: milestoneStatus(1),
+      title: 'Emergency fund complete',
+      desc: `${fmt(emergencyTarget)} target · ${fmt(currentSaved)} saved so far`,
+      tag: milestoneTag(1),
+    },
+    {
+      Icon: Landmark, status: milestoneStatus(2),
+      title: 'Mortgage pre-approval',
+      desc: `${fmt(loanAmount)} loan · ${config.mortgage_rate_pct ?? 0}% rate · ${config.mortgage_years ?? 0} yr term`,
+      tag: milestoneTag(2, '~'),
+    },
+    {
+      Icon: Home, status: milestoneStatus(3),
+      title: 'Down payment ready',
+      desc: `${fmt(downPaymentAmount)} cash · ${fmt(closingCosts)} closing costs covered`,
+      tag: milestoneTag(3),
+    },
+    {
+      Icon: Key, status: milestoneStatus(4),
+      title: 'Move in',
+      desc: `${fmt(mortgagePayment)}/mo mortgage · ${fmt(Math.max(0, remainingAfterMortgage))} left to live on`,
+      tag: milestoneTag(4),
+    },
+  ]
 
   // Give the what-if slider a sensible starting point — your real savings rate —
   // the first time it's available, without overwriting a value you've since dragged.
@@ -414,8 +473,14 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
 
       <div className="relative w-full flex flex-col mt-5">
 
+      {/* Timeline — chronological summary of what's happened and what's next */}
+      <div className="flex flex-col gap-1 pb-6">
+        <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest mb-3">Timeline</h2>
+        {milestones.map((m, i) => <Milestone key={i} {...m} color={HOUSE_PINK} />)}
+      </div>
+
       {/* Step 1 — Income */}
-      <div className="flex flex-col gap-4 pb-6">
+      <div className="flex flex-col gap-4 pb-6 border-t border-white/[0.08] pt-6">
         <StepHeader n={1}>Income</StepHeader>
         <div className="flex flex-col gap-3.5">
           {config.incomes.map((inc, i) => (

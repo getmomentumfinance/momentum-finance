@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { ChevronRight, ChevronLeft, Check, Shield, Landmark, Home, Key, Trash2 } from 'lucide-react'
 import { computeHouseTimeline, monthsLabel } from '../../utils/goalCalc'
 import HouseScene from './scenes/HouseScene'
+import { Milestone } from '../shared/Milestone'
 
 function monthsBetween(start, end) {
   return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
@@ -12,34 +13,6 @@ function StatBox({ label, value, color }) {
     <div className="rounded-xl px-3 py-2.5 bg-white/[0.04] border border-white/[0.06]">
       <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">{label}</p>
       <p className="text-sm font-semibold tabular-nums truncate" style={{ color: color ?? '#ede9ff' }}>{value}</p>
-    </div>
-  )
-}
-
-function Milestone({ Icon, status, title, desc, tag }) {
-  const dotStyle = status === 'done'
-    ? { background: 'color-mix(in srgb, var(--color-accent-2) 20%, transparent)', color: 'var(--color-accent-2)', borderColor: 'var(--color-accent-2)' }
-    : status === 'active'
-    ? { background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)', borderColor: 'var(--color-accent)' }
-    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)', borderColor: 'rgba(255,255,255,0.1)' }
-  const tagStyle = status === 'done'
-    ? { background: 'color-mix(in srgb, var(--color-accent-2) 15%, transparent)', color: 'var(--color-accent-2)' }
-    : status === 'active'
-    ? { background: 'color-mix(in srgb, var(--color-accent) 15%, transparent)', color: 'var(--color-accent)' }
-    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }
-  return (
-    <div className="flex gap-3 items-start pb-4 last:pb-0">
-      <div className="flex flex-col items-center shrink-0 w-7">
-        <div className="w-7 h-7 rounded-full flex items-center justify-center border shrink-0" style={dotStyle}>
-          <Icon size={13} />
-        </div>
-        <div className="w-px flex-1 mt-1 bg-white/[0.07]" style={{ minHeight: 18 }} />
-      </div>
-      <div className="pt-0.5">
-        <p className="text-sm font-medium" style={{ color: status === 'future' ? 'rgba(255,255,255,0.4)' : '#fff' }}>{title}</p>
-        <p className="text-xs text-white/40 mt-0.5">{desc}</p>
-        <span className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-1.5" style={tagStyle}>{tag}</span>
-      </div>
     </div>
   )
 }
@@ -232,7 +205,7 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {milestones.map((m, i) => <Milestone key={i} {...m} />)}
+            {milestones.map((m, i) => <Milestone key={i} {...m} color="var(--color-accent)" doneColor="var(--color-accent-2)" />)}
           </div>
         </div>
 
