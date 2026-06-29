@@ -170,16 +170,11 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
         </div>
       </div>
 
-      <div className="relative w-full flex flex-col gap-5 mt-5">
-
-      {/* Inputs, two columns on wide screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-      <div className="flex flex-col gap-5">
+      <div className="relative w-full flex flex-col mt-5">
 
       {/* Target */}
       {!typeConfig.recurring && (
-        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-          style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
+        <div className="flex flex-col gap-4 pb-6">
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.targetStatLabel}</h2>
           {goal.type === 'fund' ? (
             <div className="flex items-center gap-3">
@@ -201,8 +196,7 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
       )}
 
       {/* Monthly contribution + savings */}
-      <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-        style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
+      <div className="flex flex-col gap-4 py-6 border-t border-white/[0.08]">
         <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">{typeConfig.recurring ? 'Monthly top-up' : 'Monthly contribution'}</h2>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
@@ -231,13 +225,9 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
         )}
       </div>
 
-      </div>
-      <div className="flex flex-col gap-5">
-
       {/* Extra stats */}
       {config.extra_stats.length > 0 && (
-        <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-          style={{ background: `color-mix(in srgb, ${typeConfig.primaryColor} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${typeConfig.primaryColor} 16%, transparent)` }}>
+        <div className="flex flex-col gap-4 py-6 border-t border-white/[0.08]">
           <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Extra details</h2>
           {config.extra_stats.map((s, i) => (
             <div key={i} className="flex items-center gap-3">
@@ -264,9 +254,6 @@ export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
           ))}
         </div>
       )}
-
-      </div>
-      </div>
 
       {/* Footer */}
       <div className="flex items-center justify-end gap-3 pb-4">
