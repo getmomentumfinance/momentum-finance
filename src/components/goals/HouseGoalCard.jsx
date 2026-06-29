@@ -4,10 +4,6 @@ import { computeHouseTimeline, monthsLabel } from '../../utils/goalCalc'
 import HouseScene from './scenes/HouseScene'
 import { Milestone } from '../shared/Milestone'
 
-function monthsBetween(start, end) {
-  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
-}
-
 function StatBox({ label, value, color }) {
   return (
     <div className="rounded-xl px-3 py-2.5 bg-white/[0.04] border border-white/[0.06]">
@@ -36,25 +32,26 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
   const sliderMax = Math.max(Math.ceil(summary.effectiveMonthlySavings * 2), 200)
   const housePrice = goal.config?.house_price ?? 0
 
-  // Milestone marks (months from goal start), all derived from the real timeline.
-  const efMark = summary.timeline.monthsToEmergencyFund
-  const dpMark = summary.timeline.totalMonths
-  const monthsSinceStart = goal.started_at ? Math.max(0, monthsBetween(new Date(goal.started_at), new Date())) : 0
+  // Milestones — first three derived from real savings data, last two are
+  // real-world events only the user can confirm (mirrors HouseGoalSimulator's
+  // Timeline so the card and the full editor never disagree).
   const efDone = summary.emergencyTarget > 0 && summary.currentSaved >= summary.emergencyTarget
-  const marks = [0, efMark, efMark, dpMark, dpMark]
-  const firstNotDoneIdx = marks.findIndex((m, i) => i > 0 && (i === 1 ? !efDone : monthsSinceStart < m))
+  const downPaymentDone = efDone && summary.currentSaved >= summary.emergencyTarget + summary.downPaymentTarget
+  const approvedDone = !!goal.config?.mortgage_approved_at
+  const movedInDone  = !!goal.config?.moved_in_at
+  const doneFlags = [true, efDone, downPaymentDone, approvedDone, movedInDone]
+  const firstNotDoneIdx = doneFlags.findIndex(d => !d)
   function statusFor(idx) {
-    if (idx === 0) return 'done'
-    if (idx === 1) return efDone ? 'done' : (idx === firstNotDoneIdx ? 'active' : 'future')
-    if (monthsSinceStart >= marks[idx]) return 'done'
+    if (doneFlags[idx]) return 'done'
     return idx === firstNotDoneIdx ? 'active' : 'future'
   }
-  function tagFor(idx, prefix = 'In') {
-    const status = statusFor(idx)
-    if (status === 'done') return 'Done'
-    const remaining = Math.max(0, marks[idx] - monthsSinceStart)
-    return `${prefix} ${monthsLabel(remaining)}`
-  }
+  const remainingToEmergency = Math.max(0, summary.emergencyTarget - summary.currentSaved)
+  const monthsToEmergencyFromNow = summary.effectiveMonthlySavings > 0 ? Math.ceil(remainingToEmergency / summary.effectiveMonthlySavings) : Infinity
+  const remainingToDownPayment = Math.max(0, (summary.emergencyTarget + summary.downPaymentTarget) - summary.currentSaved)
+  const monthsToDownPaymentFromNow = summary.effectiveMonthlySavings > 0 ? Math.ceil(remainingToDownPayment / summary.effectiveMonthlySavings) : Infinity
+  const weeksToMoveIn = goal.config?.expected_move_in_date
+    ? Math.ceil((new Date(goal.config.expected_move_in_date) - new Date()) / (7 * 24 * 60 * 60 * 1000))
+    : null
 
   const milestones = [
     {
@@ -67,25 +64,25 @@ export default function HouseGoalCard({ goal, summary, savingsCardName, fmt, onO
       Icon: Shield, status: statusFor(1),
       title: 'Emergency fund complete',
       desc: `${fmt(summary.emergencyTarget)} target · ${fmt(summary.currentSaved)} saved so far`,
-      tag: tagFor(1),
+      tag: efDone ? 'Done' : `In ${monthsLabel(monthsToEmergencyFromNow)}`,
     },
     {
-      Icon: Landmark, status: statusFor(2),
-      title: 'Mortgage pre-approval',
-      desc: `${fmt(summary.loanAmount)} loan · ${goal.config?.mortgage_rate_pct ?? 0}% rate · ${goal.config?.mortgage_years ?? 0} yr term`,
-      tag: tagFor(2, '~'),
-    },
-    {
-      Icon: Home, status: statusFor(3),
+      Icon: Home, status: statusFor(2),
       title: 'Down payment ready',
       desc: `${fmt(summary.downPaymentAmount)} cash · ${fmt(summary.closingCosts)} closing costs covered`,
-      tag: tagFor(3),
+      tag: downPaymentDone ? 'Done' : `In ${monthsLabel(monthsToDownPaymentFromNow)}`,
+    },
+    {
+      Icon: Landmark, status: statusFor(3),
+      title: 'Mortgage approved',
+      desc: `${fmt(summary.loanAmount)} loan · ${goal.config?.mortgage_rate_pct ?? 0}% rate · ${goal.config?.mortgage_years ?? 0} yr term`,
+      tag: approvedDone ? 'Done' : statusFor(3) === 'active' ? 'Confirm in goal' : '—',
     },
     {
       Icon: Key, status: statusFor(4),
       title: 'Move in',
       desc: `${fmt(summary.mortgagePayment)}/mo mortgage · ${fmt(Math.max(0, summary.remainingAfterMortgage))} left to live on`,
-      tag: tagFor(4),
+      tag: movedInDone ? 'Done' : weeksToMoveIn != null ? `In ${weeksToMoveIn}w` : statusFor(4) === 'active' ? 'Confirm in goal' : '—',
     },
   ]
 

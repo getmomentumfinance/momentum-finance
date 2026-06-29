@@ -12,10 +12,6 @@ import { ConfettiBurst } from '../shared/ConfettiBurst'
 import HouseScene from './scenes/HouseScene'
 import { HorizontalTimeline } from '../shared/HorizontalTimeline'
 
-function monthsBetween(start, end) {
-  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
-}
-
 const HOUSE_PINK = '#ff9ec4'
 const inputCls = 'w-full bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-1.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/20 tabular-nums'
 
@@ -105,6 +101,11 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
     closing_cost_pct:     goal.config?.closing_cost_pct ?? 3,
     mortgage_rate_pct:    goal.config?.mortgage_rate_pct ?? 3.5,
     mortgage_years:       goal.config?.mortgage_years ?? 25,
+    // Real-world milestones that can't be inferred from transactions — the user
+    // confirms each one explicitly once it actually happens.
+    mortgage_approved_at:   goal.config?.mortgage_approved_at ?? null,
+    expected_move_in_date:  goal.config?.expected_move_in_date ?? null,
+    moved_in_at:            goal.config?.moved_in_at ?? null,
   }))
   const [saving, setSaving] = useState(false)
   const [savedFlash, setSavedFlash] = useState(false)
@@ -165,27 +166,29 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
   } = summary
   const downPaymentPct = config.house_price > 0 ? (downPaymentAmount / config.house_price) * 100 : 0
 
-  // Chronological milestones — same derivation HouseGoalCard uses, so the
-  // "what's happened / what's next" timeline never disagrees with the card.
+  // Chronological milestones. The first three are derived straight from real
+  // savings data (no fabricated time projections); the last two are real-world
+  // events (getting approved, moving in) that only the user can confirm —
+  // there's no transaction that proves a mortgage got approved.
   const savingsCardName = cards.find(c => c.id === config.savings_card_id)?.name ?? null
-  const efMark = timeline.monthsToEmergencyFund
-  const dpMark = timeline.totalMonths
-  const monthsSinceStart = goal.started_at ? Math.max(0, monthsBetween(new Date(goal.started_at), new Date())) : 0
   const efDone = emergencyTarget > 0 && currentSaved >= emergencyTarget
-  const marks = [0, efMark, efMark, dpMark, dpMark]
-  const firstNotDoneIdx = marks.findIndex((m, i) => i > 0 && (i === 1 ? !efDone : monthsSinceStart < m))
+  const downPaymentDone = efDone && currentSaved >= emergencyTarget + downPaymentTarget
+  const approvedDone = !!config.mortgage_approved_at
+  const movedInDone  = !!config.moved_in_at
+  const doneFlags = [true, efDone, downPaymentDone, approvedDone, movedInDone]
+  const firstNotDoneIdx = doneFlags.findIndex(d => !d)
   function milestoneStatus(idx) {
-    if (idx === 0) return 'done'
-    if (idx === 1) return efDone ? 'done' : (idx === firstNotDoneIdx ? 'active' : 'future')
-    if (monthsSinceStart >= marks[idx]) return 'done'
+    if (doneFlags[idx]) return 'done'
     return idx === firstNotDoneIdx ? 'active' : 'future'
   }
-  function milestoneTag(idx, prefix = 'In') {
-    const status = milestoneStatus(idx)
-    if (status === 'done') return 'Done'
-    const remaining = Math.max(0, marks[idx] - monthsSinceStart)
-    return `${prefix} ${monthsLabel(remaining)}`
-  }
+  const remainingToEmergency = Math.max(0, emergencyTarget - currentSaved)
+  const monthsToEmergencyFromNow = effectiveMonthlySavings > 0 ? Math.ceil(remainingToEmergency / effectiveMonthlySavings) : Infinity
+  const remainingToDownPayment = Math.max(0, (emergencyTarget + downPaymentTarget) - currentSaved)
+  const monthsToDownPaymentFromNow = effectiveMonthlySavings > 0 ? Math.ceil(remainingToDownPayment / effectiveMonthlySavings) : Infinity
+  const weeksToMoveIn = config.expected_move_in_date
+    ? Math.ceil((new Date(config.expected_move_in_date) - new Date()) / (7 * 24 * 60 * 60 * 1000))
+    : null
+
   const milestones = [
     {
       Icon: Check, status: milestoneStatus(0),
@@ -197,25 +200,25 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       Icon: Shield, status: milestoneStatus(1),
       title: 'Emergency fund complete',
       desc: `${fmt(emergencyTarget)} target · ${fmt(currentSaved)} saved so far`,
-      tag: milestoneTag(1),
+      tag: efDone ? 'Done' : `In ${monthsLabel(monthsToEmergencyFromNow)}`,
     },
     {
-      Icon: Landmark, status: milestoneStatus(2),
-      title: 'Mortgage pre-approval',
-      desc: `${fmt(loanAmount)} loan · ${config.mortgage_rate_pct ?? 0}% rate · ${config.mortgage_years ?? 0} yr term`,
-      tag: milestoneTag(2, '~'),
-    },
-    {
-      Icon: Home, status: milestoneStatus(3),
+      Icon: Home, status: milestoneStatus(2),
       title: 'Down payment ready',
       desc: `${fmt(downPaymentAmount)} cash · ${fmt(closingCosts)} closing costs covered`,
-      tag: milestoneTag(3),
+      tag: downPaymentDone ? 'Done' : `In ${monthsLabel(monthsToDownPaymentFromNow)}`,
+    },
+    {
+      Icon: Landmark, status: milestoneStatus(3),
+      title: 'Mortgage approved',
+      desc: `${fmt(loanAmount)} loan · ${config.mortgage_rate_pct ?? 0}% rate · ${config.mortgage_years ?? 0} yr term`,
+      tag: approvedDone ? 'Done' : milestoneStatus(3) === 'active' ? 'Confirm below' : '—',
     },
     {
       Icon: Key, status: milestoneStatus(4),
       title: 'Move in',
       desc: `${fmt(mortgagePayment)}/mo mortgage · ${fmt(Math.max(0, remainingAfterMortgage))} left to live on`,
-      tag: milestoneTag(4),
+      tag: movedInDone ? 'Done' : weeksToMoveIn != null ? `In ${weeksToMoveIn}w` : milestoneStatus(4) === 'active' ? 'Confirm below' : '—',
     },
   ]
 
@@ -476,6 +479,48 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
       <div className="flex flex-col gap-4 pb-6">
         <h2 className="text-xs font-semibold text-white/80 uppercase tracking-widest">Timeline</h2>
         <HorizontalTimeline milestones={milestones} color={HOUSE_PINK} />
+
+        {firstNotDoneIdx === 3 && (
+          <div className="flex items-center justify-between gap-4 rounded-xl px-4 py-3"
+            style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 8%, transparent)`, border: `0.5px solid color-mix(in srgb, ${HOUSE_PINK} 20%, transparent)` }}>
+            <p className="text-sm text-white/70">Got your mortgage pre-approval from the bank?</p>
+            <button onClick={() => patchConfig({ mortgage_approved_at: new Date().toISOString() })}
+              className="px-4 py-2 rounded-lg text-sm font-medium shrink-0" style={{ background: HOUSE_PINK, color: '#1a0f14' }}>
+              Confirm pre-approval
+            </button>
+          </div>
+        )}
+
+        {firstNotDoneIdx === 4 && (
+          <div className="flex flex-col gap-3 rounded-xl px-4 py-3"
+            style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 8%, transparent)`, border: `0.5px solid color-mix(in srgb, ${HOUSE_PINK} 20%, transparent)` }}>
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-white/70">Expected move-in date</span>
+              <input type="date" value={config.expected_move_in_date ?? ''}
+                onChange={e => patchConfig({ expected_move_in_date: e.target.value || null })}
+                className="bg-transparent border-0 border-b border-white/10 focus:border-white/30 text-sm text-white outline-none py-1" />
+            </div>
+            {weeksToMoveIn != null && (
+              <p className="text-xs text-white/40">
+                {weeksToMoveIn > 0 ? `${weeksToMoveIn} week${weeksToMoveIn === 1 ? '' : 's'} to go` : "It's time!"}
+              </p>
+            )}
+            <button onClick={() => patchConfig({ moved_in_at: new Date().toISOString() })}
+              className="self-start px-4 py-2 rounded-lg text-sm font-medium" style={{ background: HOUSE_PINK, color: '#1a0f14' }}>
+              Confirm move-in
+            </button>
+          </div>
+        )}
+
+        {firstNotDoneIdx === -1 && (
+          <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+            style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 8%, transparent)`, border: `0.5px solid color-mix(in srgb, ${HOUSE_PINK} 20%, transparent)` }}>
+            <PartyPopper size={18} style={{ color: HOUSE_PINK }} />
+            <p className="text-sm text-white/70">
+              You moved in{config.moved_in_at ? ` on ${new Date(config.moved_in_at).toLocaleDateString()}` : ''} — goal complete!
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Step 1 — Income */}
