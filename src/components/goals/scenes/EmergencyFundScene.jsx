@@ -1,132 +1,101 @@
 import { useTwinkle } from './useTwinkle'
 
-export default function EmergencyFundScene({ pct = 0, fit = 'meet' }) {
+export default function EmergencyFundScene({ pct = 0, fit = 'meet', align = 'Mid' } = {}) {
   const starsRef = useTwinkle()
   // Shield fill rises from the bottom of its silhouette in proportion to pct.
-  const fillHeight = (Math.min(100, Math.max(0, pct)) / 100) * 60
-  const fillY = 132 - fillHeight
+  const fillHeight = (Math.min(100, Math.max(0, pct)) / 100) * 168
+  const fillY = 316 - fillHeight
 
   return (
-    <svg width="100%" height="100%" viewBox="0 0 600 165" preserveAspectRatio={`xMidYMid ${fit}`}
+    <svg width="100%" height="100%" viewBox="0 0 680 420" preserveAspectRatio={`x${align}YMid ${fit}`}
       style={{ display: 'block' }} xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="efSkyGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0d1f2a" />
-          <stop offset="100%" stopColor="#152a38" />
-        </linearGradient>
-        <linearGradient id="efRainGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1a4a5a" stopOpacity="0" />
-          <stop offset="100%" stopColor="#2a7a8a" stopOpacity="0.18" />
-        </linearGradient>
-        <radialGradient id="efPuddleG" cx="50%" cy="40%" r="50%">
-          <stop offset="0%" stopColor="#2a8888" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#1a5060" stopOpacity="0.1" />
-        </radialGradient>
-        <radialGradient id="efShieldGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#64e8c8" stopOpacity="0.18" />
+        <radialGradient id="shieldGlowFund" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#64e8c8" stopOpacity="0.14" />
           <stop offset="100%" stopColor="#64e8c8" stopOpacity="0" />
         </radialGradient>
-        <clipPath id="efShieldClip">
-          <path d="M300 72 L326 82 L326 104 Q326 122 300 132 Q274 122 274 104 L274 82 Z" />
+        <clipPath id="shieldClipFund">
+          <path d="M 340 148 L 415 178 L 415 240 Q 415 286 340 316 Q 265 286 265 240 L 265 178 Z" />
         </clipPath>
       </defs>
-
-      <rect width="600" height="165" fill="url(#efSkyGrad)" />
-
       <g ref={starsRef}>
-        <circle data-star cx="50" cy="18" r="1" fill="#64e8c8" opacity="0.3" />
-        <circle data-star cx="130" cy="10" r="1.2" fill="#fff" opacity="0.2" />
-        <circle data-star cx="490" cy="14" r="1" fill="#64e8c8" opacity="0.25" />
-        <circle data-star cx="555" cy="28" r="1.2" fill="#fff" opacity="0.2" />
-        <circle data-star cx="310" cy="8" r="1" fill="#64e8c8" opacity="0.2" />
+        <circle data-star cx="60" cy="22" r="1" fill="#e8f4e8" opacity="0.25" />
+        <circle data-star cx="150" cy="14" r="0.8" fill="#e8f4e8" opacity="0.2" />
+        <circle data-star cx="580" cy="18" r="1" fill="#e8f4e8" opacity="0.25" />
+        <circle data-star cx="640" cy="40" r="0.8" fill="#e8f4e8" opacity="0.2" />
       </g>
-
-      <ellipse cx="120" cy="62" rx="90" ry="34" fill="#1a3a4a" />
-      <ellipse cx="80" cy="70" rx="60" ry="28" fill="#1e4050" />
-      <ellipse cx="155" cy="58" rx="55" ry="26" fill="#1e4050" />
-      <ellipse cx="110" cy="52" rx="40" ry="22" fill="#224455" />
-
-      <ellipse cx="460" cy="55" rx="100" ry="36" fill="#1a3a4a" />
-      <ellipse cx="420" cy="64" rx="65" ry="28" fill="#1e4050" />
-      <ellipse cx="500" cy="50" rx="60" ry="26" fill="#1e4050" />
-      <ellipse cx="460" cy="44" rx="44" ry="22" fill="#224455" />
-
-      <ellipse cx="300" cy="72" rx="70" ry="24" fill="#1a3848" />
-      <ellipse cx="268" cy="78" rx="48" ry="20" fill="#1e4050" />
-      <ellipse cx="332" cy="68" rx="44" ry="20" fill="#1e4050" />
-
-      <g opacity="0.35" stroke="#64e8c8" strokeWidth="0.8" strokeLinecap="round">
-        <line x1="68" y1="92" x2="62" y2="114" />
-        <line x1="82" y1="96" x2="76" y2="118" />
-        <line x1="96" y1="90" x2="90" y2="112" />
-        <line x1="110" y1="94" x2="104" y2="116" />
-        <line x1="124" y1="88" x2="118" y2="110" />
-        <line x1="138" y1="92" x2="132" y2="114" />
-        <line x1="152" y1="86" x2="146" y2="108" />
-        <line x1="75" y1="108" x2="69" y2="130" />
-        <line x1="103" y1="110" x2="97" y2="132" />
-        <line x1="131" y1="106" x2="125" y2="128" />
+      <ellipse cx="170" cy="65" rx="130" ry="55" fill="#0e1816" opacity="0.9" />
+      <ellipse cx="280" cy="50" rx="120" ry="50" fill="#0f1a17" opacity="0.85" />
+      <ellipse cx="400" cy="70" rx="150" ry="58" fill="#0e1816" opacity="0.9" />
+      <ellipse cx="530" cy="55" rx="130" ry="52" fill="#0f1a17" opacity="0.85" />
+      <ellipse cx="640" cy="75" rx="100" ry="45" fill="#0e1816" opacity="0.8" />
+      <ellipse cx="60" cy="80" rx="90" ry="40" fill="#0e1816" opacity="0.8" />
+      <ellipse cx="200" cy="90" rx="110" ry="42" fill="#111e1b" opacity="0.7" />
+      <ellipse cx="460" cy="95" rx="140" ry="45" fill="#111e1b" opacity="0.7" />
+      <g fill="#1a2e20" opacity="0.5">
+        <rect x="55" y="130" width="1.5" height="10" rx="0.5" />
+        <rect x="80" y="155" width="1.5" height="10" rx="0.5" />
+        <rect x="105" y="120" width="1.5" height="10" rx="0.5" />
+        <rect x="130" y="160" width="1.5" height="10" rx="0.5" />
+        <rect x="155" y="135" width="1.5" height="10" rx="0.5" />
+        <rect x="185" y="165" width="1.5" height="10" rx="0.5" />
+        <rect x="210" y="125" width="1.5" height="10" rx="0.5" />
+        <rect x="240" y="150" width="1.5" height="10" rx="0.5" />
+        <rect x="440" y="140" width="1.5" height="10" rx="0.5" />
+        <rect x="465" y="160" width="1.5" height="10" rx="0.5" />
+        <rect x="492" y="128" width="1.5" height="10" rx="0.5" />
+        <rect x="518" y="155" width="1.5" height="10" rx="0.5" />
+        <rect x="545" y="138" width="1.5" height="10" rx="0.5" />
+        <rect x="570" y="168" width="1.5" height="10" rx="0.5" />
+        <rect x="600" y="130" width="1.5" height="10" rx="0.5" />
+        <rect x="628" y="158" width="1.5" height="10" rx="0.5" />
       </g>
-
-      <g opacity="0.3" stroke="#64e8c8" strokeWidth="0.8" strokeLinecap="round">
-        <line x1="390" y1="88" x2="384" y2="110" />
-        <line x1="408" y1="92" x2="402" y2="114" />
-        <line x1="424" y1="86" x2="418" y2="108" />
-        <line x1="440" y1="90" x2="434" y2="112" />
-        <line x1="456" y1="84" x2="450" y2="106" />
-        <line x1="472" y1="88" x2="466" y2="110" />
-        <line x1="488" y1="82" x2="482" y2="104" />
-        <line x1="504" y1="86" x2="498" y2="108" />
-        <line x1="416" y1="106" x2="410" y2="128" />
-        <line x1="464" y1="102" x2="458" y2="124" />
+      <g fill="#1a2e20" opacity="0.35">
+        <rect x="68" y="185" width="1.5" height="10" rx="0.5" />
+        <rect x="92" y="210" width="1.5" height="10" rx="0.5" />
+        <rect x="118" y="195" width="1.5" height="10" rx="0.5" />
+        <rect x="142" y="220" width="1.5" height="10" rx="0.5" />
+        <rect x="168" y="200" width="1.5" height="10" rx="0.5" />
+        <rect x="198" y="215" width="1.5" height="10" rx="0.5" />
+        <rect x="450" y="190" width="1.5" height="10" rx="0.5" />
+        <rect x="478" y="212" width="1.5" height="10" rx="0.5" />
+        <rect x="504" y="195" width="1.5" height="10" rx="0.5" />
+        <rect x="532" y="218" width="1.5" height="10" rx="0.5" />
+        <rect x="558" y="200" width="1.5" height="10" rx="0.5" />
+        <rect x="585" y="215" width="1.5" height="10" rx="0.5" />
+        <rect x="612" y="188" width="1.5" height="10" rx="0.5" />
+        <rect x="638" y="210" width="1.5" height="10" rx="0.5" />
       </g>
-
-      <g opacity="0.25" stroke="#64e8c8" strokeWidth="0.7" strokeLinecap="round">
-        <line x1="268" y1="92" x2="263" y2="112" />
-        <line x1="282" y1="96" x2="277" y2="116" />
-        <line x1="296" y1="90" x2="291" y2="110" />
-        <line x1="310" y1="94" x2="305" y2="114" />
-        <line x1="324" y1="88" x2="319" y2="108" />
-      </g>
-
-      <rect x="0" y="138" width="600" height="27" fill="#0e2230" />
-      <path d="M0 136 Q150 132 300 136 Q450 140 600 136 L600 140 L0 140 Z" fill="#122838" />
-
-      <ellipse cx="100" cy="142" rx="38" ry="6" fill="url(#efPuddleG)" />
-      <ellipse cx="300" cy="145" rx="28" ry="5" fill="url(#efPuddleG)" />
-      <ellipse cx="490" cy="141" rx="34" ry="5" fill="url(#efPuddleG)" />
-
-      <ellipse cx="100" cy="142" rx="22" ry="3" fill="none" stroke="#2a8888" strokeWidth="0.7" opacity="0.4" />
-      <ellipse cx="100" cy="142" rx="12" ry="2" fill="none" stroke="#2a8888" strokeWidth="0.6" opacity="0.3" />
-      <ellipse cx="490" cy="141" rx="20" ry="3" fill="none" stroke="#2a8888" strokeWidth="0.7" opacity="0.35" />
-
-      <rect x="174" y="78" width="2.5" height="58" fill="#1a3a4a" />
-      <path d="M175 136 Q175 148 165 148" fill="none" stroke="#1a3a4a" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M130 80 Q175 58 220 80 Q197 70 175 70 Q153 70 130 80 Z" fill="#2a6878" />
-      <path d="M130 80 Q152 74 175 74 Q198 74 220 80" fill="none" stroke="#64e8c8" strokeWidth="1" opacity="0.4" />
-      <line x1="175" y1="70" x2="130" y2="80" stroke="#1e5060" strokeWidth="0.8" opacity="0.5" />
-      <line x1="175" y1="70" x2="152" y2="75" stroke="#1e5060" strokeWidth="0.8" opacity="0.5" />
-      <line x1="175" y1="70" x2="198" y2="75" stroke="#1e5060" strokeWidth="0.8" opacity="0.5" />
-      <line x1="175" y1="70" x2="220" y2="80" stroke="#1e5060" strokeWidth="0.8" opacity="0.5" />
-
-      <rect x="424" y="75" width="2.5" height="61" fill="#1a3a4a" />
-      <path d="M425 136 Q425 148 415 148" fill="none" stroke="#1a3a4a" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M380 77 Q425 55 470 77 Q447 67 425 67 Q403 67 380 77 Z" fill="#1e4e62" />
-      <path d="M380 77 Q402 71 425 71 Q448 71 470 77" fill="none" stroke="#64e8c8" strokeWidth="1" opacity="0.35" />
-      <line x1="425" y1="67" x2="380" y2="77" stroke="#1a4055" strokeWidth="0.8" opacity="0.5" />
-      <line x1="425" y1="67" x2="402" y2="72" stroke="#1a4055" strokeWidth="0.8" opacity="0.5" />
-      <line x1="425" y1="67" x2="448" y2="72" stroke="#1a4055" strokeWidth="0.8" opacity="0.5" />
-      <line x1="425" y1="67" x2="470" y2="77" stroke="#1a4055" strokeWidth="0.8" opacity="0.5" />
-
-      <ellipse cx="300" cy="105" rx="42" ry="42" fill="url(#efShieldGlow)" />
-
-      <path d="M300 72 L326 82 L326 104 Q326 122 300 132 Q274 122 274 104 L274 82 Z"
-        fill="#1a3a4a" stroke="#64e8c8" strokeWidth="1.5" strokeLinejoin="round" />
-      <rect x="274" y={fillY} width="52" height={fillHeight} fill="#2a7a6a" opacity="0.55" clipPath="url(#efShieldClip)" />
-      <polyline points="289,102 298,111 313,94" fill="none" stroke="#64e8c8" strokeWidth="2.2"
-        strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-
-      <rect width="600" height="165" fill="url(#efRainGrad)" />
+      <rect x="0" y="330" width="680" height="90" fill="#0a0f0e" />
+      <rect x="0" y="328" width="680" height="5" fill="#111a18" opacity="0.9" />
+      <ellipse cx="160" cy="345" rx="55" ry="8" fill="#0d1a17" opacity="0.7" />
+      <ellipse cx="520" cy="348" rx="60" ry="7" fill="#0d1a17" opacity="0.7" />
+      <ellipse cx="340" cy="360" rx="40" ry="6" fill="#0d1a17" opacity="0.5" />
+      <ellipse cx="160" cy="345" rx="55" ry="8" fill="none" stroke="rgba(100,232,200,0.08)" strokeWidth="1" />
+      <ellipse cx="160" cy="345" rx="42" ry="6" fill="none" stroke="rgba(100,232,200,0.06)" strokeWidth="0.7" />
+      <ellipse cx="520" cy="348" rx="60" ry="7" fill="none" stroke="rgba(100,232,200,0.08)" strokeWidth="1" />
+      <ellipse cx="340" cy="240" rx="140" ry="130" fill="url(#shieldGlowFund)" />
+      <path d="M 340 130 L 430 165 L 430 240 Q 430 295 340 330 Q 250 295 250 240 L 250 165 Z" fill="#0d1a17" />
+      <path d="M 340 130 L 430 165 L 430 240 Q 430 295 340 330 Q 250 295 250 240 L 250 165 Z" fill="none" stroke="rgba(100,232,200,0.5)" strokeWidth="2" />
+      <path d="M 340 148 L 415 178 L 415 240 Q 415 286 340 316 Q 265 286 265 240 L 265 178 Z" fill="#0e1d19" />
+      <rect x="265" y={fillY} width="150" height={fillHeight} fill="rgba(100,232,200,0.4)" clipPath="url(#shieldClipFund)" />
+      <path d="M 340 148 L 415 178 L 415 240 Q 415 286 340 316 Q 265 286 265 240 L 265 178 Z" fill="none" stroke="rgba(100,232,200,0.2)" strokeWidth="1" />
+      <path d="M 308 238 L 328 260 L 372 210" fill="none" stroke="rgba(100,232,200,0.65)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="340" cy="170" r="3" fill="rgba(100,232,200,0.3)" />
+      <line x1="295" y1="130" x2="303" y2="148" stroke="rgba(100,232,200,0.2)" strokeWidth="1" strokeLinecap="round" />
+      <line x1="320" y1="122" x2="325" y2="142" stroke="rgba(100,232,200,0.15)" strokeWidth="1" strokeLinecap="round" />
+      <line x1="360" y1="118" x2="358" y2="140" stroke="rgba(100,232,200,0.2)" strokeWidth="1" strokeLinecap="round" />
+      <line x1="385" y1="126" x2="380" y2="148" stroke="rgba(100,232,200,0.15)" strokeWidth="1" strokeLinecap="round" />
+      <rect x="60" y="200" width="80" height="140" rx="1" fill="#0c1614" opacity="0.8" />
+      <rect x="75" y="215" width="16" height="14" rx="1" fill="rgba(100,232,200,0.22)" />
+      <rect x="100" y="215" width="16" height="14" rx="1" fill="rgba(100,232,200,0.15)" />
+      <rect x="75" y="240" width="16" height="14" rx="1" fill="rgba(100,232,200,0.1)" />
+      <rect x="100" y="240" width="16" height="14" rx="1" fill="rgba(100,232,200,0.25)" />
+      <rect x="540" y="210" width="90" height="130" rx="1" fill="#0c1614" opacity="0.8" />
+      <rect x="555" y="225" width="16" height="14" rx="1" fill="rgba(100,232,200,0.18)" />
+      <rect x="580" y="225" width="16" height="14" rx="1" fill="rgba(100,232,200,0.28)" />
+      <rect x="555" y="248" width="16" height="14" rx="1" fill="rgba(100,232,200,0.22)" />
+      <rect x="580" y="248" width="16" height="14" rx="1" fill="rgba(100,232,200,0.1)" />
     </svg>
   )
 }

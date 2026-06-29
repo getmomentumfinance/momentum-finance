@@ -16,12 +16,8 @@ import GiftScene from './scenes/GiftScene'
 import ArtScene from './scenes/ArtScene'
 import CarSceneWide from './scenes/CarSceneWide'
 import VacationSceneWide from './scenes/VacationSceneWide'
-import EmergencyFundSceneWide from './scenes/EmergencyFundSceneWide'
 import WeddingSceneWide from './scenes/WeddingSceneWide'
-import BabySceneWide from './scenes/BabySceneWide'
-import FurnitureSceneWide from './scenes/FurnitureSceneWide'
 import BusinessSceneWide from './scenes/BusinessSceneWide'
-import GiftSceneWide from './scenes/GiftSceneWide'
 import ArtSceneWide from './scenes/ArtSceneWide'
 
 /**
@@ -87,7 +83,7 @@ export const SIMPLE_GOAL_TYPES = {
   fund: {
     label: 'Build emergency fund',
     Scene: EmergencyFundScene,
-    SceneWide: EmergencyFundSceneWide,
+    SceneWide: EmergencyFundScene,
     primaryColor: '#64e8c8',
     secondaryColor: '#40b8a0',
     bgColor: '#0d1f2a',
@@ -123,7 +119,7 @@ export const SIMPLE_GOAL_TYPES = {
   baby: {
     label: 'Save for a baby',
     Scene: BabyScene,
-    SceneWide: BabySceneWide,
+    SceneWide: BabyScene,
     primaryColor: '#c8b4ff',
     secondaryColor: '#a080e0',
     bgColor: '#14101e',
@@ -142,7 +138,7 @@ export const SIMPLE_GOAL_TYPES = {
   furniture: {
     label: 'Furnish your home',
     Scene: FurnitureScene,
-    SceneWide: FurnitureSceneWide,
+    SceneWide: FurnitureScene,
     primaryColor: '#ffb464',
     secondaryColor: '#e07840',
     bgColor: '#1a1410',
@@ -198,7 +194,7 @@ export const SIMPLE_GOAL_TYPES = {
   gift: {
     label: 'Build a gift fund',
     Scene: GiftScene,
-    SceneWide: GiftSceneWide,
+    SceneWide: GiftScene,
     primaryColor: '#ffd250',
     secondaryColor: '#e09820',
     bgColor: '#16120e',
