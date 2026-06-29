@@ -11,7 +11,8 @@ import {
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 import HouseScene from './scenes/HouseScene'
 
-const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
+const HOUSE_PINK = '#ff9ec4'
+const inputCls = 'w-full bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-1.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/20 tabular-nums'
 
 function StepHeader({ n, children }) {
   return (
@@ -38,12 +39,12 @@ export function SliderRow({ label, color, plannedAmount, currentMonthSpend, avgS
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />
           <span className="truncate">{label}</span>
         </span>
-        <div className="relative w-28 shrink-0">
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/25 text-xs">€</span>
+        <div className="flex items-baseline gap-1 shrink-0">
+          <span className="text-white/25 text-xs">€</span>
           <input
             type="number" min={0} value={plannedAmount ? Math.round(plannedAmount) : ''}
             onChange={e => onChange(Number(e.target.value))}
-            className="w-full bg-white/5 border border-white/10 rounded-lg pl-5 pr-2 py-1 text-sm font-semibold tabular-nums text-white outline-none focus:border-white/25 transition-colors"
+            className="w-20 bg-transparent text-right text-sm font-semibold tabular-nums text-white outline-none"
           />
         </div>
       </div>
@@ -418,21 +419,22 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
 
       {/* Step 1 — Income */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
+        style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${HOUSE_PINK} 16%, transparent)` }}>
         <StepHeader n={1}>Income</StepHeader>
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3.5">
           {config.incomes.map((inc, i) => (
-            <div key={i} className="flex items-center gap-2">
+            <div key={i} className="group flex items-end gap-3 border-b border-white/[0.06] pb-2.5">
               <input value={inc.label} onChange={e => updateIncome(i, { label: e.target.value })}
-                placeholder="Label" className={inputCls + ' flex-1'} />
-              <div className="relative w-32 shrink-0">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+                placeholder="Label" className="flex-1 bg-transparent text-sm text-white/60 outline-none placeholder:text-white/20" />
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className="text-white/30 text-sm">€</span>
                 <input type="number" min="0" value={inc.amount || ''}
                   onChange={e => updateIncome(i, { amount: Number(e.target.value) })}
-                  className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+                  className="w-28 bg-transparent text-right text-base font-semibold text-white outline-none tabular-nums" />
               </div>
               {config.incomes.length > 1 && (
-                <button onClick={() => removeIncome(i)} className="p-1.5 text-white/25 hover:text-white/60 transition-colors">
+                <button onClick={() => removeIncome(i)}
+                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
                   <X size={14} />
                 </button>
               )}
@@ -450,7 +452,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
 
       {/* Step 2 — Spending (breakdown + sliders merged) */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-5 border"
-        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
+        style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${HOUSE_PINK} 16%, transparent)` }}>
         <div className="flex items-center justify-between">
           <StepHeader n={2}>Spending</StepHeader>
           {mainCategories.length > 0 && (
@@ -489,7 +491,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
                   <div key={c.id} className="flex items-center gap-3">
                     <span className="text-sm text-white/70 flex-1 truncate">{c.name}</span>
                     <select value={currentGroup?.id ?? ''} onChange={e => setCategoryGroup(c.id, e.target.value || null)}
-                      className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors w-44 shrink-0">
+                      className="bg-transparent border-0 border-b border-white/10 focus:border-white/30 rounded-none px-0 py-1.5 text-sm text-white outline-none transition-colors w-44 shrink-0">
                       <option value="">Ungrouped</option>
                       {config.category_groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
@@ -559,16 +561,17 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
         <div className="flex flex-col gap-2.5 border-t border-white/[0.06] pt-4">
           <span className="text-[11px] text-white/30 uppercase tracking-wider">Other planned expenses</span>
           {config.extra_expenses.map(e => (
-            <div key={e.id} className="flex items-center gap-2">
+            <div key={e.id} className="group flex items-end gap-3 border-b border-white/[0.06] pb-2.5">
               <input value={e.label} onChange={ev => updateExtraExpense(e.id, { label: ev.target.value })}
-                placeholder="e.g. Future rent" className={inputCls + ' flex-1'} />
-              <div className="relative w-32 shrink-0">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm">€</span>
+                placeholder="e.g. Future rent" className="flex-1 bg-transparent text-sm text-white/60 outline-none placeholder:text-white/20" />
+              <div className="flex items-baseline gap-1 shrink-0">
+                <span className="text-white/30 text-sm">€</span>
                 <input type="number" min="0" value={e.amount || ''}
                   onChange={ev => updateExtraExpense(e.id, { amount: Number(ev.target.value) })}
-                  className={inputCls} style={{ paddingLeft: '1.5rem' }} />
+                  className="w-28 bg-transparent text-right text-base font-semibold text-white outline-none tabular-nums" />
               </div>
-              <button onClick={() => removeExtraExpense(e.id)} className="p-1.5 text-white/25 hover:text-white/60 transition-colors">
+              <button onClick={() => removeExtraExpense(e.id)}
+                className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-white/40 shrink-0">
                 <X size={14} />
               </button>
             </div>
@@ -597,7 +600,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
 
       {/* Step 3 — Emergency fund */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
+        style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${HOUSE_PINK} 16%, transparent)` }}>
         <StepHeader n={3}>Emergency fund</StepHeader>
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted w-40 shrink-0">Linked savings card</span>
@@ -655,7 +658,7 @@ export default function HouseGoalSimulator({ goal, onSaved, onDelete, onBack }) 
 
       {/* Step 4 — House & Mortgage (price -> loan -> down payment -> closing costs -> mortgage, all in one place) */}
       <div className="glass-card rounded-2xl p-5 flex flex-col gap-4 border"
-        style={{ background: 'color-mix(in srgb, var(--color-accent) 6%, var(--color-dash-card))', borderColor: 'color-mix(in srgb, var(--color-accent) 16%, transparent)' }}>
+        style={{ background: `color-mix(in srgb, ${HOUSE_PINK} 6%, var(--color-dash-card))`, borderColor: `color-mix(in srgb, ${HOUSE_PINK} 16%, transparent)` }}>
         <StepHeader n={4}>House & mortgage</StepHeader>
 
         <div className="flex items-center gap-3">

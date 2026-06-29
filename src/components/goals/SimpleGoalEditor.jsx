@@ -7,7 +7,7 @@ import { computeSimpleSavingsGoalSummary, monthsLabel } from '../../utils/goalCa
 import { ConfettiBurst } from '../shared/ConfettiBurst'
 import { SIMPLE_GOAL_TYPES } from './simpleGoalTypes'
 
-const inputCls = 'w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-white/25 transition-colors placeholder:text-white/20 tabular-nums'
+const inputCls = 'w-full bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-1.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/20 tabular-nums'
 
 export default function SimpleGoalEditor({ goal, onSaved, onDelete, onBack }) {
   const { fmt } = usePreferences()
