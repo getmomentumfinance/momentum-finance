@@ -14,11 +14,7 @@ import FurnitureScene from './scenes/FurnitureScene'
 import BusinessScene from './scenes/BusinessScene'
 import GiftScene from './scenes/GiftScene'
 import ArtScene from './scenes/ArtScene'
-import CarSceneWide from './scenes/CarSceneWide'
-import VacationSceneWide from './scenes/VacationSceneWide'
 import WeddingSceneWide from './scenes/WeddingSceneWide'
-import BusinessSceneWide from './scenes/BusinessSceneWide'
-import ArtSceneWide from './scenes/ArtSceneWide'
 
 /**
  * Builds a 4-stage milestone list anchored to real progress fractions
@@ -47,7 +43,7 @@ export const SIMPLE_GOAL_TYPES = {
   car: {
     label: 'Buy a car',
     Scene: CarScene,
-    SceneWide: CarSceneWide,
+    SceneWide: CarScene,
     primaryColor: '#ffbe50',
     secondaryColor: '#ff8c30',
     bgColor: '#0f1520',
@@ -65,7 +61,7 @@ export const SIMPLE_GOAL_TYPES = {
   vacation: {
     label: 'Save for a trip',
     Scene: VacationScene,
-    SceneWide: VacationSceneWide,
+    SceneWide: VacationScene,
     primaryColor: '#64b4ff',
     secondaryColor: '#4a80ff',
     bgColor: '#0a1828',
@@ -157,7 +153,7 @@ export const SIMPLE_GOAL_TYPES = {
   business: {
     label: 'Start a business',
     Scene: BusinessScene,
-    SceneWide: BusinessSceneWide,
+    SceneWide: BusinessScene,
     primaryColor: '#50dc8c',
     secondaryColor: '#30a060',
     bgColor: '#0e1a14',
@@ -175,7 +171,7 @@ export const SIMPLE_GOAL_TYPES = {
   art: {
     label: 'Fund a creative project',
     Scene: ArtScene,
-    SceneWide: ArtSceneWide,
+    SceneWide: ArtScene,
     primaryColor: '#a08cff',
     secondaryColor: '#7060d0',
     bgColor: '#10101e',
