@@ -158,8 +158,8 @@ export default function CalendarPage() {
         start = wStartStr
         end   = toLocalDateStr(new Date(wStart.getFullYear(), wStart.getMonth(), wStart.getDate() + 6))
       } else {
-        start = new Date(year, month, 1).toISOString().slice(0, 10)
-        end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+        start = toLocalDateStr(new Date(year, month, 1))
+        end   = toLocalDateStr(new Date(year, month + 1, 0))
       }
 
       const [{ data }, { data: subs }] = await Promise.all([

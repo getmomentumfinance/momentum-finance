@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { TRANSACTION_TYPES, TYPES_MAP } from '../../constants/transactionTypes'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
@@ -29,8 +30,8 @@ export default function CalendarWidget({ currentDate, onDayClick }) {
     if (!user?.id) return
 
     async function load() {
-      const start = new Date(year, month, 1).toISOString().slice(0, 10)
-      const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      const start = toLocalStr(new Date(year, month, 1))
+      const end   = toLocalStr(new Date(year, month + 1, 0))
       const { data } = await supabase
         .from('transactions')
         .select('date, type')

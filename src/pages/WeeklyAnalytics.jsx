@@ -11,6 +11,7 @@ import { useThemeColors } from '../hooks/useThemeColors'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { toLocalStr } from '../utils/budgetPeriod'
 
 const GRID  = 'rgba(255,255,255,0.04)'
 const MUTED = 'rgba(255,255,255,0.35)'
@@ -24,7 +25,7 @@ function getMonday(date) {
   return d
 }
 
-function isoDate(d) { return d.toISOString().slice(0, 10) }
+function isoDate(d) { return toLocalStr(d) }
 
 function midColor(colorValue) {
   if (!colorValue) return undefined

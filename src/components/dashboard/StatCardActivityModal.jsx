@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { TYPES_MAP } from '../../constants/transactionTypes'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const CREDIT_TYPES = new Set(['income'])
 
@@ -52,8 +53,8 @@ export default function StatCardActivityModal({ kind, currentDate, onClose }) {
       if (config.txType) txQuery = txQuery.eq('type', config.txType)
       if (config.isCash) txQuery = txQuery.eq('is_cash', true)
       if (config.scope === 'month') {
-        const start = new Date(year, month, 1).toISOString().slice(0, 10)
-        const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+        const start = toLocalStr(new Date(year, month, 1))
+        const end   = toLocalStr(new Date(year, month + 1, 0))
         txQuery = txQuery.gte('date', start).lte('date', end)
       }
 

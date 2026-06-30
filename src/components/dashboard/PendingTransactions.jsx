@@ -13,6 +13,7 @@ import { CategoryPill } from '../shared/CategoryPill'
 import { CATEGORY_ICONS } from '../shared/CategoryPill'
 import AddPendingModal from './AddPendingModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 // ── Days-left progress bar ─────────────────────────────────────
 function DaysProgress({ payBefore, createdAt, t }) {
@@ -95,8 +96,8 @@ export default function PendingTransactions({ currentDate = new Date() }) {
   useEffect(() => { if (user?.id) load() }, [user?.id, currentDate])
 
   async function load() {
-    const start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().slice(0, 10)
-    const end   = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().slice(0, 10)
+    const start = toLocalStr(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1))
+    const end   = toLocalStr(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
     const cols = 'id, name, amount, pay_before, status, receiver_id, category_id, subcategory_id, card_id, comment, icon, importance, transaction_id, created_at'
     const [{ data: pendingData }, { data: paidData }, { data: returnedData }] = await Promise.all([
       // Pending: always visible regardless of month

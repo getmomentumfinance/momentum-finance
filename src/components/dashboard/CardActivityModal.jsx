@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { TYPES_MAP } from '../../constants/transactionTypes'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const CREDIT_TYPES = new Set(['income'])
 
@@ -32,8 +33,8 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       setLoading(true)
       const year  = currentDate.getFullYear()
       const month = currentDate.getMonth()
-      const start = new Date(year, month, 1).toISOString().slice(0, 10)
-      const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      const start = toLocalStr(new Date(year, month, 1))
+      const end   = toLocalStr(new Date(year, month + 1, 0))
 
       // Current month transactions (all, including deleted)
       let txQuery = supabase

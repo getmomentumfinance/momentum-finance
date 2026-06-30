@@ -10,6 +10,7 @@ import { TYPES_MAP, TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { CategoryPill } from '../components/shared/CategoryPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { SkeletonRow } from '../components/shared/Skeleton'
+import { toLocalStr } from '../utils/budgetPeriod'
 
 const DEFAULT_WIDTHS = {
   description: 240, type: 90, importance: 100, amount: 110,
@@ -289,23 +290,23 @@ export default function Transactions() {
       let start, end
       if (datePreset === 'last_month') {
         const d = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-        start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
-        end   = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10)
+        start = toLocalStr(new Date(d.getFullYear(), d.getMonth(), 1))
+        end   = toLocalStr(new Date(d.getFullYear(), d.getMonth() + 1, 0))
       } else if (datePreset === '3months') {
-        start = new Date(today.getFullYear(), today.getMonth() - 2, 1).toISOString().slice(0, 10)
-        end   = today.toISOString().slice(0, 10)
+        start = toLocalStr(new Date(today.getFullYear(), today.getMonth() - 2, 1))
+        end   = toLocalStr(today)
       } else if (datePreset === 'year') {
         start = `${today.getFullYear()}-01-01`
         end   = `${today.getFullYear()}-12-31`
       } else if (datePreset === 'all') {
         start = `${today.getFullYear() - 5}-01-01`
-        end   = today.toISOString().slice(0, 10)
+        end   = toLocalStr(today)
       } else if (datePreset === 'custom' && filterDateFrom && filterDateTo) {
         start = filterDateFrom
         end   = filterDateTo
       } else {
-        start = new Date(year, month, 1).toISOString().slice(0, 10)
-        end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+        start = toLocalStr(new Date(year, month, 1))
+        end   = toLocalStr(new Date(year, month + 1, 0))
       }
 
       const [
@@ -1082,7 +1083,7 @@ export default function Transactions() {
             // split parents: don't pre-link — user will pick a child via the search
             linked_expense_id: paybackFor.is_split_parent ? null : paybackFor.id,
             amount: paybackFor.is_split_parent ? undefined : paybackFor.amount,
-            date: new Date().toISOString().slice(0, 10),
+            date: toLocalStr(new Date()),
             description: paybackFor.is_split_parent ? '' : (paybackFor.description ? `Payback: ${paybackFor.description}` : ''),
             card_id: paybackFor.card_id,
           }}

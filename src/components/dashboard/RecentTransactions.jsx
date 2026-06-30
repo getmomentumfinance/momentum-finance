@@ -8,6 +8,7 @@ import { TYPES_MAP } from '../../constants/transactionTypes'
 import { CategoryPill } from '../shared/CategoryPill'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { SkeletonRow } from '../shared/Skeleton'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 function amountColor(type, source) {
   if (type === 'income')   return 'var(--type-income)'
@@ -83,8 +84,8 @@ export default function RecentTransactions({ currentDate }) {
       setLoading(true)
       const year  = currentDate.getFullYear()
       const month = currentDate.getMonth()
-      const start = new Date(year, month, 1).toISOString().slice(0, 10)
-      const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      const start = toLocalStr(new Date(year, month, 1))
+      const end   = toLocalStr(new Date(year, month + 1, 0))
 
       const { data: txs } = await supabase.from('transactions')
         .select('id, type, description, comment, amount, date, source, category_id, subcategory_id, receiver_id, is_split_parent, split_parent_id')

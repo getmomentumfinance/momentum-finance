@@ -22,6 +22,7 @@ import SavingsGoals from '../components/dashboard/SavingsGoals'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { CATEGORY_ICONS } from '../components/shared/CategoryPill'
 import { Skeleton, SkeletonRow } from '../components/shared/Skeleton'
+import { toLocalStr } from '../utils/budgetPeriod'
 
 // ── Colour tokens ─────────────────────────────────────────────
 const COLORS = {
@@ -275,8 +276,8 @@ export default function Savings() {
       setLoading(true)
       const yr  = currentDate.getFullYear()
       const mo  = currentDate.getMonth()
-      const start = new Date(yr, mo, 1).toISOString().slice(0, 10)
-      const end   = new Date(yr, mo + 1, 0).toISOString().slice(0, 10)
+      const start = toLocalStr(new Date(yr, mo, 1))
+      const end   = toLocalStr(new Date(yr, mo + 1, 0))
 
       const [{ data: txs }, { data: cards }, { data: cardTxs }, { data: incomeTxs }, { data: allocsData }] = await Promise.all([
         supabase.from('transactions')

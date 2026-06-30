@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import useCountUp from '../hooks/useCountUp'
 import FadeIn from '../components/shared/FadeIn'
-import { calcBudgetSpend } from '../utils/budgetPeriod'
+import { calcBudgetSpend, toLocalStr } from '../utils/budgetPeriod'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { TrendingUp, TrendingDown, PiggyBank, Percent, CreditCard, Receipt, RefreshCw } from 'lucide-react'
 import { ReceiverAvatar } from '../components/shared/ReceiverCombobox'
@@ -82,7 +82,7 @@ export default function Summary() {
     const today    = new Date(); today.setHours(0, 0, 0, 0)
     const y = today.getFullYear()
     const m = today.getMonth()
-    const monthEnd = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+    const monthEnd = toLocalStr(new Date(y, m + 1, 0))
 
     Promise.all([
       supabase.from('pending_items').select('id,name,amount,pay_before').eq('user_id', user.id).eq('status', 'pending'),
@@ -116,7 +116,7 @@ export default function Summary() {
               else dueDate.setFullYear(dueDate.getFullYear() + 1)
             }
             // Period key matches RecurringBills.jsx: date string of the resolved due date
-            period = dueDate.toISOString().slice(0, 10)
+            period = toLocalStr(dueDate)
           } else {
             const lastDay = new Date(y, m + 1, 0).getDate()
             dueDate = new Date(y, m, Math.min(b.due_day, lastDay))
@@ -175,8 +175,8 @@ export default function Summary() {
   const m = currentDate.getMonth()
 
   const monthTxs = useMemo(() => {
-    const start = new Date(y, m, 1).toISOString().slice(0, 10)
-    const end   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+    const start = toLocalStr(new Date(y, m, 1))
+    const end   = toLocalStr(new Date(y, m + 1, 0))
     return transactions.filter(t => t.date >= start && t.date <= end && !t.is_split_parent)
   }, [transactions, y, m])
 

@@ -5,6 +5,7 @@ import { SkeletonCard } from '../shared/Skeleton'
 import { useSharedData } from '../../context/SharedDataContext'
 import { supabase } from '../../lib/supabase'
 import CardCarousel from '../shared/CardCarousel'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 function computeBalance(card, allTxs) {
   const delta = allTxs
@@ -27,15 +28,15 @@ export default function MyCardsWidget({ currentDate = new Date() }) {
 
   useEffect(() => {
     if (!user?.id) return
-    const start = new Date(year, month, 1).toISOString().slice(0, 10)
-    const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+    const start = toLocalStr(new Date(year, month, 1))
+    const end   = toLocalStr(new Date(year, month + 1, 0))
     setLoading(true)
     supabase.from('banks').select('*').eq('user_id', user.id).order('name')
       .then(({ data }) => { setBanks(data ?? []); setLoading(false) })
   }, [user?.id, year, month])
 
-  const start = new Date(year, month, 1).toISOString().slice(0, 10)
-  const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+  const start = toLocalStr(new Date(year, month, 1))
+  const end   = toLocalStr(new Date(year, month + 1, 0))
 
   const monthTxs = useMemo(
     () => allTransactions.filter(t => t.date >= start && t.date <= end),

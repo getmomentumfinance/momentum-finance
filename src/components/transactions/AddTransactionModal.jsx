@@ -13,6 +13,7 @@ import { useSharedData } from '../../context/SharedDataContext'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { useCards } from '../../hooks/useCards'
 import { CategoryPill } from '../shared/CategoryPill'
+import { toLocalStr } from '../../utils/budgetPeriod'
 import { ReceiverAvatar as SharedReceiverAvatar, ReceiverCombobox } from '../shared/ReceiverCombobox'
 import { showToast } from '../shared/Toast'
 import LinkedExpenseSearch from '../shared/LinkedExpenseSearch'
@@ -303,9 +304,9 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [pricePerUnit,  setPricePerUnit]  = useState(transaction?.price_per_unit != null ? String(transaction.price_per_unit) : '')
   const [fee,           setFee]           = useState('')
   const [fetchingPrice, setFetchingPrice] = useState(false)
-  const [priceDate,     setPriceDate]     = useState(transaction?.date ?? defaults.date ?? new Date().toISOString().slice(0, 10))
+  const [priceDate,     setPriceDate]     = useState(transaction?.date ?? defaults.date ?? toLocalStr(new Date()))
   const priceDateRef = useRef(null)
-  const [date,        setDate]        = useState(transaction?.date            ?? defaults.date ?? new Date().toISOString().slice(0, 10))
+  const [date,        setDate]        = useState(transaction?.date            ?? defaults.date ?? toLocalStr(new Date()))
   const [comment,     setComment]     = useState(transaction?.comment        ?? '')
   const [status,      setStatus]      = useState(transaction?.status         ?? 'completed')
   const [isEarned,       setIsEarned]       = useState(transaction?.is_earned        ?? false)

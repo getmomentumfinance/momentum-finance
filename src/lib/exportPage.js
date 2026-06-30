@@ -1,4 +1,5 @@
 import { toPng } from 'html-to-image'
+import { toLocalStr } from '../utils/budgetPeriod'
 
 /**
  * Temporarily resolves color-mix() in inline styles so canvas renderers can
@@ -50,7 +51,7 @@ export async function exportPageAsPng(filename = 'page') {
     })
 
     const link = document.createElement('a')
-    link.download = `${filename}-${new Date().toISOString().slice(0, 10)}.png`
+    link.download = `${filename}-${toLocalStr(new Date())}.png`
     link.href = dataUrl
     document.body.appendChild(link)
     link.click()

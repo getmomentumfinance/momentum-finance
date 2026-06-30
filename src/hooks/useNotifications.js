@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
-import { getPeriodBounds, getPreviousPeriodBounds } from '../utils/budgetPeriod'
+import { getPeriodBounds, getPreviousPeriodBounds, toLocalStr } from '../utils/budgetPeriod'
 
 function getPeriodKey(frequency, date) {
   const y = date.getFullYear()
@@ -42,8 +42,8 @@ export function useNotifications(userId, currentDate) {
     const { pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments } = sharedRef.current
 
     const today    = new Date(); today.setHours(0, 0, 0, 0)
-    const todayStr = today.toISOString().slice(0, 10)
-    const in3dStr  = new Date(today.getTime() + 3 * 86400000).toISOString().slice(0, 10)
+    const todayStr = toLocalStr(today)
+    const in3dStr  = toLocalStr(new Date(today.getTime() + 3 * 86400000))
 
     const year  = currentDate.getFullYear()
     const month = currentDate.getMonth()

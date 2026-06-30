@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 function isInTrial(sub, billingDate) {
   if (!sub.is_trial || !sub.trial_ends_at) return false
-  return billingDate.toISOString().slice(0, 10) <= sub.trial_ends_at
+  return toLocalStr(billingDate) <= sub.trial_ends_at
 }
 
 function getNextDueDate(nextDueDateStr, frequency) {

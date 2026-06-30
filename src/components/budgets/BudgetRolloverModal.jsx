@@ -4,6 +4,7 @@ import { X, RotateCcw, ArrowRight, Minus, CheckCircle, ChevronDown } from 'lucid
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const PERIOD_LABEL = { weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' }
 
@@ -52,7 +53,7 @@ export default function BudgetRolloverModal({ item, onClose, onResolved }) {
           type:        'income',
           description: `Budget rollover — ${budgetName}`,
           amount:      leftover,
-          date:        new Date().toISOString().slice(0, 10),
+          date:        toLocalStr(new Date()),
           card_id:     transferCardId || budget.card_id,
           is_cash:     false,
         })

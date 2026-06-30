@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
 import { useUIPrefs } from '../../context/UIPrefContext'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 function getPeriodKey(frequency, date) {
   const y = date.getFullYear()
@@ -118,7 +119,7 @@ export default function BalanceProjection({ currentDate = new Date() }) {
     const inTrial = (s) => {
       if (!s.is_trial || !s.trial_ends_at) return false
       const bd = new Date(y, m, Math.min(s.billing_day, new Date(y, m + 1, 0).getDate()))
-      return bd.toISOString().slice(0, 10) <= s.trial_ends_at
+      return toLocalStr(bd) <= s.trial_ends_at
     }
     let subscriptionsTotal = 0
     if (mode === 'thisMonth') {

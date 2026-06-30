@@ -40,6 +40,7 @@ import GetStartedCard from '../components/dashboard/GetStartedCard'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useUIPrefs } from '../context/UIPrefContext'
 import { NotificationsProvider } from '../context/NotificationsContext'
+import { toLocalStr } from '../utils/budgetPeriod'
 
 
 const BALANCE_TYPES = ['debit', 'credit']
@@ -218,8 +219,8 @@ export default function Dashboard() {
     async function load() {
       const year  = currentDate.getFullYear()
       const month = currentDate.getMonth()
-      const start = new Date(year, month, 1).toISOString().slice(0, 10)
-      const end   = new Date(year, month + 1, 0).toISOString().slice(0, 10)
+      const start = toLocalStr(new Date(year, month, 1))
+      const end   = toLocalStr(new Date(year, month + 1, 0))
 
       const [{ data: balanceCards }, { data: cashCards }, { data: savingsCards }, { data: allTxs }, { data: monthTxs }] = await Promise.all([
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).in('type', BALANCE_TYPES),

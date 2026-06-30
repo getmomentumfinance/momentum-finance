@@ -8,6 +8,7 @@ import { useUIPrefs } from '../../context/UIPrefContext'
 import { useCards } from '../../hooks/useCards'
 import { useSharedData } from '../../context/SharedDataContext'
 import { showToast } from '../shared/Toast'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 const sel = 'w-full appearance-none bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 py-1.5 text-sm text-white/70 outline-none focus:border-white/15 focus:text-white transition-colors cursor-pointer'
@@ -33,7 +34,7 @@ export default function QuickSellModal({ position, lot, onClose, eurUsdRate = nu
   const [fee,       setFee]       = useState('')
   const [label,     setLabel]     = useState(lot.label ?? '')
   const [cardId,    setCardId]    = useState(lot.card_id ?? tradingCards[0]?.id ?? '')
-  const [date,      setDate]      = useState(new Date().toISOString().slice(0, 10))
+  const [date,      setDate]      = useState(toLocalStr(new Date()))
   const [saving,    setSaving]    = useState(false)
 
   const selectedCard  = cards.find(c => c.id === cardId)

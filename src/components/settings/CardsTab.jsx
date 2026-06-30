@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { computeCardBalance } from '../../utils/cardBalance'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 function resolveIcon(id) { return ICONS_MAP[id] ?? CreditCard }
 
@@ -446,7 +447,7 @@ function TickersSection({ userId }) {
   const [newSymbol, setNewSymbol] = useState('')
   const [newName,   setNewName]   = useState('')
   const [newBalance, setNewBalance] = useState('')
-  const [newDate,   setNewDate]   = useState(() => new Date().toISOString().slice(0, 10))
+  const [newDate,   setNewDate]   = useState(() => toLocalStr(new Date()))
   const [editId,    setEditId]    = useState(null)
   const [editForm,  setEditForm]  = useState({ symbol: '', name: '', balance: '', date: '' })
   const [addDupe,   setAddDupe]   = useState(false)
@@ -472,7 +473,7 @@ function TickersSection({ userId }) {
       if (!isNaN(parsed) && parsed > 0) {
         await saveBalances({ ...balances, [sym]: { amount: parsed, date: newDate } })
       }
-      setNewSymbol(''); setNewName(''); setNewBalance(''); setNewDate(new Date().toISOString().slice(0, 10)); setAdding(false); setAddDupe(false)
+      setNewSymbol(''); setNewName(''); setNewBalance(''); setNewDate(toLocalStr(new Date())); setAdding(false); setAddDupe(false)
     }
   }
 
@@ -486,7 +487,7 @@ function TickersSection({ userId }) {
     const updated = { ...balances }
     if (ticker && ticker.symbol !== sym) delete updated[ticker.symbol]
     const parsed = parseFloat(editForm.balance)
-    if (!isNaN(parsed) && parsed > 0) updated[sym] = { amount: parsed, date: editForm.date || new Date().toISOString().slice(0, 10) }
+    if (!isNaN(parsed) && parsed > 0) updated[sym] = { amount: parsed, date: editForm.date || toLocalStr(new Date()) }
     else delete updated[sym]
     await saveBalances(updated)
     setEditId(null)
@@ -551,7 +552,7 @@ function TickersSection({ userId }) {
                     <button onClick={() => {
                       const balObj = typeof bal === 'object' ? bal : (bal ? { amount: bal, date: '' } : null)
                       setEditId(t.id)
-                      setEditForm({ symbol: t.symbol, name: t.name ?? '', balance: balObj ? String(balObj.amount) : '', date: balObj?.date || new Date().toISOString().slice(0, 10) })
+                      setEditForm({ symbol: t.symbol, name: t.name ?? '', balance: balObj ? String(balObj.amount) : '', date: balObj?.date || toLocalStr(new Date()) })
                     }} className="text-white/30 hover:text-white p-1.5 transition-colors"><Pencil size={13} /></button>
                     <button onClick={() => deleteTicker(t.id)} className="text-white/30 hover:text-red-400 p-1.5 transition-colors"><Trash2 size={13} /></button>
                   </div>

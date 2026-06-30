@@ -7,6 +7,7 @@ import { Wallet, Banknote, LineChart as LineChartIcon, PiggyBank, TrendingUp, Cr
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useThemeColors } from '../../hooks/useThemeColors'
+import { toLocalStr } from '../../utils/budgetPeriod'
 
 const CREDIT       = new Set(['income'])
 const DEBIT_CREDIT = new Set(['debit', 'credit'])
@@ -36,7 +37,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
 
   const y = currentDate.getFullYear(), m = currentDate.getMonth()
   const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
-  const monthEnd   = new Date(y, m + 1, 0).toISOString().slice(0, 10)
+  const monthEnd   = toLocalStr(new Date(y, m + 1, 0))
 
   const invest = allTxs
     .filter(t => t.type === 'invest' && t.date >= monthStart && t.date <= monthEnd)
@@ -65,7 +66,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
 }
 
 // ── Date generation ──────────────────────────────────────────────────────────
-function toStr(d) { return d.toISOString().slice(0, 10) }
+function toStr(d) { return toLocalStr(d) }
 
 function buildDates(range, currentDate, firstTxDate) {
   const y = currentDate.getFullYear(), m = currentDate.getMonth()

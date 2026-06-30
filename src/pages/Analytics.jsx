@@ -1517,8 +1517,8 @@ export default function Analytics() {
       const wEnd = new Date(cursor); wEnd.setDate(wEnd.getDate() + 6)
       const cStart = cursor < monthStart ? new Date(monthStart) : new Date(cursor)
       const cEnd   = wEnd   > monthEnd  ? new Date(monthEnd)   : new Date(wEnd)
-      const s = cStart.toISOString().slice(0, 10)
-      const e = cEnd.toISOString().slice(0, 10)
+      const s = toLocalStr(cStart)
+      const e = toLocalStr(cEnd)
       const txs = transactions.filter(t => !t.is_split_parent && t.date >= s && t.date <= e)
       const exp = txs.filter(t => t.type === 'expense').reduce((a, t) => a + Number(t.amount), 0)
       const inc = txs.filter(t => t.type === 'income') .reduce((a, t) => a + Number(t.amount), 0)
@@ -1541,8 +1541,8 @@ export default function Analytics() {
     const m = currentDate.getMonth()
     const monthStart = new Date(y, m, 1)
     const monthEnd   = new Date(y, m + 1, 0)
-    const s0 = monthStart.toISOString().slice(0, 10)
-    const e0 = monthEnd.toISOString().slice(0, 10)
+    const s0 = toLocalStr(monthStart)
+    const e0 = toLocalStr(monthEnd)
     const rawWeeks = []
     const cursor = new Date(monthStart)
     cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7))
@@ -1551,7 +1551,7 @@ export default function Analytics() {
       const cStart = cursor < monthStart ? new Date(monthStart) : new Date(cursor)
       const cEnd   = wEnd > monthEnd    ? new Date(monthEnd)   : new Date(wEnd)
       const days = Math.round((cEnd - cStart) / 86400000) + 1
-      rawWeeks.push({ label: `W${isoWeek(cStart)}`, s: cStart.toISOString().slice(0,10), e: cEnd.toISOString().slice(0,10), days })
+      rawWeeks.push({ label: `W${isoWeek(cStart)}`, s: toLocalStr(cStart), e: toLocalStr(cEnd), days })
       cursor.setDate(cursor.getDate() + 7)
     }
     const keptWeeks = rawWeeks.filter(w => w.days >= 4)
@@ -1602,8 +1602,8 @@ export default function Analytics() {
     const m = currentDate.getMonth()
     const monthStart = new Date(y, m, 1)
     const monthEnd   = new Date(y, m + 1, 0)
-    const s0 = monthStart.toISOString().slice(0, 10)
-    const e0 = monthEnd.toISOString().slice(0, 10)
+    const s0 = toLocalStr(monthStart)
+    const e0 = toLocalStr(monthEnd)
     const rawWeeks = []
     const cursor = new Date(monthStart)
     cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7))
@@ -1612,7 +1612,7 @@ export default function Analytics() {
       const cStart = cursor < monthStart ? new Date(monthStart) : new Date(cursor)
       const cEnd   = wEnd > monthEnd    ? new Date(monthEnd)   : new Date(wEnd)
       const days = Math.round((cEnd - cStart) / 86400000) + 1
-      rawWeeks.push({ label: `W${isoWeek(cStart)}`, s: cStart.toISOString().slice(0,10), e: cEnd.toISOString().slice(0,10), days })
+      rawWeeks.push({ label: `W${isoWeek(cStart)}`, s: toLocalStr(cStart), e: toLocalStr(cEnd), days })
       cursor.setDate(cursor.getDate() + 7)
     }
     const keptWeeks = rawWeeks.filter(w => w.days >= 4)
@@ -3232,8 +3232,8 @@ export default function Analytics() {
                 const wEnd   = new Date(pmCursor); wEnd.setDate(wEnd.getDate() + 6)
                 const cStart = pmCursor < prevMStart ? new Date(prevMStart) : new Date(pmCursor)
                 const cEnd   = wEnd > prevMEnd ? new Date(prevMEnd) : new Date(wEnd)
-                const s = cStart.toISOString().slice(0, 10)
-                const e = cEnd.toISOString().slice(0, 10)
+                const s = toLocalStr(cStart)
+                const e = toLocalStr(cEnd)
                 const exp = transactions.filter(t => !t.is_split_parent && t.type === 'expense' && t.date >= s && t.date <= e)
                   .reduce((a, t) => a + Number(t.amount), 0)
                 prevMWeeks.push(exp)
