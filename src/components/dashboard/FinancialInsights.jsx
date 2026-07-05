@@ -184,15 +184,25 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     if (!baseline) return []
     const { avgMap } = baseline
     const current = currentMonthTotals(allTransactions, currentDate)
+
+    const y = currentDate.getFullYear()
+    const m = currentDate.getMonth()
+    const now = new Date()
+    const isCurrentMonth = y === now.getFullYear() && m === now.getMonth()
+    const daysInMonth = new Date(y, m + 1, 0).getDate()
+    const dayFraction = isCurrentMonth ? now.getDate() / daysInMonth : 1
+
     return Object.entries(avgMap)
       .filter(([, avg]) => avg >= 15)
       .map(([catId, avg]) => {
+        const scaledAvg = avg * dayFraction
+        if (scaledAvg <= 0) return null
         const cur = current[catId] ?? 0
-        const pct = (cur - avg) / avg
+        const pct = (cur - scaledAvg) / scaledAvg
         if (Math.abs(pct) < 0.25) return null
         const cat = categoryMap[catId]
         if (!cat) return null
-        return { name: cat.name, color: cat.color, cur, avg, pct }
+        return { name: cat.name, color: cat.color, cur, avg: scaledAvg, pct }
       })
       .filter(Boolean)
       .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))
