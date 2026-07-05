@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom'
 import { X, CheckCircle, CreditCard } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { usePreferences } from '../../context/UserPreferencesContext'
+import { useAuth } from '../../context/AuthContext'
 
 export default function PaymentModal({ item, onClose }) {
   const { fmt, t } = usePreferences()
+  const { user } = useAuth()
   const [date,    setDate]    = useState(() => { const _d = new Date(); return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}` })
   const [saving,  setSaving]  = useState(false)
   const [done,    setDone]    = useState(false)
@@ -14,7 +16,32 @@ export default function PaymentModal({ item, onClose }) {
     setSaving(true)
     try {
       if (item.type === 'pending') {
-        await supabase.from('pending_items').update({ status: 'paid' }).eq('id', item.recordId)
+        const { data: rec } = await supabase
+          .from('pending_items')
+          .select('name, receiver_id, category_id, subcategory_id, card_id, comment, importance')
+          .eq('id', item.recordId)
+          .single()
+        const { data: tx } = await supabase.from('transactions').insert({
+          user_id:        user.id,
+          type:           'expense',
+          description:    rec?.name ?? item.label,
+          amount:         item.amount,
+          date,
+          source:         'pending',
+          receiver_id:    rec?.receiver_id    || null,
+          category_id:    rec?.category_id    || null,
+          subcategory_id: rec?.subcategory_id || null,
+          card_id:        rec?.card_id        || null,
+          comment:        rec?.comment        || null,
+          importance:     rec?.importance     || null,
+          is_cash:        false,
+          is_deleted:     false,
+          status:         'completed',
+        }).select('id').single()
+        await supabase.from('pending_items').update({
+          status: 'paid',
+          transaction_id: tx?.id ?? null,
+        }).eq('id', item.recordId)
       } else if (item.type === 'planned') {
         await supabase.from('planned_bills').update({ status: 'paid' }).eq('id', item.recordId)
       } else if (item.type === 'bill') {
