@@ -53,7 +53,7 @@ function DonutChart({ pct, color, size = 72 }) {
 function ringColor(pct, customColor) {
   if (pct >= 100) return 'var(--color-alert)'
   if (pct >= 80)  return 'var(--color-warning)'
-  return customColor || 'var(--color-accent)'
+  return customColor || 'var(--color-progress-bar)'
 }
 
 // ── Single budget card ─────────────────────────────────────────────
