@@ -271,14 +271,17 @@ function DonutPanel({ title, subtitle, data }) {
 
 
 // ── Reusable multi-line panel ──────────────────────────────────────
-function ComparisonCard({ title, rows, colors, baseline }) {
+function ComparisonCard({ title, rows, colors, baseline, currLabel, prevLabel }) {
   const { fmt, fmtK, t } = usePreferences()
   const maxVal = rows.length ? Math.max(...rows.map(r => Math.max(r.value, r.prev ?? 0, baseline?.byName[r.name] ?? 0, 1))) : 1
+  const colHeader = currLabel && prevLabel
+    ? `${currLabel} · ${prevLabel} · Change`
+    : t('an.currPrevChange')
   return (
     <div className="glass-card rounded-2xl p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold">{title}</h2>
-        <span className="text-[11px] text-white/30">{t('an.currPrevChange')}</span>
+        <span className="text-[11px] text-white/30">{colHeader}</span>
       </div>
       {rows.length === 0 ? (
         <p className="text-sm text-muted py-2">{t('an.noDataShort')}</p>
@@ -2424,9 +2427,9 @@ export default function Analytics() {
 
               {/* 3-col comparison row: Categories / Subcategories / Importance vs Prior Period */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} />
-                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} />
-                <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} />
+                <ComparisonCard title={t('an.catVsPrior')}  rows={categoryComparison}   colors={colors} baseline={categoryBaseline} currLabel={currLabel} prevLabel={prevLabel} />
+                <ComparisonCard title={t('an.subVsPrior')} rows={subcategoryComparison} colors={colors} baseline={categoryBaseline} currLabel={currLabel} prevLabel={prevLabel} />
+                <ComparisonCard title={t('an.impVsPrior')} rows={importanceComparison}  colors={colors} currLabel={currLabel} prevLabel={prevLabel} />
               </div>
 
               </>)
