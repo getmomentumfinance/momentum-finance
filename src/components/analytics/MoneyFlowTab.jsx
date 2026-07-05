@@ -30,7 +30,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
   const cash        = cashInitial + cashDelta
   const total       = debitCredit + cash
 
-  const savingsInitial = cards.filter(c => c.type === 'savings').reduce((s, c) => s + Number(c.initial_balance), 0)
+  const savingsInitial = cards.filter(c => c.type === 'savings' && !c.is_buffer).reduce((s, c) => s + Number(c.initial_balance), 0)
   const savIn          = allTxs.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const savOut         = allTxs.filter(t => t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const savings        = savingsInitial + savIn - savOut
@@ -51,7 +51,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
   for (const card of cards) {
     if (card.type === 'cash') {
       perCard[card.id] = Number(card.initial_balance) + cashDelta
-    } else if (card.type === 'savings') {
+    } else if (card.type === 'savings' && !card.is_buffer) {
       const si = allTxs.filter(t => t.card_id === card.id && t.source === 'savings_in').reduce((s,t)=>s+t.amount,0)
       const so = allTxs.filter(t => t.card_id === card.id && t.source === 'savings_out').reduce((s,t)=>s+t.amount,0)
       perCard[card.id] = Number(card.initial_balance) + si - so
@@ -216,7 +216,7 @@ export default function MoneyFlowTab({ range, currentDate }) {
     const rangeStart = dates[0].key
     let debitCredit = cards.filter(c => DEBIT_CREDIT.has(c.type)).reduce((s, c) => s + Number(c.initial_balance), 0)
     let cash        = cards.filter(c => c.type === 'cash').reduce((s, c) => s + Number(c.initial_balance), 0)
-    let savings     = cards.filter(c => c.type === 'savings').reduce((s, c) => s + Number(c.initial_balance), 0)
+    let savings     = cards.filter(c => c.type === 'savings' && !c.is_buffer).reduce((s, c) => s + Number(c.initial_balance), 0)
     let invest      = cards.filter(c => c.type === 'invest').reduce((s, c) => s + Number(c.initial_balance), 0)
     let income      = 0
     const bal = Object.fromEntries(cards.map(c => [c.id, Number(c.initial_balance ?? 0)]))

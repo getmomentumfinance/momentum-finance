@@ -225,7 +225,7 @@ export default function Dashboard() {
       const [{ data: balanceCards }, { data: cashCards }, { data: savingsCards }, { data: allTxs }, { data: monthTxs }] = await Promise.all([
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).in('type', BALANCE_TYPES),
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'cash'),
-        supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'savings'),
+        supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'savings').eq('is_buffer', false),
         supabase.from('transactions').select('card_id, type, amount, is_cash, source, split_parent_id').eq('user_id', user.id).eq('is_deleted', false),
         supabase.from('transactions').select('type, amount, source, is_split_parent').eq('user_id', user.id).eq('is_deleted', false).gte('date', start).lte('date', end),
       ])

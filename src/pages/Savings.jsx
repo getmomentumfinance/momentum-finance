@@ -287,7 +287,7 @@ export default function Savings() {
           .eq('is_deleted', false)
           .order('date', { ascending: true }),
         supabase.from('cards')
-          .select('id, name, initial_balance')
+          .select('id, name, initial_balance, is_buffer')
           .eq('user_id', user.id)
           .eq('type', 'savings'),
         supabase.from('transactions')
@@ -395,11 +395,14 @@ export default function Savings() {
     })
   })()
 
+  const realSavingsCards = savingsCards.filter(c => !c.is_buffer)
+  const bufferCards      = savingsCards.filter(c => c.is_buffer)
+
   // ── Derived stats ─────────────────────────────────────────
   const monthKey      = `${year}-${String(month + 1).padStart(2, '0')}`
   const totalIn       = deposits.reduce((s, t) => s + t.amount, 0)
   const totalOut      = withdrawals.reduce((s, t) => s + t.amount, 0)
-  const savingsInitial = savingsCards.reduce((s, c) => s + Number(c.initial_balance ?? 0), 0)
+  const savingsInitial = realSavingsCards.reduce((s, c) => s + Number(c.initial_balance ?? 0), 0)
   const totalBalance  = savingsInitial + totalIn - totalOut
   const thisMonthIn   = deposits.filter(t => t.date.startsWith(monthKey)).reduce((s, t) => s + t.amount, 0)
   const thisMonthOut  = withdrawals.filter(t => t.date.startsWith(monthKey)).reduce((s, t) => s + t.amount, 0)
@@ -481,22 +484,42 @@ export default function Savings() {
             <div className="flex flex-col gap-2 mt-auto">
               {loading ? (
                 <div className="flex flex-col gap-2">{[1,2].map(i => <Skeleton key={i} className="h-3 w-full rounded" />)}</div>
-              ) : savingsCards.length === 0 ? (
+              ) : realSavingsCards.length === 0 && bufferCards.length === 0 ? (
                 <span className="text-xs text-muted">{t('sav.noData')}</span>
-              ) : savingsCards.map(card => {
-                const pct = totalBalance > 0 ? (card.balance / totalBalance) * 100 : 0
-                return (
+              ) : (<>
+                {realSavingsCards.map(card => {
+                  const pct = totalBalance > 0 ? (card.balance / totalBalance) * 100 : 0
+                  return (
+                    <div key={card.id} className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-muted truncate pr-2">{card.name}</span>
+                        <span className="text-[11px] font-semibold tabular-nums">{fmt(card.balance)}</span>
+                      </div>
+                      <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--color-progress-bar)' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+                {bufferCards.length > 0 && realSavingsCards.length > 0 && (
+                  <div className="border-t border-white/[0.06] pt-2 mt-0.5" />
+                )}
+                {bufferCards.map(card => (
                   <div key={card.id} className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-muted truncate pr-2">{card.name}</span>
-                      <span className="text-[11px] font-semibold tabular-nums">{fmt(card.balance)}</span>
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[11px] text-muted truncate">{card.name}</span>
+                        <span className="text-[9px] px-1 py-0.5 rounded shrink-0"
+                          style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}>buffer</span>
+                      </div>
+                      <span className="text-[11px] font-semibold tabular-nums shrink-0">{fmt(card.balance)}</span>
                     </div>
                     <div className="h-1 w-full rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--color-progress-bar)' }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: '100%', background: 'rgba(255,255,255,0.12)' }} />
                     </div>
                   </div>
-                )
-              })}
+                ))}
+              </>)}
             </div>
           </div>
 

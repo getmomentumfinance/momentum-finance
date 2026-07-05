@@ -102,17 +102,19 @@ function IconPicker({ value, onChange }) {
 // ── Card add / edit form ──────────────────────────────────────
 function CardForm({ type, banks, initial, onSave, onCancel }) {
   const isCash = type === 'cash'
+  const isSavings = type === 'savings'
   const [name,       setName]       = useState(initial?.name            ?? '')
   const [bankId,     setBankId]     = useState(initial?.bank_id         ?? '')
   const [icon,       setIcon]       = useState(initial?.icon            ?? 'credit-card')
   const [balance,    setBalance]    = useState(initial?.initial_balance ?? '')
   const [cardNumber, setCardNumber] = useState(initial?.card_number     ?? '')
+  const [isBuffer,   setIsBuffer]   = useState(initial?.is_buffer       ?? false)
 
   function handleSubmit(e) {
     e?.preventDefault()
     const resolvedName = isCash ? 'Cash Wallet' : name.trim()
     if (!resolvedName) return
-    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0, card_number: cardNumber.trim() || null })
+    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0, card_number: cardNumber.trim() || null, ...(isSavings && { is_buffer: isBuffer }) })
   }
 
   return (
@@ -172,6 +174,23 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
       )}
 
       <IconPicker value={icon} onChange={setIcon} />
+
+      {isSavings && (
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <div
+            onClick={() => setIsBuffer(v => !v)}
+            className="w-8 h-4 rounded-full relative transition-colors flex-shrink-0"
+            style={{ background: isBuffer ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.12)' }}
+          >
+            <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all"
+              style={{ left: isBuffer ? '18px' : '2px' }} />
+          </div>
+          <div>
+            <p className="text-sm text-white/80">Buffer account</p>
+            <p className="text-[11px] text-white/35 leading-tight">Transfers in/out won't count toward savings stats</p>
+          </div>
+        </label>
+      )}
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} className="text-xs text-muted hover:text-white transition-colors px-3 py-1.5">

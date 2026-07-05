@@ -443,13 +443,13 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     return Number(card.initial_balance) + delta
   }
 
-  const transferCards  = cards.filter(c => c.type === 'debit' || c.type === 'credit' || c.type === 'trading')
+  const transferCards  = cards.filter(c => c.type === 'debit' || c.type === 'credit' || c.type === 'trading' || (c.type === 'savings' && c.is_buffer))
   const tradingCards   = cards.filter(c => c.type === 'trading')
   const savingsFromCards = savingsDir === 'in'
     ? cards.filter(c => c.type === 'debit' || c.type === 'credit')
-    : cards.filter(c => c.type === 'savings')
+    : cards.filter(c => c.type === 'savings' && !c.is_buffer)
   const savingsToCards = savingsDir === 'in'
-    ? cards.filter(c => c.type === 'savings')
+    ? cards.filter(c => c.type === 'savings' && !c.is_buffer)
     : cards.filter(c => c.type === 'debit' || c.type === 'credit')
   const availableCards = cards.filter(c => c.type !== 'cash' && c.type !== 'trading')
   const selectedCard   = cards.find(c => c.id === cardId)
