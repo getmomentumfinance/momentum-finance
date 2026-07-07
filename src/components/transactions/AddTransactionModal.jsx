@@ -491,8 +491,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       const transferDesc = `From ${fromCard?.name ?? 'card'} to ${toCard?.name ?? 'card'}`
       if (effectiveIsEditing) {
         const [r1, r2] = await Promise.all([
-          supabase.from('transactions').update({ amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   description: transferDesc }).eq('id', editId),
-          companionId ? supabase.from('transactions').update({ amount: -parsed, date, comment: comment.trim() || null, status, card_id: toCardId, description: transferDesc }).eq('id', companionId) : { error: null },
+          supabase.from('transactions').update({ type: 'transfer', source: null, amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   description: transferDesc }).eq('id', editId),
+          companionId ? supabase.from('transactions').update({ type: 'transfer', source: null, amount: -parsed, date, comment: comment.trim() || null, status, card_id: toCardId, description: transferDesc }).eq('id', companionId) : { error: null },
         ])
         if (r1.error || r2.error) { console.error('transfer edit error:', r1.error?.message ?? r2.error?.message); setSaving(false); return }
       } else {
@@ -531,8 +531,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       }
       if (effectiveIsEditing) {
         const [r1, r2] = await Promise.all([
-          supabase.from('transactions').update({ amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   source, description: savingsDesc }).eq('id', editId),
-          companionId ? supabase.from('transactions').update({ amount: -parsed, date, comment: comment.trim() || null, status, card_id: toCardId, source, description: savingsDesc }).eq('id', companionId) : { error: null },
+          supabase.from('transactions').update({ type: 'savings', amount: parsed,  date, comment: comment.trim() || null, status, card_id: cardId,   source, description: savingsDesc }).eq('id', editId),
+          companionId ? supabase.from('transactions').update({ type: 'savings', amount: -parsed, date, comment: comment.trim() || null, status, card_id: toCardId, source, description: savingsDesc }).eq('id', companionId) : { error: null },
         ])
         if (r1.error || r2.error) { console.error('savings edit error:', r1.error?.message ?? r2.error?.message); setSaving(false); return }
       } else {
