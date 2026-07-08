@@ -2444,18 +2444,6 @@ export default function Analytics() {
         {range !== 'compare' && (
         <div className="flex flex-col gap-5">
 
-        {/* ── Reimbursable summary banner ── */}
-        {totalReimbursable > 0 && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-            style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.15)' }}>
-            <Users size={14} style={{ color: 'rgba(167,139,250,0.8)', flexShrink: 0 }} />
-            <span style={{ color: 'rgba(255,255,255,0.7)' }}>
-              <strong style={{ color: 'rgba(167,139,250,0.9)' }}>{fmt(totalReimbursable)}</strong> of your spending this period will be paid back ·{' '}
-              your actual cost: <strong>{fmt((typeTotals['expense'] || 0) - totalReimbursable)}</strong>
-            </span>
-          </div>
-        )}
-
         {/* ── Donut row — week and month only ── */}
         {showDonuts && (range === 'week' || range === 'month') && <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
           <DonutPanel title={t('an.byCategory')}    data={categoryData}    />
@@ -2542,10 +2530,16 @@ export default function Analytics() {
               <div className="grid grid-cols-3 md:grid-cols-2 gap-2 md:w-72 md:shrink-0">
                 {TRANSACTION_TYPES.map(({ value: type, label, color }) => {
                   const total = typeTotals[type] || 0
+                  const showReimb = type === 'expense' && totalReimbursable > 0
                   return (
                     <div key={type} className="glass-card rounded-2xl px-3 py-2 flex flex-col gap-0.5">
                       <p className="text-[11px] text-muted">{label}</p>
                       <p className="text-base font-bold tabular-nums leading-tight" style={{ color }}>{fmt(total, 0)}</p>
+                      {showReimb && (
+                        <p className="text-[10px] tabular-nums leading-tight" style={{ color: 'rgba(167,139,250,0.7)' }}>
+                          {fmt(total - totalReimbursable, 0)} actual · {fmt(totalReimbursable, 0)} back
+                        </p>
+                      )}
                     </div>
                   )
                 })}
