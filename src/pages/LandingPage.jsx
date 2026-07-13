@@ -224,7 +224,7 @@ export default function LandingPage() {
           fontSize: 'clamp(3rem,7.5vw,6.5rem)',
           margin: '0 0 24px', maxWidth: 860,
         }}>
-          Track every euro.{' '}
+          DEPLOY TEST 🚀{' '}
           <span style={{ color: 'rgba(255,255,255,0.28)', fontStyle: 'italic', fontFamily: 'Georgia,serif' }}>
             Beat every budget.
           </span>
