@@ -3,7 +3,7 @@ import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts'
-import { Wallet, Banknote, LineChart as LineChartIcon, PiggyBank, TrendingUp, CreditCard, TrendingDown } from 'lucide-react'
+import { Wallet, Banknote, PiggyBank, TrendingUp, CreditCard, TrendingDown } from 'lucide-react'
 import { useSharedData } from '../../context/SharedDataContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useThemeColors } from '../../hooks/useThemeColors'
@@ -39,10 +39,6 @@ function computeCurrentValues(cards, allTxs, currentDate) {
   const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
   const monthEnd   = toLocalStr(new Date(y, m + 1, 0))
 
-  const invest = allTxs
-    .filter(t => t.type === 'invest' && t.date >= monthStart && t.date <= monthEnd)
-    .reduce((s, t) => s + ((t.direction ?? 'buy') === 'buy' ? t.amount : -t.amount), 0)
-
   const income = allTxs
     .filter(t => t.type === 'income' && t.date >= monthStart && t.date <= monthEnd)
     .reduce((s, t) => s + t.amount, 0)
@@ -62,7 +58,7 @@ function computeCurrentValues(cards, allTxs, currentDate) {
       perCard[card.id] = Number(card.initial_balance) + delta
     }
   }
-  return { total, cash, savings, invest, income, perCard }
+  return { total, cash, savings, income, perCard }
 }
 
 // ── Date generation ──────────────────────────────────────────────────────────
@@ -164,10 +160,9 @@ export default function MoneyFlowTab({ range, currentDate }) {
   const DEFAULT_COLORS = useMemo(() => ({
     total:   colors.accent   || '#a78bfa',
     cash:    colors.cashOut  || '#fb923c',
-    invest:  colors.invest   || '#60a5fa',
     savings: colors.savings  || '#a78bfa',
     income:  colors.income   || '#4ade80',
-  }), [colors.accent, colors.cashOut, colors.invest, colors.savings, colors.income])
+  }), [colors.accent, colors.cashOut, colors.savings, colors.income])
 
   const [customColors, setCustomColors] = useState({})
   function setColor(key, hex) { setCustomColors(prev => ({ ...prev, [key]: hex })) }
@@ -176,12 +171,11 @@ export default function MoneyFlowTab({ range, currentDate }) {
   const METRICS = useMemo(() => [
     { key: 'total',   label: 'Total Balance', Icon: Wallet,        color: DEFAULT_COLORS.total   },
     { key: 'cash',    label: 'Cash',          Icon: Banknote,      color: DEFAULT_COLORS.cash    },
-    { key: 'invest',  label: 'Investments',   Icon: LineChartIcon, color: DEFAULT_COLORS.invest  },
     { key: 'savings', label: 'Savings',       Icon: PiggyBank,     color: DEFAULT_COLORS.savings },
     { key: 'income',  label: 'Income',        Icon: TrendingUp,    color: DEFAULT_COLORS.income  },
   ], [DEFAULT_COLORS])
 
-  // Only show individual card chips for debit/credit — cash/savings/invest
+  // Only show individual card chips for debit/credit — cash/savings
   // are already represented by the summary metric chips above.
   const cardDefs = useMemo(() =>
     cards
@@ -217,7 +211,6 @@ export default function MoneyFlowTab({ range, currentDate }) {
     let debitCredit = cards.filter(c => DEBIT_CREDIT.has(c.type)).reduce((s, c) => s + Number(c.initial_balance), 0)
     let cash        = cards.filter(c => c.type === 'cash').reduce((s, c) => s + Number(c.initial_balance), 0)
     let savings     = cards.filter(c => c.type === 'savings' && !c.is_buffer).reduce((s, c) => s + Number(c.initial_balance), 0)
-    let invest      = cards.filter(c => c.type === 'invest').reduce((s, c) => s + Number(c.initial_balance), 0)
     let income      = 0
     const bal = Object.fromEntries(cards.map(c => [c.id, Number(c.initial_balance ?? 0)]))
     let ti = 0
@@ -238,11 +231,10 @@ export default function MoneyFlowTab({ range, currentDate }) {
           if (card?.type === 'savings') bal[card.id] -= Number(tx.amount)
         } else if (card) {
           if (DEBIT_CREDIT.has(card.type)) { debitCredit += sign * Number(tx.amount); bal[card.id] += sign * Number(tx.amount) }
-          else if (card.type === 'invest')  { invest      += sign * Number(tx.amount); bal[card.id] += sign * Number(tx.amount) }
         }
         if (tx.type === 'income' && !tx.is_cash && tx.date >= rangeStart) income += Number(tx.amount)
       }
-      const snap = { key, label, fullLabel, total: debitCredit + cash, cash, savings, invest, income }
+      const snap = { key, label, fullLabel, total: debitCredit + cash, cash, savings, income }
       for (const c of cards) snap[`card_${c.id}`] = bal[c.id]
       return snap
     })
@@ -288,7 +280,6 @@ export default function MoneyFlowTab({ range, currentDate }) {
     if (key === 'total')   return current.total
     if (key === 'cash')    return current.cash
     if (key === 'savings') return current.savings
-    if (key === 'invest')  return current.invest
     if (key === 'income')  return current.income
     return current.perCard[key.replace('card_', '')] ?? 0
   }

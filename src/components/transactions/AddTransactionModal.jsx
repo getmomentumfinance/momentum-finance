@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Banknote, ChevronDown, Building2, UserRound, Calendar, Scissors, Plus, Users } from 'lucide-react'
+import { X, Banknote, ChevronDown, Building2, UserRound, Scissors, Users } from 'lucide-react'
 import SplitTransactionModal from './SplitTransactionModal'
 import { TRANSACTION_TYPES as TYPES } from '../../constants/transactionTypes'
 import { useImportance } from '../../hooks/useImportance'
 import ImportancePicker from '../shared/ImportancePicker'
-import { fetchHistoricalPrice, fetchLivePrice } from '../../lib/yahooFinance'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/UserPreferencesContext'
@@ -181,67 +180,6 @@ function DescriptionCombobox({ value, onChange, receiverId, onReceiverSelect, on
 }
 
 
-// ── Ticker combobox ───────────────────────────────────────────
-function TickerCombobox({ value, onChange, tickers, onAddToList, inputClass }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef(null)
-
-  useEffect(() => {
-    if (!open) return
-    const h = e => { if (!ref.current?.contains(e.target)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [open])
-
-  const q = value.trim().toUpperCase()
-  const filtered = q
-    ? tickers.filter(t => t.symbol.includes(q) || (t.name ?? '').toUpperCase().includes(q)).slice(0, 8)
-    : tickers.slice(0, 8)
-  const exactMatch = tickers.some(t => t.symbol === q)
-  const showAdd = q.length > 0 && !exactMatch
-  const showDropdown = open && (filtered.length > 0 || showAdd)
-
-  return (
-    <div ref={ref} className="relative">
-      <input
-        value={value}
-        onChange={e => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-        placeholder="AAPL"
-        className={inputClass + ' uppercase'}
-        autoComplete="off"
-      />
-      {showDropdown && (
-        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-30 shadow-xl max-h-52 overflow-y-auto">
-          {filtered.map(t => (
-            <button
-              key={t.id}
-              type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => { onChange(t.symbol); setOpen(false) }}
-              className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors flex items-center justify-between gap-3"
-            >
-              <span className="text-sm text-white font-mono">{t.symbol}</span>
-              {t.name && <span className="text-xs text-white/35 truncate">{t.name}</span>}
-            </button>
-          ))}
-          {showAdd && (
-            <button
-              type="button"
-              onMouseDown={e => e.preventDefault()}
-              onClick={() => { onAddToList(q); setOpen(false) }}
-              className="w-full px-3 py-2 text-left hover:bg-white/5 transition-colors flex items-center gap-2 border-t border-white/[0.06]"
-            >
-              <Plus size={11} className="text-white/40 shrink-0" />
-              <span className="text-xs text-white/40">Add <span className="font-mono text-white/60">{q}</span> to list</span>
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 const STATUSES = [
   { value: 'completed', label: 'Completed' },
   { value: 'pending',   label: 'Pending'   },
@@ -296,16 +234,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [purchaseReceiverId, setPurchaseReceiverId] = useState('')
   const [purchaseImportance, setPurchaseImportance] = useState('')
   const [purchaseCardId,     setPurchaseCardId]     = useState('')
-  const [investDir,          setInvestDir]          = useState(transaction?.direction ?? defaults.direction ?? 'buy')
-  const [investLabel,        setInvestLabel]        = useState(transaction?.label    ?? '')
-  const [ticker,             setTicker]             = useState(transaction?.ticker   ?? defaults.ticker   ?? '')
-  const [investPriceCurrency, setInvestPriceCurrency] = useState('EUR')
-  const [quantity,      setQuantity]      = useState(transaction?.quantity != null ? String(transaction.quantity) : defaults.quantity != null ? String(defaults.quantity) : '')
-  const [pricePerUnit,  setPricePerUnit]  = useState(transaction?.price_per_unit != null ? String(transaction.price_per_unit) : '')
-  const [fee,           setFee]           = useState('')
-  const [fetchingPrice, setFetchingPrice] = useState(false)
-  const [priceDate,     setPriceDate]     = useState(transaction?.date ?? defaults.date ?? toLocalStr(new Date()))
-  const priceDateRef = useRef(null)
+  const [labels,      setLabels]      = useState(transaction?.labels ?? [])
   const [date,        setDate]        = useState(transaction?.date            ?? defaults.date ?? toLocalStr(new Date()))
   const [comment,     setComment]     = useState(transaction?.comment        ?? '')
   const [status,      setStatus]      = useState(transaction?.status         ?? 'completed')
@@ -319,24 +248,15 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
   const [savedTxId,   setSavedTxId]   = useState(null)  // id of already-saved tx (for back-from-split edit)
   const { categories, receivers: sharedReceivers, balanceTxs } = useSharedData()
   const { prefs: uiPrefs } = useUIPrefs()
-  const rawTradeLabels = uiPrefs['invest_labels'] ?? [{ name: 'Day Trade', color: '#60a5fa' }, { name: 'Swing Trade', color: '#a78bfa' }, { name: 'Long Term', color: '#34d399' }]
-  const tradeLabels = rawTradeLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
+  const rawTxLabels = uiPrefs['tx_labels'] ?? [{ name: 'Recurring', color: '#60a5fa' }, { name: 'Subscription', color: '#a78bfa' }]
+  const txLabels = rawTxLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
   const [extraReceivers, setExtraReceivers] = useState([])
   const receivers = [...sharedReceivers, ...extraReceivers]
   const cardTxs   = balanceTxs
-  const [tickers, setTickers] = useState([])
 
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('tickers').select('id, symbol, name').eq('user_id', user.id).order('symbol')
-      .then(({ data, error }) => { if (error) console.error('tickers load:', error.message); if (data) setTickers(data) })
-  }, [user?.id])
-
-  useEffect(() => {
-    const t = ticker.trim()
-    if (!t) return
-    setInvestPriceCurrency(t.includes('.') ? 'EUR' : 'USD')
-  }, [ticker])
+  function toggleLabel(name) {
+    setLabels(prev => prev.includes(name) ? prev.filter(l => l !== name) : [...prev, name])
+  }
 
   useEffect(() => {
     if (!user?.id || type !== 'savings') return
@@ -378,21 +298,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
       })
   }, [isEditing, user?.id, transaction?.id])
 
-  // Price per unit is entered manually by the user — no auto-fetch
-
-  async function handleAddTickerToList(symbol) {
-    const { data, error } = await supabase
-      .from('tickers').insert({ user_id: user.id, symbol })
-      .select().single()
-    if (error) { console.error('ticker save error:', error.message); return }
-    if (data) setTickers(prev =>
-      prev.some(t => t.symbol === data.symbol)
-        ? prev
-        : [...prev, data].sort((a, b) => a.symbol.localeCompare(b.symbol))
-    )
-  }
-
-
   // Auto-select main card
   useEffect(() => {
     if (isCash) { setCardId(''); return }
@@ -410,12 +315,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     if (type === 'cash_out') {
       const debit = cards.find(c => c.type === 'debit' && c.is_main) ?? cards.find(c => c.type === 'debit')
       if (debit) setCardId(debit.id)
-      return
-    }
-    if (type === 'invest') {
-      // Only auto-select if there's exactly one trading account and no card already chosen
-      const tradingList = cards.filter(c => c.type === 'trading')
-      if (tradingList.length === 1 && !cardId) setCardId(tradingList[0].id)
       return
     }
     const preferredType = 'debit'
@@ -437,32 +336,24 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
     const delta = cardTxs
       .filter(t => t.card_id === card.id && !t.is_cash)
       .reduce((s, t) => {
-        if (t.type === 'invest') return s + ((t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount)
         return s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount)
       }, 0)
     return Number(card.initial_balance) + delta
   }
 
-  const transferCards  = cards.filter(c => c.type === 'debit' || c.type === 'credit' || c.type === 'trading' || (c.type === 'savings' && c.is_buffer))
-  const tradingCards   = cards.filter(c => c.type === 'trading')
+  const transferCards  = cards.filter(c => c.type === 'debit' || c.type === 'credit' || (c.type === 'savings' && c.is_buffer))
   const savingsFromCards = savingsDir === 'in'
     ? cards.filter(c => c.type === 'debit' || c.type === 'credit')
     : cards.filter(c => c.type === 'savings' && !c.is_buffer)
   const savingsToCards = savingsDir === 'in'
     ? cards.filter(c => c.type === 'savings' && !c.is_buffer)
     : cards.filter(c => c.type === 'debit' || c.type === 'credit')
-  const availableCards = cards.filter(c => c.type !== 'cash' && c.type !== 'trading')
+  const availableCards = cards.filter(c => c.type !== 'cash')
   const selectedCard   = cards.find(c => c.id === cardId)
   const activeType     = TYPES.find(t => t.value === type)
 
   async function handleSave(splitAfter = false) {
-    if (type === 'invest') {
-      const qty = parseFloat(quantity)
-      const ppu = parseFloat(pricePerUnit)
-      if (!(qty > 0) || !(ppu > 0)) return
-    } else {
-      if (!amount || isNaN(parseFloat(amount.replace(',', '.')))) return
-    }
+    if (!amount || isNaN(parseFloat(amount.replace(',', '.')))) return
     if ((type === 'transfer' || type === 'savings') && (!cardId || !toCardId || cardId === toCardId)) return
     if (type === 'cash_out' && !cardId) return
     setSaving(true)
@@ -510,7 +401,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         ? `Savings deposit from ${fromCard?.name ?? 'card'}`
         : `Savings withdrawal to ${toCard?.name ?? 'card'}`
       const source = savingsDir === 'in' ? 'savings_in'
-        : withdrawMode === 'invest'   ? 'savings_out_invest'
         : withdrawMode === 'purchase' ? 'savings_out_purchase'
         : 'savings_out'
       // For new purchase-mode withdrawals, create expense first to capture its ID
@@ -554,39 +444,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           }
         }
       }
-    } else if (type === 'invest') {
-      const qty        = parseFloat(quantity)
-      const ppuRaw     = parseFloat(pricePerUnit)
-      const feeRaw     = parseFloat(fee) || 0
-      const eurUsdRate = uiPrefs.eur_usd_rate?.rate ?? null
-      const converting = investPriceCurrency === 'USD' && eurUsdRate
-      const ppu        = converting ? ppuRaw / eurUsdRate : ppuRaw
-      const feeAmt     = converting ? feeRaw / eurUsdRate : feeRaw
-      const computed   = investDir === 'sell' ? qty * ppu - feeAmt : qty * ppu + feeAmt
-      const payload  = {
-        type,
-        direction:        investDir,
-        description:      ticker.trim().toUpperCase() || null,
-        amount:           computed,
-        ticker:           ticker.trim().toUpperCase() || null,
-        quantity:         qty,
-        price_per_unit:   ppu,
-        card_id:          cardId || null,
-        is_cash:          false,
-        is_split_parent:  false,
-        label:            investLabel.trim() || null,
-        category_id:      null,
-        subcategory_id:   null,
-        receiver_id:      null,
-        date,
-        comment:          comment.trim() || null,
-        status:           'completed',
-      }
-      if (effectiveIsEditing) {
-        await supabase.from('transactions').update(payload).eq('id', editId)
-      } else {
-        await supabase.from('transactions').insert({ user_id: user.id, ...payload })
-      }
     } else {
       const reimbursableParsed = parseFloat(reimbursableAmt) || 0
       const payload = {
@@ -600,6 +457,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
         receiver_id:         receiverId || null,
         is_cash:             isCash,
         is_split_parent:     false,
+        labels:              labels,
         ...(type === 'income' && { is_earned: isEarned, linked_expense_id: linkedExpenseId || null }),
         ...(type === 'expense' && { importance: importance || null }),
         date,
@@ -692,8 +550,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             </div>
           </div>
 
-          {/* Receiver — hidden for transfer/savings/invest/cash_out */}
-          {type !== 'transfer' && type !== 'savings' && type !== 'invest' && type !== 'cash_out' && (
+          {/* Receiver — hidden for transfer/savings/cash_out */}
+          {type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (
             <div className="flex flex-col gap-2">
               <label className="text-xs text-muted uppercase tracking-widest">{type === 'income' ? 'Sender' : 'Receiver'}</label>
               <DescriptionCombobox
@@ -708,10 +566,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             </div>
           )}
 
-          {/* Amount — hidden for invest (auto-computed) */}
-          {type !== 'invest' && (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-muted uppercase tracking-widest">Amount</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Amount</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">€</span>
                 <input
@@ -757,131 +613,31 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                 </div>
               )}
             </div>
-          )}
 
-          {/* Invest fields: Ticker + Quantity + Price per unit + Fee */}
-          {type === 'invest' && (
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                  Ticker <span className="text-white/30 normal-case font-normal">(e.g. AAPL, BTC-USD, VWCE.AS)</span>
-                </label>
-                <TickerCombobox
-                  value={ticker}
-                  onChange={setTicker}
-                  tickers={tickers}
-                  onAddToList={handleAddTickerToList}
-                  inputClass={inp}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-muted uppercase tracking-widest">Quantity</label>
-                  <input
-                    value={quantity}
-                    onChange={e => setQuantity(e.target.value)}
-                    type="number" step="any" min="0" placeholder="0"
-                    className={inp}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                    Price per unit
-                    <div className="flex gap-1">
-                      {['USD', 'EUR'].map(c => (
-                        <button key={c} type="button" onClick={() => setInvestPriceCurrency(c)}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors"
-                          style={{
-                            background: investPriceCurrency === c ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.05)',
-                            color:      investPriceCurrency === c ? '#fff' : 'rgba(255,255,255,0.35)',
-                          }}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                    {ticker.trim() && (
-                      <span className="ml-auto flex items-center gap-1.5">
-                        {fetchingPrice
-                          ? <span className="text-[10px] text-white/30">Fetching…</span>
-                          : <span className="text-[10px] text-white/30">{priceDate}</span>
-                        }
-                        <span className="relative" title="Pick date to fetch price">
-                          <Calendar size={12} className="text-white/30 hover:text-white/60 transition-colors pointer-events-none" />
-                          <input
-                            ref={priceDateRef}
-                            type="date"
-                            value={priceDate}
-                            disabled={fetchingPrice || !ticker.trim()}
-                            onChange={async e => {
-                              const d = e.target.value
-                              setPriceDate(d)
-                              if (!d || !ticker.trim()) return
-                              setFetchingPrice(true)
-                              const result = await fetchHistoricalPrice(ticker.trim(), d)
-                              if (result) setPricePerUnit(String(parseFloat(result.price.toFixed(4))))
-                              setFetchingPrice(false)
-                            }}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full disabled:cursor-not-allowed"
-                          />
-                        </span>
-                      </span>
-                    )}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">
-                      {investPriceCurrency === 'USD' ? '$' : '€'}
-                    </span>
-                    <input
-                      value={pricePerUnit}
-                      onChange={e => setPricePerUnit(e.target.value)}
-                      type="number" step="any" min="0" placeholder="0,00"
-                      className={inp + ' pl-8'}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                  Fee <span className="text-white/30 normal-case font-normal">(optional, not counted in cost basis)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-white/30 pointer-events-none">
-                    {investPriceCurrency === 'USD' ? '$' : '€'}
-                  </span>
-                  <input
-                    value={fee}
-                    onChange={e => setFee(e.target.value)}
-                    type="number" step="0.01" min="0" placeholder="0,00"
-                    className={inp + ' pl-8'}
-                  />
-                </div>
-              </div>
-              {parseFloat(quantity) > 0 && parseFloat(pricePerUnit) > 0 && (() => {
-                const qty      = parseFloat(quantity)
-                const ppuDisp  = parseFloat(pricePerUnit)
-                const feeDisp  = parseFloat(fee) || 0
-                const rawTotal = investDir === 'sell' ? qty * ppuDisp - feeDisp : qty * ppuDisp + feeDisp
-                const eurRate  = uiPrefs.eur_usd_rate?.rate ?? null
-                const eurTotal = investPriceCurrency === 'USD' && eurRate ? rawTotal / eurRate : null
-                const currSym  = investPriceCurrency === 'USD' ? '$' : '€'
+          {/* Labels */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-muted uppercase tracking-widest">Labels <span className="text-white/30 normal-case font-normal">(optional)</span></label>
+            <div className="flex flex-wrap gap-2">
+              {txLabels.map(l => {
+                const active = labels.includes(l.name)
                 return (
-                  <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-white/[0.03] border border-white/8 text-xs">
-                    <span className="text-muted">
-                      {investDir === 'sell'
-                        ? (cardId ? 'Net proceeds to card' : 'Net proceeds')
-                        : (cardId ? 'Total deducted from card' : 'Total invested')}
-                    </span>
-                    <span className="text-white/60 flex items-center gap-1.5">
-                      {currSym}{rawTotal.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      {eurTotal != null && (
-                        <span className="text-white/30">≈ €{eurTotal.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      )}
-                    </span>
-                  </div>
+                  <button
+                    key={l.name}
+                    type="button"
+                    onClick={() => toggleLabel(l.name)}
+                    className="px-3 py-1.5 rounded-full border text-xs font-medium transition-all"
+                    style={{
+                      borderColor: active ? l.color : 'rgba(255,255,255,0.08)',
+                      background:  active ? `color-mix(in srgb, ${l.color} 15%, transparent)` : 'rgba(255,255,255,0.02)',
+                      color:       active ? l.color : 'rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    {l.name}
+                  </button>
                 )
-              })()}
+              })}
             </div>
-          )}
+          </div>
 
           {/* Savings: In / Out + card selectors */}
           {type === 'savings' && (
@@ -969,7 +725,6 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
                     {[
                       { id: 'topup',    label: 'Top-up',   desc: 'Transfer to debit card' },
                       { id: 'purchase', label: 'Purchase', desc: 'Buy something directly' },
-                      { id: 'invest',   label: 'Invest',   desc: 'Going to investments'   },
                     ].map(m => (
                       <button key={m.id} type="button" onClick={() => setWithdrawMode(m.id)}
                         className="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-3 rounded-lg transition-colors"
@@ -1146,8 +901,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             </div>
           )}
 
-          {/* Category + Subcategory — hidden for income, transfer, savings, invest, cash_out */}
-          {type !== 'income' && type !== 'transfer' && type !== 'savings' && type !== 'invest' && type !== 'cash_out' && (
+          {/* Category + Subcategory — hidden for income, transfer, savings, cash_out */}
+          {type !== 'income' && type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-muted uppercase tracking-widest">Category</label>
@@ -1171,8 +926,8 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
             </div>
           )}
 
-          {/* Inline toggles — hidden for transfer/savings/invest/cash_out */}
-          {type !== 'transfer' && type !== 'savings' && type !== 'invest' && type !== 'cash_out' && (
+          {/* Inline toggles — hidden for transfer/savings/cash_out */}
+          {type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (
             <div className="flex items-center gap-5">
               {type !== 'income' && (
                 <Toggle
@@ -1210,27 +965,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
           )}
 
           {/* Card / Cash wallet — hidden for transfer/savings (handled above) */}
-          {type === 'invest' ? (
-            <div className="flex flex-col gap-2">
-              <label className="text-xs text-muted uppercase tracking-widest flex items-center gap-2">
-                Trading account
-                <span className="text-white/30 normal-case font-normal">(optional)</span>
-                {selectedCard && (
-                  <span className="text-white/30 normal-case font-normal ml-auto">
-                    Balance: {fmt(cardBalance(selectedCard))}
-                  </span>
-                )}
-              </label>
-              <select value={cardId} onChange={e => setCardId(e.target.value)} className={sel}>
-                <option value="">No account (historical)</option>
-                {tradingCards.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}  ·  {fmt(cardBalance(c))}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (isCash ? (
+          {type !== 'transfer' && type !== 'savings' && type !== 'cash_out' && (isCash ? (
             <div className="flex flex-col gap-2">
               <label className="text-xs text-muted uppercase tracking-widest">Wallet</label>
               <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/50">
@@ -1305,9 +1040,7 @@ export default function AddTransactionModal({ onClose, defaults = {}, transactio
               onClick={() => handleSave(false)}
               disabled={
                 saving ||
-                (type === 'invest'
-                  ? !(parseFloat(quantity) > 0) || !(parseFloat(pricePerUnit) > 0)
-                  : !amount) ||
+                !amount ||
                 ((type === 'transfer' || type === 'savings') && (!cardId || !toCardId || cardId === toCardId)) ||
                 (type === 'cash_out' && !cardId) ||
                 (type === 'expense' && !importance)

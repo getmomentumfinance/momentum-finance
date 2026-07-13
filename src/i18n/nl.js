@@ -55,7 +55,6 @@ const nl = {
   'type.income':   'Inkomen',
   'type.transfer': 'Overschrijving',
   'type.savings':  'Sparen',
-  'type.invest':   'Investering',
   'type.cash_out': 'Geld opnemen',
 
   // ── Transaction sources / tags ───────────────────────────────
@@ -78,7 +77,6 @@ const nl = {
   'nav.savings':      'Sparen',
   'nav.budgets':      'Budgetten',
   'nav.transactions': 'Transacties',
-  'nav.portfolio':    'Portfolio',
   'nav.goals':        'Doelen',
   'nav.exportPng':    'Pagina exporteren als PNG',
 
@@ -90,7 +88,6 @@ const nl = {
   'dash.income':          'Inkomen',
   'dash.cash':            'Contant',
   'dash.expenses':        'Uitgaven',
-  'dash.investments':     'Investeringen',
   'dash.savingsMonth':    'Spaargeld deze maand',
   'dash.totalSavings':    'Totaal spaargeld',
 
@@ -111,76 +108,12 @@ const nl = {
   // ── Accounts List ────────────────────────────────────────────
   'accounts.noCards': 'Nog geen kaarten toegevoegd.',
 
-  // ── Still to Pay ─────────────────────────────────────────────
-  'stp.title':     'Nog te betalen',
-  'stp.recurring': 'Vast',
-  'stp.pending':   'Openstaand',
-  'stp.planned':   'Gepland',
-  'stp.subs':      'Abonnementen',
-
-  // ── Recurring Bills ──────────────────────────────────────────
-  'bills.title':   'Vaste rekeningen',
-  'bills.noBills': 'Geen vaste rekeningen ingesteld',
-  'bills.dueIn':   'Over {days} dag(en)',
-  'bills.overdue': '{days} dag(en) te laat',
-
-  // ── Planned Bills ────────────────────────────────────────────
-  'planned.title':        'Geplande rekeningen',
-  'planned.noBills':      'Geen geplande rekeningen',
-  'planned.noBillsMonth': 'Geen geplande rekeningen deze maand',
-  'planned.markPaid':     'Markeren als betaald',
-  'planned.undoPaid':     'Betaling ongedaan maken',
-
-  // ── Subscriptions ────────────────────────────────────────────
-  'subs.title':       'Abonnementen',
-  'subs.active':      'Actief',
-  'subs.cancelled':   'Opgezegd',
-  'subs.noActive':    'Geen actieve abonnementen',
-  'subs.noCancelled': 'Geen opgezegde abonnementen',
-  'subs.cancel':      'Abonnement opzeggen',
-  'subs.reactivate':  'Heractiveren',
-  'subs.saved':       'Je hebt {amount} bespaard door op te zeggen!',
-  'subs.dueIn':       'Over {days} dag(en)',
-  'subs.overdue':     '{days} dag(en) te laat',
-
   // ── Savings Goals ────────────────────────────────────────────
   'savings.title':       'Spaardoelen',
   'savings.addGoal':     'Doel toevoegen',
   'savings.noGoals':     'Nog geen doelen — voeg er een toe om je spaargeld te verdelen',
   'savings.distributed': '{allocated} van {balance} verdeeld',
   'savings.pctOfGoal':   '{pct}% van doel',
-
-  // ── Wishlist ─────────────────────────────────────────────────
-  'wish.title':    'Verlanglijst',
-  'wish.empty':    'Je verlanglijst is leeg',
-  'wish.saved':    'Je hebt {amount} bespaard door dit over te slaan!',
-  'wish.showLess': 'Toon minder',
-  'wish.more':     '+{count} meer',
-  'wish.total':    'Totaal verlanglijst',
-  'wish.skip':     'Overslaan',
-
-  // ── Pending Transactions ─────────────────────────────────────
-  'pending.title':      'Openstaand',
-  'pending.noItems':    'Geen openstaande items',
-  'pending.daysLeft':   'Nog {days} dag(en)',
-  'pending.overdue':    '{days} dag(en) te laat',
-  'pending.returned':   'Je hebt {amount} teruggekregen!',
-  'pending.markPaid':   'Markeren als betaald',
-  'pending.undoPaid':   'Betaling ongedaan maken',
-  'pending.markReturn':   'Markeren als geretourneerd',
-  'pending.return':       'Retourneren',
-  'pending.markReceived': 'Markeren als ontvangen',
-  'pending.finalAmount':  'Definitief bedrag',
-  'pending.returnDiff':   '{amount}',
-  'pending.confirm':      'Bevestigen',
-
-  // ── Balance Projection ───────────────────────────────────────
-  'proj.title':     'Balansoverzicht',
-  'proj.recurring': 'Vaste rekeningen',
-  'proj.pending':   'Openstaande transacties',
-  'proj.planned':   'Geplande rekeningen',
-  'proj.subs':      'Abonnementen',
-  'proj.wishlist':  'Verlanglijst',
 
   // ── Budgets Widget ───────────────────────────────────────────
   'bw.title':      'Budgetten',
@@ -233,10 +166,6 @@ const nl = {
   'rt.noTx':  'Geen transacties deze maand.',
 
   // ── Payment Modal ────────────────────────────────────────────
-  'pay.overduePayment': 'Achterstallige betaling',
-  'pay.plannedBill':    'Geplande rekening',
-  'pay.recurringBill':  'Vaste rekening',
-  'pay.subscription':   'Abonnement',
   'pay.budgetAlert':    'Budgetalert',
   'pay.amountDue':      'Te betalen bedrag',
   'pay.paymentDate':    'Betaaldatum',
@@ -300,18 +229,6 @@ const nl = {
   'bm.deleteConfirm':   'Budget verwijderen?',
   'bm.importanceLevel': 'Prioriteitsniveau',
 
-  // ── Add Pending Modal ────────────────────────────────────────
-  'apm.addTitle':    'Openstaand item toevoegen',
-  'apm.editTitle':   'Openstaand item bewerken',
-  'apm.namePh':      'bijv. Nieuwe telefoon',
-  'apm.icon':        'Pictogram',
-  'apm.noIcon':      'Geen pictogram',
-  'apm.clear':       'Wissen',
-  'apm.choose':      'Kiezen',
-  'apm.searchIcons': 'Pictogrammen zoeken…',
-  'apm.payBefore':   'Betalen voor',
-  'apm.descPh':      'Voeg een omschrijving toe…',
-
   // ── Summary Page ─────────────────────────────────────────────
   'sum.netFlow':     'Nettostroom',
   'sum.spent':       'uitgegeven',
@@ -322,38 +239,9 @@ const nl = {
   'sum.savingsRate': 'Spaarpercentage',
   'sum.budgets':     'Budgetten',
   'sum.noBudgets':   'Geen budgetten ingesteld',
-  'sum.toPay':       'Te betalen',
-  'sum.allPaid':     'Alles betaald',
   'sum.dailySpend':  'Dagelijkse uitgaven',
   'sum.less':        'Minder',
   'sum.more':        'Meer',
-
-  // ── Portfolio Page ───────────────────────────────────────────
-  'port.title':         'Portfolio',
-  'port.subtitle':      'Live investeringsoverzicht',
-  'port.updated':       'Bijgewerkt {time}',
-  'port.refreshing':    'Vernieuwen…',
-  'port.refresh':       'Prijzen vernieuwen',
-  'port.priceError':    'Sommige prijzen konden niet worden opgehaald. Controleer de tickersymbolen of probeer het later opnieuw.',
-  'port.totalInvested': 'Totaal geïnvesteerd',
-  'port.currentValue':  'Huidige waarde',
-  'port.noPrices':      'Geen live prijzen beschikbaar',
-  'port.totalGainLoss': 'Totale winst / verlies',
-  'port.return':        'Rendement',
-  'port.ticker':        'Ticker',
-  'port.quantity':      'Hoeveelheid',
-  'port.avgBuy':        'Gem. aankoopprijs',
-  'port.currentPrice':  'Huidige prijs',
-  'port.costBasis':     'Kostprijs',
-  'port.fees':          'Kosten',
-  'port.gainLoss':      'Winst / verlies',
-  'port.noTx':          'Nog geen investeringstransacties met een ticker.',
-  'port.lots':          '{alloc}% van portfolio · {n} lot(s)',
-  'port.initialBalance':'+{amount} initieel',
-  'port.positions':     '{n} positie(s)',
-  'port.totalInv':      'Totaal geïnvesteerd',
-  'port.totalFees':     'Totale kosten',
-  'port.footer':        'Prijzen via Yahoo Finance · Elke 60s bijgewerkt · Gebruik tickersymbolen zoals vermeld (bijv. AAPL, BTC-USD, VWCE.AS)',
 
   // ── Transactions Page ────────────────────────────────────────
   'tx.title':        'Transacties',
@@ -414,7 +302,7 @@ const nl = {
   'help.setCatsDesc':    'Maak uitgavecategorieën en subcategorieën aan om je transacties te organiseren.',
   'help.goToLib':        'Ga naar Bibliotheek',
   'help.logTx':          'Een transactie registreren',
-  'help.logTxDesc':      'Registreer handmatig inkomen, uitgaven, overschrijvingen of investeringen.',
+  'help.logTxDesc':      'Registreer handmatig inkomen, uitgaven, overschrijvingen of spaargeld.',
   'help.addNow':         'Nu toevoegen',
   'help.createBudget':   'Een budget aanmaken',
   'help.createBudgetDesc':'Stel maandelijkse of periodieke uitgavenlimieten in per categorie of prioriteit.',
@@ -433,8 +321,6 @@ const nl = {
   'help.analyticsDesc':  'Diepgaande analyse van uitgaventrends, categorieën en maandelijkse vergelijkingen.',
   'help.summaryLabel':   'Samenvatting',
   'help.summaryDesc':    'Maandoverzicht — nettostroom, uitgavendiagram, budgetvoortgang en heatmap.',
-  'help.portLabel':      'Portfolio',
-  'help.portDesc':       'Volg investeringen per ticker met live prijzen en allocatieoverzichten.',
   'help.customTitle':    'Aanpassen',
   'help.designsLabel':   'Ontwerpen & thema\'s',
   'help.designsDesc':    'Wissel van achtergrondontwerp en sla volledige kleurthema\'s op om later opnieuw toe te passen.',

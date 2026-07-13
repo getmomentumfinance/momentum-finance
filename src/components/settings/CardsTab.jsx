@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import {
-  CreditCard, PiggyBank, Ticket, Banknote, Plus, Pencil, Trash2, TrendingUp, Wallet, X, Eye, EyeOff,
+  CreditCard, PiggyBank, Ticket, Banknote, Plus, Pencil, Trash2, Wallet,
 } from 'lucide-react'
 import { CATEGORY_ICONS, ICONS_MAP } from '../shared/CategoryPill'
 import { useCards } from '../../hooks/useCards'
@@ -9,9 +9,7 @@ import { SkeletonCard } from '../shared/Skeleton'
 import { useBanks } from '../../hooks/useBanks'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
-import { useUIPrefs } from '../../context/UIPrefContext'
 import { computeCardBalance } from '../../utils/cardBalance'
-import { toLocalStr } from '../../utils/budgetPeriod'
 
 function resolveIcon(id) { return ICONS_MAP[id] ?? CreditCard }
 
@@ -20,7 +18,6 @@ const CARD_TYPES = [
   { value: 'credit',  label: 'Credit',       Icon: Banknote,    canBeMain: true  },
   { value: 'savings', label: 'Savings',      Icon: PiggyBank,   canBeMain: true  },
   { value: 'voucher', label: 'Voucher',      Icon: Ticket,      canBeMain: false },
-  { value: 'trading', label: 'Trading',      Icon: TrendingUp,  canBeMain: false },
   { value: 'cash',    label: 'Cash Wallet',  Icon: Wallet,      canBeMain: false, singleOnly: true },
 ]
 
@@ -447,177 +444,6 @@ function AddBankForm({ onSave, onCancel }) {
   )
 }
 
-// ── Tickers section ───────────────────────────────────────────
-function TickersSection({ userId }) {
-  const { user } = useAuth()
-  const { fmt } = usePreferences()
-  const { prefs, setPref } = useUIPrefs()
-  const [tickers,   setTickers]   = useState([])
-  const [balances,  setBalances]  = useState(() => user?.user_metadata?.portfolio_ticker_balances ?? {})
-
-  const hiddenFromMarquee = prefs.ticker_marquee_hidden ?? []
-  function toggleMarquee(symbol) {
-    const next = hiddenFromMarquee.includes(symbol)
-      ? hiddenFromMarquee.filter(s => s !== symbol)
-      : [...hiddenFromMarquee, symbol]
-    setPref('ticker_marquee_hidden', next)
-  }
-  const [adding,    setAdding]    = useState(false)
-  const [newSymbol, setNewSymbol] = useState('')
-  const [newName,   setNewName]   = useState('')
-  const [newBalance, setNewBalance] = useState('')
-  const [newDate,   setNewDate]   = useState(() => toLocalStr(new Date()))
-  const [editId,    setEditId]    = useState(null)
-  const [editForm,  setEditForm]  = useState({ symbol: '', name: '', balance: '', date: '' })
-  const [addDupe,   setAddDupe]   = useState(false)
-
-  useEffect(() => {
-    supabase.from('tickers').select('*').eq('user_id', userId).order('symbol')
-      .then(({ data }) => { if (data) setTickers(data) })
-  }, [userId])
-
-  async function saveBalances(updated) {
-    setBalances(updated)
-    await supabase.auth.updateUser({ data: { portfolio_ticker_balances: updated } })
-  }
-
-  async function addTicker() {
-    const sym = newSymbol.trim().toUpperCase()
-    if (!sym) return
-    if (tickers.some(t => t.symbol === sym)) { setAddDupe(true); return }
-    const { data } = await supabase.from('tickers').insert({ user_id: userId, symbol: sym, name: newName.trim() || null }).select().single()
-    if (data) {
-      setTickers(prev => [...prev, data].sort((a, b) => a.symbol.localeCompare(b.symbol)))
-      const parsed = parseFloat(newBalance)
-      if (!isNaN(parsed) && parsed > 0) {
-        await saveBalances({ ...balances, [sym]: { amount: parsed, date: newDate } })
-      }
-      setNewSymbol(''); setNewName(''); setNewBalance(''); setNewDate(toLocalStr(new Date())); setAdding(false); setAddDupe(false)
-    }
-  }
-
-  async function saveTicker(id) {
-    const sym = editForm.symbol.trim().toUpperCase()
-    if (!sym) { setEditId(null); return }
-    const ticker = tickers.find(t => t.id === id)
-    await supabase.from('tickers').update({ symbol: sym, name: editForm.name.trim() || null }).eq('id', id)
-    setTickers(prev => prev.map(t => t.id === id ? { ...t, symbol: sym, name: editForm.name.trim() || null } : t))
-    // Update balance: remove old symbol key, set new symbol key
-    const updated = { ...balances }
-    if (ticker && ticker.symbol !== sym) delete updated[ticker.symbol]
-    const parsed = parseFloat(editForm.balance)
-    if (!isNaN(parsed) && parsed > 0) updated[sym] = { amount: parsed, date: editForm.date || toLocalStr(new Date()) }
-    else delete updated[sym]
-    await saveBalances(updated)
-    setEditId(null)
-  }
-
-  async function deleteTicker(id) {
-    const ticker = tickers.find(t => t.id === id)
-    await supabase.from('tickers').delete().eq('id', id)
-    setTickers(prev => prev.filter(t => t.id !== id))
-    if (ticker) {
-      const updated = { ...balances }
-      delete updated[ticker.symbol]
-      await saveBalances(updated)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {tickers.map(t => {
-        const bal = balances[t.symbol]
-        return (
-          <div key={t.id} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 group">
-            {editId === t.id ? (
-              <div className="flex-1 flex flex-col gap-1.5" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) saveTicker(t.id) }}>
-                <div className="flex items-center gap-2">
-                  <input autoFocus value={editForm.symbol}
-                    onChange={e => setEditForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))}
-                    onKeyDown={e => { if (e.key === 'Escape') setEditId(null) }}
-                    className="bg-transparent text-sm text-white font-mono uppercase outline-none border-b border-white/20 w-20" placeholder="AAPL" />
-                  <input value={editForm.name}
-                    onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Escape') setEditId(null) }}
-                    className="flex-1 bg-transparent text-sm text-white/60 outline-none border-b border-white/10" placeholder="Name (optional)" />
-                  <input value={editForm.balance} type="number" step="0.01" min="0"
-                    onChange={e => setEditForm(f => ({ ...f, balance: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Escape') setEditId(null) }}
-                    className="w-24 bg-transparent text-sm text-white/60 outline-none border-b border-white/10 text-right" placeholder="Balance" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-white/30">Balance date</span>
-                  <input type="date" value={editForm.date}
-                    onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))}
-                    className="bg-transparent text-xs text-white/50 outline-none border-b border-white/10" />
-                  <button type="button" onClick={() => saveTicker(t.id)} className="ml-auto text-xs text-white/50 hover:text-white px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 transition-colors">Save</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <span className="text-sm text-white font-mono w-20 shrink-0">{t.symbol}</span>
-                <span className="flex-1 text-xs text-muted truncate">{t.name ?? ''}</span>
-                {bal && <span className="text-xs text-white/50 shrink-0">{fmt(typeof bal === 'object' ? bal.amount : bal)}</span>}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => toggleMarquee(t.symbol)}
-                    title={hiddenFromMarquee.includes(t.symbol) ? 'Hidden from marquee' : 'Shown in marquee'}
-                    className="p-1.5 transition-colors"
-                    style={{ color: hiddenFromMarquee.includes(t.symbol) ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.45)' }}
-                  >
-                    {hiddenFromMarquee.includes(t.symbol) ? <EyeOff size={13} /> : <Eye size={13} />}
-                  </button>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => {
-                      const balObj = typeof bal === 'object' ? bal : (bal ? { amount: bal, date: '' } : null)
-                      setEditId(t.id)
-                      setEditForm({ symbol: t.symbol, name: t.name ?? '', balance: balObj ? String(balObj.amount) : '', date: balObj?.date || toLocalStr(new Date()) })
-                    }} className="text-white/30 hover:text-white p-1.5 transition-colors"><Pencil size={13} /></button>
-                    <button onClick={() => deleteTicker(t.id)} className="text-white/30 hover:text-red-400 p-1.5 transition-colors"><Trash2 size={13} /></button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )
-      })}
-      {adding && (
-        <div className="flex flex-col gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-          <div className="flex items-center gap-2">
-            <input autoFocus value={newSymbol}
-              onChange={e => { setNewSymbol(e.target.value.toUpperCase()); setAddDupe(false) }}
-              onKeyDown={e => { if (e.key === 'Enter') addTicker(); if (e.key === 'Escape') setAdding(false) }}
-              placeholder="AAPL"
-              className="flex-1 bg-transparent text-sm text-white font-mono uppercase outline-none placeholder:text-white/20" />
-            <button onClick={() => setAdding(false)} className="text-muted hover:text-white shrink-0"><X size={14} /></button>
-          </div>
-          <input value={newName} onChange={e => setNewName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addTicker(); if (e.key === 'Escape') setAdding(false) }}
-            placeholder="Company name (optional)"
-            className="bg-transparent text-xs text-muted outline-none border-b border-white/10 placeholder:text-white/20" />
-          <input value={newBalance} type="number" step="0.01" min="0"
-            onChange={e => setNewBalance(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addTicker(); if (e.key === 'Escape') setAdding(false) }}
-            placeholder="Initial balance (optional, e.g. 5000)"
-            className="bg-transparent text-xs text-muted outline-none border-b border-white/10 placeholder:text-white/20" />
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-white/30">Balance date</span>
-            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
-              className="bg-transparent text-xs text-muted outline-none border-b border-white/10" />
-          </div>
-          {addDupe && <p className="text-xs text-amber-400">Already in your list.</p>}
-        </div>
-      )}
-      <button
-        onClick={() => { setAdding(true); setNewSymbol(''); setNewName(''); setNewBalance(''); setAddDupe(false) }}
-        className="flex items-center gap-1 text-xs text-muted hover:text-white transition-colors mt-1 w-fit"
-      >
-        <Plus size={12} /> Add ticker
-      </button>
-    </div>
-  )
-}
-
 // ── Main tab ──────────────────────────────────────────────────
 export default function CardsTab() {
   const { user } = useAuth()
@@ -640,7 +466,7 @@ export default function CardsTab() {
   const balanceMap = Object.fromEntries(cards.map(c => [c.id, computeCardBalance(c, transactions)]))
 
   return (
-    <div className="grid grid-cols-3 gap-8 h-full">
+    <div className="grid grid-cols-2 gap-8 h-full">
 
       {/* Col 1 — all card types */}
       <div className="flex flex-col gap-8 overflow-y-auto pr-1">
@@ -688,20 +514,6 @@ export default function CardsTab() {
             <p className="text-xs text-muted/50">No banks added yet.</p>
           )}
         </div>
-      </div>
-
-      {/* Col 3 — tickers */}
-      <div className="flex flex-col gap-8 overflow-y-auto pr-1">
-
-        {/* Tickers */}
-        <div className="flex flex-col gap-2">
-          <div className="mb-1">
-            <h3 className="text-sm font-medium text-white">Tickers</h3>
-            <p className="text-xs text-muted mt-0.5">Saved tickers for quick selection. Set an initial balance to include pre-tracked holdings in your portfolio.</p>
-          </div>
-          <TickersSection userId={user.id} />
-        </div>
-
       </div>
 
     </div>

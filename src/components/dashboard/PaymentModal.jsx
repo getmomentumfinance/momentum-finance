@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, CheckCircle, CreditCard } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
 import { usePreferences } from '../../context/UserPreferencesContext'
-import { useAuth } from '../../context/AuthContext'
 
 export default function PaymentModal({ item, onClose }) {
   const { fmt, t } = usePreferences()
-  const { user } = useAuth()
   const [date,    setDate]    = useState(() => { const _d = new Date(); return `${_d.getFullYear()}-${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')}` })
   const [saving,  setSaving]  = useState(false)
   const [done,    setDone]    = useState(false)
@@ -15,40 +12,6 @@ export default function PaymentModal({ item, onClose }) {
   async function handlePay() {
     setSaving(true)
     try {
-      if (item.type === 'pending') {
-        const { data: rec } = await supabase
-          .from('pending_items')
-          .select('name, receiver_id, category_id, subcategory_id, card_id, comment, importance')
-          .eq('id', item.recordId)
-          .single()
-        const { data: tx } = await supabase.from('transactions').insert({
-          user_id:        user.id,
-          type:           'expense',
-          description:    rec?.name ?? item.label,
-          amount:         item.amount,
-          date,
-          source:         'pending',
-          receiver_id:    rec?.receiver_id    || null,
-          category_id:    rec?.category_id    || null,
-          subcategory_id: rec?.subcategory_id || null,
-          card_id:        rec?.card_id        || null,
-          comment:        rec?.comment        || null,
-          importance:     rec?.importance     || null,
-          is_cash:        false,
-          is_deleted:     false,
-          status:         'completed',
-        }).select('id').single()
-        await supabase.from('pending_items').update({
-          status: 'paid',
-          transaction_id: tx?.id ?? null,
-        }).eq('id', item.recordId)
-      } else if (item.type === 'planned') {
-        await supabase.from('planned_bills').update({ status: 'paid' }).eq('id', item.recordId)
-      } else if (item.type === 'bill') {
-        await supabase.from('recurring_bill_payments').insert({ bill_id: item.recordId, period: item.period })
-      } else if (item.type === 'sub') {
-        await supabase.from('subscription_payments').insert({ subscription_id: item.recordId, period: item.period })
-      }
       window.dispatchEvent(new Event('transaction-saved'))
       setDone(true)
       setTimeout(onClose, 1200)
@@ -93,11 +56,7 @@ export default function PaymentModal({ item, onClose }) {
           <>
             {/* Header */}
             <p className="text-[10px] uppercase tracking-widest text-white/35 mb-1">
-              {item.type === 'pending' ? t('pay.overduePayment')
-               : item.type === 'planned' ? t('pay.plannedBill')
-               : item.type === 'bill'    ? t('pay.recurringBill')
-               : item.type === 'sub'     ? t('pay.subscription')
-               : t('pay.budgetAlert')}
+              {t('pay.budgetAlert')}
             </p>
             <h3 className="font-bold text-xl mb-1 pr-6 leading-tight">{item.label}</h3>
             <p className="text-xs text-white/40 mb-5">{item.detail}</p>

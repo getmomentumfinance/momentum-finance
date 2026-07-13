@@ -23,7 +23,6 @@ import Savings from './pages/Savings'
 import Budgets from './pages/Budgets'
 import Transactions from './pages/Transactions'
 import Settings from './pages/Settings'
-import Portfolio from './pages/Portfolio'
 import CalendarPage from './pages/CalendarPage'
 import Goals from './pages/Goals'
 
@@ -102,7 +101,6 @@ function AppRoutes() {
         <Route path="/budgets"      element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
         <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
         <Route path="/settings"     element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="/portfolio"    element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
         <Route path="/calendar"     element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
         <Route path="/goals"        element={<ProtectedRoute><Goals /></ProtectedRoute>} />
         <Route path="*"             element={<Navigate to={user ? landingPage : "/"} />} />

@@ -55,7 +55,6 @@ const en = {
   'type.income':   'Income',
   'type.transfer': 'Transfer',
   'type.savings':  'Savings',
-  'type.invest':   'Investment',
   'type.cash_out': 'Cash out',
 
   // ── Transaction sources / tags ───────────────────────────────
@@ -78,7 +77,6 @@ const en = {
   'nav.savings':      'Savings',
   'nav.budgets':      'Budgets',
   'nav.transactions': 'Transactions',
-  'nav.portfolio':    'Portfolio',
   'nav.goals':        'Goals',
   'nav.exportPng':    'Export page as PNG',
 
@@ -90,7 +88,6 @@ const en = {
   'dash.income':          'Income',
   'dash.cash':            'Cash',
   'dash.expenses':        'Expenses',
-  'dash.investments':     'Investments',
   'dash.savingsMonth':    'Savings This Month',
   'dash.totalSavings':    'Total Savings',
 
@@ -111,76 +108,12 @@ const en = {
   // ── Accounts List ────────────────────────────────────────────
   'accounts.noCards': 'No cards added yet.',
 
-  // ── Still to Pay ─────────────────────────────────────────────
-  'stp.title':      'Total still to pay',
-  'stp.recurring':  'Recurring',
-  'stp.pending':    'Pending',
-  'stp.planned':    'Planned',
-  'stp.subs':       'Subscriptions',
-
-  // ── Recurring Bills ──────────────────────────────────────────
-  'bills.title':       'Recurring Bills',
-  'bills.noBills':     'No recurring bills set up',
-  'bills.dueIn':       'Due in {days}d',
-  'bills.overdue':     '{days}d overdue',
-
-  // ── Planned Bills ────────────────────────────────────────────
-  'planned.title':          'Planned Bills',
-  'planned.noBills':        'No planned bills',
-  'planned.noBillsMonth':   'No planned bills this month',
-  'planned.markPaid':       'Mark as paid',
-  'planned.undoPaid':       'Undo payment',
-
-  // ── Subscriptions ────────────────────────────────────────────
-  'subs.title':       'Subscriptions',
-  'subs.active':      'Active',
-  'subs.cancelled':   'Cancelled',
-  'subs.noActive':    'No active subscriptions',
-  'subs.noCancelled': 'No cancelled subscriptions',
-  'subs.cancel':      'Cancel subscription',
-  'subs.reactivate':  'Reactivate',
-  'subs.saved':       'You saved {amount} by cancelling!',
-  'subs.dueIn':       'Due in {days}d',
-  'subs.overdue':     '{days}d overdue',
-
   // ── Savings Goals ────────────────────────────────────────────
   'savings.title':        'Savings Goals',
   'savings.addGoal':      'Add Goal',
   'savings.noGoals':      'No goals yet — add one to start distributing your savings',
   'savings.distributed':  '{allocated} of {balance} distributed',
   'savings.pctOfGoal':    '{pct}% of goal',
-
-  // ── Wishlist ─────────────────────────────────────────────────
-  'wish.title':    'Wishlist',
-  'wish.empty':    'Your wishlist is empty',
-  'wish.saved':    'You saved {amount} by skipping this!',
-  'wish.showLess': 'Show less',
-  'wish.more':     '+{count} more',
-  'wish.total':    'Wishlist Total',
-  'wish.skip':     'Skip',
-
-  // ── Pending Transactions ─────────────────────────────────────
-  'pending.title':      'Pending',
-  'pending.noItems':    'No pending items',
-  'pending.daysLeft':   '{days}d left',
-  'pending.overdue':    '{days}d overdue',
-  'pending.returned':   'You saved {amount} by returning this!',
-  'pending.markPaid':   'Mark as paid',
-  'pending.undoPaid':   'Undo payment',
-  'pending.markReturn':   'Mark as returned',
-  'pending.return':       'Return',
-  'pending.markReceived': 'Mark as received',
-  'pending.finalAmount':  'Final amount',
-  'pending.returnDiff':   '{amount}',
-  'pending.confirm':      'Confirm',
-
-  // ── Balance Projection ───────────────────────────────────────
-  'proj.title':     'Balance Projection',
-  'proj.recurring': 'Recurring Bills',
-  'proj.pending':   'Pending Transactions',
-  'proj.planned':   'Planned Bills',
-  'proj.subs':      'Subscriptions',
-  'proj.wishlist':  'Wishlist',
 
   // ── Budgets Widget ───────────────────────────────────────────
   'bw.title':        'Budgets',
@@ -233,10 +166,6 @@ const en = {
   'rt.noTx':     'No transactions this month.',
 
   // ── Payment Modal ────────────────────────────────────────────
-  'pay.overduePayment': 'Overdue Payment',
-  'pay.plannedBill':    'Planned Bill',
-  'pay.recurringBill':  'Recurring Bill',
-  'pay.subscription':   'Subscription',
   'pay.budgetAlert':    'Budget Alert',
   'pay.amountDue':      'Amount due',
   'pay.paymentDate':    'Payment date',
@@ -300,18 +229,6 @@ const en = {
   'bm.deleteConfirm':   'Delete this budget?',
   'bm.importanceLevel': 'Importance level',
 
-  // ── Add Pending Modal ────────────────────────────────────────
-  'apm.addTitle':   'Add Pending Item',
-  'apm.editTitle':  'Edit Pending Item',
-  'apm.namePh':     'e.g. New phone',
-  'apm.icon':       'Icon',
-  'apm.noIcon':     'No icon',
-  'apm.clear':      'Clear',
-  'apm.choose':     'Choose',
-  'apm.searchIcons':'Search icons…',
-  'apm.payBefore':  'Pay before',
-  'apm.descPh':     'Add a description…',
-
   // ── Summary Page ─────────────────────────────────────────────
   'sum.netFlow':     'Net flow',
   'sum.spent':       'spent',
@@ -322,38 +239,9 @@ const en = {
   'sum.savingsRate': 'Savings rate',
   'sum.budgets':     'Budgets',
   'sum.noBudgets':   'No budgets set',
-  'sum.toPay':       'To Pay',
-  'sum.allPaid':     'All paid up',
   'sum.dailySpend':  'Daily spending',
   'sum.less':        'Less',
   'sum.more':        'More',
-
-  // ── Portfolio Page ───────────────────────────────────────────
-  'port.title':          'Portfolio',
-  'port.subtitle':       'Live investment tracking',
-  'port.updated':        'Updated {time}',
-  'port.refreshing':     'Refreshing…',
-  'port.refresh':        'Refresh prices',
-  'port.priceError':     'Some prices could not be fetched. Check ticker symbols or try again later.',
-  'port.totalInvested':  'Total Invested',
-  'port.currentValue':   'Current Value',
-  'port.noPrices':       'No live prices available',
-  'port.totalGainLoss':  'Total Gain / Loss',
-  'port.return':         'Return',
-  'port.ticker':         'Ticker',
-  'port.quantity':       'Quantity',
-  'port.avgBuy':         'Avg Buy',
-  'port.currentPrice':   'Current Price',
-  'port.costBasis':      'Cost Basis',
-  'port.fees':           'Fees',
-  'port.gainLoss':       'Gain / Loss',
-  'port.noTx':           'No invest transactions with a ticker yet.',
-  'port.lots':           '{alloc}% of portfolio · {n} lot(s)',
-  'port.initialBalance': '+{amount} initial',
-  'port.positions':      '{n} position(s)',
-  'port.totalInv':       'Total invested',
-  'port.totalFees':      'Total fees',
-  'port.footer':         'Prices via Yahoo Finance · Updates every 60s · Use ticker symbols as listed (e.g. AAPL, BTC-USD, VWCE.AS)',
 
   // ── Transactions Page ────────────────────────────────────────
   'tx.title':        'Transactions',
@@ -378,7 +266,6 @@ const en = {
   'set.appearance':    'Appearance',
   'set.library':       'Library',
   'set.cards':         'Cards',
-  'set.subscriptions': 'Subscriptions',
   'set.financial':     'Financial Situation',
   'set.data':          'Data',
   'set.help':          'Help',
@@ -415,7 +302,7 @@ const en = {
   'help.setCatsDesc':   'Create spending categories and subcategories to organise your transactions.',
   'help.goToLib':       'Go to Library',
   'help.logTx':         'Log a transaction',
-  'help.logTxDesc':     'Record income, expenses, transfers or investments manually.',
+  'help.logTxDesc':     'Record income, expenses, transfers or savings manually.',
   'help.addNow':        'Add now',
   'help.createBudget':  'Create a budget',
   'help.createBudgetDesc': 'Set monthly or period-based spending limits by category or importance.',
@@ -434,8 +321,6 @@ const en = {
   'help.analyticsDesc': 'Deep-dive into spending trends, category breakdowns and monthly comparisons.',
   'help.summaryLabel':  'Summary',
   'help.summaryDesc':   'Monthly snapshot — net flow, spending donut, budget progress and heatmap.',
-  'help.portLabel':     'Portfolio',
-  'help.portDesc':      'Track investments by ticker with live prices and allocation breakdowns.',
   'help.customTitle':   'Customisation',
   'help.designsLabel':  'Designs & themes',
   'help.designsDesc':   'Switch background designs and save full colour themes to reapply later.',

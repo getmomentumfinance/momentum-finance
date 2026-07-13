@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Trash2, RotateCcw, Pencil, Check, Plus, X } from 'lucide-react'
+import { Trash2, RotateCcw, Pencil } from 'lucide-react'
 import { useUIPrefs } from '../../context/UIPrefContext'
 import { useAuth } from '../../context/AuthContext'
 import { DESIGNS, CUSTOM_DESIGN_VARS } from '../../constants/designs'
@@ -228,100 +228,9 @@ function ThemeRow({ theme, onApply, onDelete }) {
 }
 
 
-const DEFAULT_TRADE_LABELS = [
-  { name: 'Day Trade',   color: '#60a5fa' },
-  { name: 'Swing Trade', color: '#a78bfa' },
-  { name: 'Long Term',   color: '#34d399' },
-]
-
-function TickerColorsSection() {
-  const { prefs, setPref } = useUIPrefs()
-  const { user } = useAuth()
-  const [tickers, setTickers] = useState([])
-  const [pickerSymbol, setPickerSymbol] = useState(null)
-  const [pickerPos,    setPickerPos]    = useState({ top: 0, left: 0 })
-  const btnRefs    = useRef({})
-  const pickerRef  = useRef(null)
-  const colors     = prefs['ticker_colors'] ?? {}
-
-  useEffect(() => {
-    if (!user?.id) return
-    import('../../lib/supabase').then(({ supabase }) => {
-      supabase.from('tickers').select('id, symbol').eq('user_id', user.id).order('symbol')
-        .then(({ data }) => { if (data) setTickers(data) })
-    })
-  }, [user?.id])
-
-  if (!tickers.length) return null
-
-  function openPicker(symbol) {
-    if (pickerSymbol === symbol) { setPickerSymbol(null); return }
-    const btn = btnRefs.current[symbol]
-    if (!btn) return
-    const rect = btn.getBoundingClientRect()
-    const popupH = 220, popupW = 288
-    const top  = window.innerHeight - rect.bottom < popupH + 16 ? rect.top - popupH - 8 : rect.bottom + 8
-    const left = Math.min(rect.left, window.innerWidth - popupW - 16)
-    setPickerPos({ top, left })
-    setPickerSymbol(symbol)
-  }
-
-  function setColor(symbol, color) {
-    setPref('ticker_colors', { ...colors, [symbol]: color })
-    setPickerSymbol(null)
-  }
-
-  function resetColor(symbol) {
-    const next = { ...colors }
-    delete next[symbol]
-    setPref('ticker_colors', next)
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="min-h-[56px]">
-        <h3 className="text-sm font-medium text-white">Ticker colors</h3>
-        <p className="text-xs text-muted mt-0.5">Custom colors for each ticker in the portfolio view.</p>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {tickers.map(t => {
-          const color = colors[t.symbol] ?? '#a78bfa'
-          return (
-            <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <button
-                ref={el => { btnRefs.current[t.symbol] = el }}
-                type="button"
-                onClick={() => openPicker(t.symbol)}
-                className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
-                style={{ background: color }}
-              />
-              {pickerSymbol === t.symbol && (
-                <ColorPickerPopup
-                  popupRef={pickerRef}
-                  pos={pickerPos}
-                  selected={color}
-                  onSelect={c => setColor(t.symbol, c)}
-                />
-              )}
-              <span className="flex-1 text-sm font-mono" style={{ color }}>{t.symbol}</span>
-              {colors[t.symbol] && (
-                <button type="button" onClick={() => resetColor(t.symbol)}
-                  className="text-[10px] text-white/30 hover:text-white/60 transition-colors">
-                  Reset
-                </button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 const WITHDRAWAL_TYPES = [
   { source: 'savings_out',         label: 'Top-up',     defaultColor: '#60a5fa' },
   { source: 'savings_out_purchase', label: 'Purchase',   defaultColor: '#f472b6' },
-  { source: 'savings_out_invest',   label: 'Investment', defaultColor: '#34d399' },
 ]
 
 function WithdrawalColorsSection() {
@@ -392,121 +301,6 @@ function WithdrawalColorsSection() {
             </div>
           )
         })}
-      </div>
-    </div>
-  )
-}
-
-function TradeLabelsSection() {
-  const { prefs, setPref } = useUIPrefs()
-  const labels = prefs['invest_labels'] ?? DEFAULT_TRADE_LABELS
-  const [adding, setAdding] = useState(false)
-  const [newLabel, setNewLabel] = useState('')
-  const [editIdx, setEditIdx] = useState(null)
-  const [editVal, setEditVal] = useState('')
-  const [colorPickerIdx, setColorPickerIdx] = useState(null)
-  const [colorPickerPos, setColorPickerPos] = useState({ top: 0, left: 0 })
-  const colorPickerRef = useRef(null)
-  const colorBtnRefs = useRef([])
-
-  function save(updated) { setPref('invest_labels', updated) }
-  function normalise(v) { return typeof v === 'string' ? { name: v, color: '#a78bfa' } : v }
-
-  function add() {
-    const v = newLabel.trim()
-    if (!v) return
-    save([...labels.map(normalise), { name: v, color: '#a78bfa' }])
-    setNewLabel(''); setAdding(false)
-  }
-
-  function remove(i) { save(labels.map(normalise).filter((_, idx) => idx !== i)) }
-
-  function startEdit(i) { setEditIdx(i); setEditVal(normalise(labels[i]).name) }
-
-  function confirmEdit() {
-    const v = editVal.trim()
-    if (!v) return
-    save(labels.map((l, i) => i === editIdx ? { ...normalise(l), name: v } : normalise(l)))
-    setEditIdx(null)
-  }
-
-  function setColor(i, c) {
-    save(labels.map((l, idx) => idx === i ? { ...normalise(l), color: c } : normalise(l)))
-    setColorPickerIdx(null)
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="min-h-[56px]">
-        <h3 className="text-sm font-medium text-white">Trade labels</h3>
-        <p className="text-xs text-muted mt-0.5">Labels for investment transactions — strategy or timeframe.</p>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        {labels.map((raw, i) => {
-          const label = normalise(raw)
-          return (
-            <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              {/* Color swatch */}
-              <button
-                ref={el => { colorBtnRefs.current[i] = el }}
-                type="button"
-                onClick={() => {
-                  if (colorPickerIdx === i) { setColorPickerIdx(null); return }
-                  const btn = colorBtnRefs.current[i]
-                  if (!btn) return
-                  const rect = btn.getBoundingClientRect()
-                  const popupH = 220, popupW = 288
-                  const top  = window.innerHeight - rect.bottom < popupH + 16 ? rect.top - popupH - 8 : rect.bottom + 8
-                  const left = Math.min(rect.left, window.innerWidth - popupW - 16)
-                  setColorPickerPos({ top, left })
-                  setColorPickerIdx(i)
-                }}
-                className="w-5 h-5 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
-                style={{ background: label.color }}
-              />
-              {colorPickerIdx === i && (
-                <ColorPickerPopup
-                  popupRef={colorPickerRef}
-                  pos={colorPickerPos}
-                  selected={label.color}
-                  onSelect={c => setColor(i, c)}
-                />
-              )}
-              {editIdx === i ? (
-                <>
-                  <input autoFocus value={editVal}
-                    onChange={e => setEditVal(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditIdx(null) }}
-                    className="flex-1 bg-transparent text-sm text-white outline-none" />
-                  <button onClick={confirmEdit} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
-                  <button onClick={() => setEditIdx(null)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
-                </>
-              ) : (
-                <>
-                  <span className="flex-1 text-sm" style={{ color: label.color }}>{label.name}</span>
-                  <button onClick={() => startEdit(i)} className="text-white/25 hover:text-white/60 transition-colors"><Pencil size={12} /></button>
-                  <button onClick={() => remove(i)} className="text-white/25 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
-                </>
-              )}
-            </div>
-          )
-        })}
-        {adding ? (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-            <input autoFocus value={newLabel}
-              onChange={e => setNewLabel(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') setAdding(false) }}
-              placeholder="Label name…"
-              className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
-            <button onClick={add} className="text-white/40 hover:text-white transition-colors"><Check size={13} /></button>
-            <button onClick={() => setAdding(false)} className="text-white/30 hover:text-white/60 transition-colors"><X size={13} /></button>
-          </div>
-        ) : (
-          <button onClick={() => setAdding(true)}
-            className="flex items-center gap-1.5 text-xs text-white/35 hover:text-white/70 transition-colors mt-1">
-            <Plus size={12} /> Add label
-          </button>
-        )}
       </div>
     </div>
   )
@@ -1082,12 +876,6 @@ export default function AppearanceTab() {
 
         {/* Withdrawal purpose colors */}
         <WithdrawalColorsSection />
-
-        {/* Trade labels */}
-        <TradeLabelsSection />
-
-        {/* Ticker colors */}
-        <TickerColorsSection />
 
       </div>
 

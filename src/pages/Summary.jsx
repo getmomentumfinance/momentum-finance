@@ -10,8 +10,7 @@ import useCountUp from '../hooks/useCountUp'
 import FadeIn from '../components/shared/FadeIn'
 import { calcBudgetSpend, toLocalStr } from '../utils/budgetPeriod'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { TrendingUp, TrendingDown, PiggyBank, Percent, CreditCard, Receipt, RefreshCw } from 'lucide-react'
-import { ReceiverAvatar } from '../components/shared/ReceiverCombobox'
+import { TrendingUp, TrendingDown, PiggyBank, Percent } from 'lucide-react'
 
 function midColor(v) {
   if (!v) return undefined
@@ -26,31 +25,17 @@ function midColor(v) {
   return stops[Math.floor(stops.length / 2)]
 }
 
-function getPeriodKey(frequency, date) {
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  if (frequency === 'monthly')   return `${y}-${String(m).padStart(2, '0')}`
-  if (frequency === 'quarterly') return `${y}-Q${Math.ceil(m / 3)}`
-  return `${y}`
-}
-
-const SEVERITY_ORDER = { alert: 0, warning: 1, info: 2 }
-
 export default function Summary() {
   const { user }                     = useAuth()
   const { fmt, fmtK, t }             = usePreferences()
   const { transactions }             = useTransactions()
-  const { categoryMap, receiverMap } = useSharedData()
+  const { categoryMap } = useSharedData()
   const colors                       = useThemeColors()
 
   const [currentDate, setCurrentDate] = useState(new Date())
   const [budgets,     setBudgets]     = useState([])
   const [yearExpenses, setYearExpenses] = useState([])
   const [categories,  setCategories]  = useState([])
-  const [toPay,       setToPay]       = useState([])
-  const [allSubs,     setAllSubs]     = useState([])
-  const [allBills,    setAllBills]    = useState([])
-  const [usage,       setUsage]       = useState({})
 
   // Fetch year expenses + categories + budgets (same query as Budgets.jsx)
   useEffect(() => {
@@ -76,100 +61,6 @@ export default function Summary() {
     window.addEventListener('transaction-saved', loadAll)
     return () => window.removeEventListener('transaction-saved', loadAll)
   }, [user?.id, currentDate])
-
-  useEffect(() => {
-    if (!user?.id) return
-    const today    = new Date(); today.setHours(0, 0, 0, 0)
-    const y = today.getFullYear()
-    const m = today.getMonth()
-    const monthEnd = toLocalStr(new Date(y, m + 1, 0))
-
-    Promise.all([
-      supabase.from('pending_items').select('id,name,amount,pay_before').eq('user_id', user.id).eq('status', 'pending'),
-      supabase.from('planned_bills').select('id,name,amount,pay_before').eq('user_id', user.id).eq('status', 'pending').lte('pay_before', monthEnd),
-      supabase.from('recurring_bills').select('id,name,amount,due_day,frequency,next_due_date,receiver_id').eq('user_id', user.id),
-      supabase.from('subscriptions').select('id,name,amount,billing_day').eq('user_id', user.id).eq('status', 'active'),
-    ]).then(async ([{ data: pending }, { data: planned }, { data: bills }, { data: subs }]) => {
-      const items = []
-
-      for (const p of pending ?? []) {
-        const daysLeft = Math.round((new Date(p.pay_before + 'T00:00:00') - today) / 86400000)
-        items.push({ id: `pending-${p.id}`, label: p.name, amount: p.amount,
-          detail: daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${new Date(p.pay_before + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          severity: daysLeft <= 0 ? 'alert' : 'warning' })
-      }
-      for (const p of planned ?? []) {
-        const daysLeft = Math.round((new Date(p.pay_before + 'T00:00:00') - today) / 86400000)
-        items.push({ id: `planned-${p.id}`, label: p.name, amount: p.amount,
-          detail: daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${new Date(p.pay_before + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-          severity: daysLeft <= 0 ? 'alert' : 'warning' })
-      }
-      if (bills?.length) {
-        const { data: billPayments } = await supabase.from('recurring_bill_payments').select('bill_id,period').in('bill_id', bills.map(b => b.id))
-        for (const b of bills) {
-          let dueDate
-          let period
-          if ((b.frequency === 'quarterly' || b.frequency === 'yearly') && b.next_due_date) {
-            dueDate = new Date(b.next_due_date + 'T00:00:00')
-            while (dueDate < today) {
-              if (b.frequency === 'quarterly') dueDate.setMonth(dueDate.getMonth() + 3)
-              else dueDate.setFullYear(dueDate.getFullYear() + 1)
-            }
-            // Period key matches RecurringBills.jsx: date string of the resolved due date
-            period = toLocalStr(dueDate)
-          } else {
-            const lastDay = new Date(y, m + 1, 0).getDate()
-            dueDate = new Date(y, m, Math.min(b.due_day, lastDay))
-            period = getPeriodKey(b.frequency, today)
-          }
-          if ((billPayments ?? []).some(p => p.bill_id === b.id && p.period === period)) continue
-          const daysLeft = Math.round((dueDate - today) / 86400000)
-          const billLabel = (b.receiver_id ? receiverMap[b.receiver_id]?.name : null) || b.name
-          items.push({ id: `bill-${b.id}`, label: billLabel, amount: b.amount,
-            detail: daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-            severity: daysLeft <= 0 ? 'alert' : 'warning' })
-        }
-      }
-      if (subs?.length) {
-        const monthPeriod = getPeriodKey('monthly', today)
-        const { data: subPayments } = await supabase.from('subscription_payments').select('subscription_id,period').in('subscription_id', subs.map(s => s.id))
-        for (const s of subs) {
-          if ((subPayments ?? []).some(p => p.subscription_id === s.id && p.period === monthPeriod)) continue
-          const lastDay = new Date(y, m + 1, 0).getDate()
-          const dueDate = new Date(y, m, Math.min(s.billing_day, lastDay))
-          const daysLeft = Math.round((dueDate - today) / 86400000)
-          items.push({ id: `sub-${s.id}`, label: s.name, amount: s.amount,
-            detail: daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? 'Due today' : `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
-            severity: daysLeft < 0 ? 'alert' : daysLeft <= 3 ? 'warning' : 'info' })
-        }
-      }
-
-      items.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
-      setToPay(items)
-    })
-  }, [user?.id])
-
-  useEffect(() => {
-    if (!user?.id) return
-    Promise.all([
-      supabase.from('subscriptions').select('id,name,amount,receiver_id').eq('user_id', user.id).eq('status', 'active'),
-      supabase.from('recurring_bills').select('id,name,amount,frequency,receiver_id').eq('user_id', user.id),
-    ]).then(([{ data: subs }, { data: bills }]) => {
-      setAllSubs(subs ?? [])
-      setAllBills(bills ?? [])
-    })
-    try {
-      setUsage(JSON.parse(localStorage.getItem(`sub-usage-${user.id}`)) ?? {})
-    } catch {}
-  }, [user?.id])
-
-  function setUsageRating(key, rating) {
-    setUsage(prev => {
-      const next = { ...prev, [key]: prev[key] === rating ? null : rating }
-      localStorage.setItem(`sub-usage-${user.id}`, JSON.stringify(next))
-      return next
-    })
-  }
 
   const y = currentDate.getFullYear()
   const m = currentDate.getMonth()
@@ -249,36 +140,7 @@ export default function Summary() {
     })
   }, [expenses, daysInMonth])
 
-  const optimizerRows = useMemo(() => {
-    const freqMultiplier = f => f === 'quarterly' ? 4 : f === 'yearly' ? 1 : f === 'weekly' ? 52 : 12
-    const subRows  = allSubs.map(s => {
-      const receiver = s.receiver_id ? receiverMap[s.receiver_id] : null
-      return {
-        key: `sub-${s.id}`, name: s.name, monthly: s.amount,
-        yearly: s.amount * 12, period: 'Monthly', receiver,
-      }
-    })
-    const billRows = allBills.map(b => {
-      const mult = freqMultiplier(b.frequency)
-      const monthly = b.frequency === 'monthly' ? b.amount
-                    : b.frequency === 'quarterly' ? b.amount / 3
-                    : b.frequency === 'yearly'    ? b.amount / 12
-                    : b.amount
-      const receiver = b.receiver_id ? receiverMap[b.receiver_id] : null
-      const name     = receiver?.name || b.name
-      const comment  = receiver && b.name ? b.name : null
-      return { key: `bill-${b.id}`, name, comment, monthly, yearly: b.amount * mult, period: b.frequency ?? 'Monthly', receiver }
-    })
-    return [...subRows, ...billRows].sort((a, b) => b.yearly - a.yearly)
-  }, [allSubs, allBills, receiverMap])
-
-  const yearlyTotal        = useMemo(() => optimizerRows.reduce((s, r) => s + r.yearly, 0), [optimizerRows])
-  const cancellableSavings = useMemo(() =>
-    optimizerRows.filter(r => usage[r.key] != null && usage[r.key] <= 2).reduce((s, r) => s + r.yearly, 0),
-    [optimizerRows, usage])
-
   const monthLabel  = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const alertCount  = toPay.filter(i => i.severity === 'alert').length
 
   return (
     <div className="min-h-screen bg-dash-bg text-white">
@@ -379,7 +241,7 @@ export default function Summary() {
             </div>
           </FadeIn>
 
-          {/* ── Bottom: Budgets + To Pay + Heatmap ── */}
+          {/* ── Bottom: Budgets + Heatmap ── */}
           <FadeIn delay={160}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
@@ -410,263 +272,40 @@ export default function Summary() {
                 }
               </div>
 
-              {/* Right column: To Pay + Heatmap */}
-              <div className="flex flex-col gap-4">
-
-                {/* To Pay */}
-                <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">{t('sum.toPay')}</p>
-                    {alertCount > 0 && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ background: `color-mix(in srgb, ${colors.expense} 18%, transparent)`, color: colors.expense }}>
-                        {t('ac.urgent', { n: alertCount })}
-                      </span>
-                    )}
-                  </div>
-                  {toPay.length === 0
-                    ? <p className="text-xs text-white/30">{t('sum.allPaid')}</p>
-                    : toPay.slice(0, 5).map(a => {
-                        const c = a.severity === 'alert' ? colors.expense : a.severity === 'warning' ? colors.warning : 'rgba(255,255,255,0.2)'
-                        return (
-                          <div key={a.id} className="flex items-center gap-2.5">
-                            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c }} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-white/75 truncate leading-none">{a.label}</p>
-                              <p className="text-[10px] mt-0.5" style={{ color: c }}>{a.detail}</p>
-                            </div>
-                            <span className="text-xs tabular-nums text-white/45 shrink-0">{fmtK(a.amount)}</span>
-                          </div>
-                        )
-                      })
-                  }
+              {/* Spending heatmap */}
+              <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">{t('sum.dailySpend')}</p>
+                <div className="flex flex-wrap gap-1">
+                  {heatmapData.map(({ day, val, intensity }) => (
+                    <div
+                      key={day}
+                      title={val > 0 ? `${day} — ${fmt(val)}` : `${day}`}
+                      className="rounded-sm"
+                      style={{
+                        width: 18, height: 18,
+                        background: intensity > 0
+                          ? `color-mix(in srgb, ${colors.expense} ${Math.round(15 + intensity * 75)}%, rgba(255,255,255,0.05))`
+                          : 'rgba(255,255,255,0.05)',
+                      }}
+                    />
+                  ))}
                 </div>
-
-                {/* Spending heatmap */}
-                <div className="glass-card rounded-2xl p-5 flex flex-col gap-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">{t('sum.dailySpend')}</p>
-                  <div className="flex flex-wrap gap-1">
-                    {heatmapData.map(({ day, val, intensity }) => (
-                      <div
-                        key={day}
-                        title={val > 0 ? `${day} — ${fmt(val)}` : `${day}`}
-                        className="rounded-sm"
-                        style={{
-                          width: 18, height: 18,
-                          background: intensity > 0
-                            ? `color-mix(in srgb, ${colors.expense} ${Math.round(15 + intensity * 75)}%, rgba(255,255,255,0.05))`
-                            : 'rgba(255,255,255,0.05)',
-                        }}
-                      />
+                <div className="flex justify-between text-[10px] text-white/25">
+                  <span>1</span>
+                  <span>{t('sum.less')}</span>
+                  <div className="flex gap-0.5 items-center">
+                    {[0.1, 0.3, 0.5, 0.75, 1].map(i => (
+                      <div key={i} className="w-2.5 h-2.5 rounded-sm"
+                        style={{ background: `color-mix(in srgb, ${colors.expense} ${Math.round(15 + i * 75)}%, rgba(255,255,255,0.05))` }} />
                     ))}
                   </div>
-                  <div className="flex justify-between text-[10px] text-white/25">
-                    <span>1</span>
-                    <span>{t('sum.less')}</span>
-                    <div className="flex gap-0.5 items-center">
-                      {[0.1, 0.3, 0.5, 0.75, 1].map(i => (
-                        <div key={i} className="w-2.5 h-2.5 rounded-sm"
-                          style={{ background: `color-mix(in srgb, ${colors.expense} ${Math.round(15 + i * 75)}%, rgba(255,255,255,0.05))` }} />
-                      ))}
-                    </div>
-                    <span>{t('sum.more')}</span>
-                    <span>{daysInMonth}</span>
-                  </div>
+                  <span>{t('sum.more')}</span>
+                  <span>{daysInMonth}</span>
                 </div>
-
               </div>
+
             </div>
           </FadeIn>
-
-          {/* ── All-time Fixed Costs ── */}
-          {(allSubs.length > 0 || allBills.length > 0) && (
-            <FadeIn delay={210}>
-              <div className="glass-card rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Receipt size={13} className="text-white/35" />
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">Fixed Costs — All Time</p>
-                </div>
-
-                {/* Summary tiles */}
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  {(() => {
-                    const subsMonthly = allSubs.reduce((s, r) => s + r.amount, 0)
-                    const billsMonthly = allBills.reduce((s, b) => {
-                      if (b.frequency === 'quarterly') return s + b.amount / 3
-                      if (b.frequency === 'yearly')    return s + b.amount / 12
-                      return s + b.amount
-                    }, 0)
-                    const totalMonthly = subsMonthly + billsMonthly
-                    return (
-                      <>
-                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                          <p className="text-[10px] text-white/35 mb-1">Subscriptions</p>
-                          <p className="text-sm font-bold tabular-nums">{fmt(subsMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
-                          <p className="text-[10px] text-white/30 mt-0.5">{allSubs.length} active · {fmt(subsMonthly * 12)}/yr</p>
-                        </div>
-                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                          <p className="text-[10px] text-white/35 mb-1">Recurring Bills</p>
-                          <p className="text-sm font-bold tabular-nums">{fmt(billsMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
-                          <p className="text-[10px] text-white/30 mt-0.5">{allBills.length} bills · {fmt(yearlyTotal - subsMonthly * 12)}/yr</p>
-                        </div>
-                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                          <p className="text-[10px] text-white/35 mb-1">Total Committed</p>
-                          <p className="text-sm font-bold tabular-nums" style={{ color: colors.expense }}>{fmt(totalMonthly)}<span className="text-white/30 font-normal">/mo</span></p>
-                          <p className="text-[10px] text-white/30 mt-0.5">{fmt(yearlyTotal)}/yr</p>
-                        </div>
-                      </>
-                    )
-                  })()}
-                </div>
-
-                {/* Item list */}
-                <div className="flex flex-col">
-                  {allSubs.length > 0 && (
-                    <>
-                      <p className="text-[10px] text-white/25 uppercase tracking-widest pb-2 flex items-center gap-1.5">
-                        <CreditCard size={10} className="text-white/25" /> Subscriptions
-                      </p>
-                      {allSubs.map(s => {
-                        const receiver = s.receiver_id ? receiverMap[s.receiver_id] : null
-                        return (
-                          <div key={`sub-${s.id}`} className="flex items-center gap-3 py-2 border-t border-white/[0.04]">
-                            {receiver
-                              ? <ReceiverAvatar receiver={receiver} size="md" />
-                              : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold text-white/40 shrink-0">
-                                  {s.name[0]?.toUpperCase()}
-                                </div>
-                            }
-                            <span className="text-sm text-white/75 flex-1 truncate">{s.name}</span>
-                            <span className="text-xs tabular-nums text-white/50">{fmt(s.amount)}/mo</span>
-                            <span className="text-[11px] tabular-nums text-white/25 w-20 text-right">{fmt(s.amount * 12)}/yr</span>
-                          </div>
-                        )
-                      })}
-                    </>
-                  )}
-                  {allBills.length > 0 && (
-                    <>
-                      <p className="text-[10px] text-white/25 uppercase tracking-widest py-2 mt-2 flex items-center gap-1.5">
-                        <RefreshCw size={10} className="text-white/25" /> Recurring Bills
-                      </p>
-                      {allBills.map(b => {
-                        const monthly = b.frequency === 'quarterly' ? b.amount / 3
-                                      : b.frequency === 'yearly'    ? b.amount / 12
-                                      : b.amount
-                        const yearly  = b.frequency === 'quarterly' ? b.amount * 4
-                                      : b.frequency === 'yearly'    ? b.amount
-                                      : b.amount * 12
-                        const receiver = b.receiver_id ? receiverMap[b.receiver_id] : null
-                        const title    = receiver?.name || b.name
-                        const comment  = receiver && b.name ? b.name : null
-                        return (
-                          <div key={`bill-${b.id}`} className="flex items-center gap-3 py-2 border-t border-white/[0.04]">
-                            {receiver
-                              ? <ReceiverAvatar receiver={receiver} size="md" />
-                              : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[10px] font-bold text-white/40 shrink-0">
-                                  {title[0]?.toUpperCase()}
-                                </div>
-                            }
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-white/75 truncate block">{title}</span>
-                              <span className="text-[10px] text-white/30 capitalize">
-                                {comment ? `${comment} · ` : ''}{b.frequency ?? 'Monthly'}
-                              </span>
-                            </div>
-                            <span className="text-xs tabular-nums text-white/50">{fmt(monthly)}/mo</span>
-                            <span className="text-[11px] tabular-nums text-white/25 w-20 text-right">{fmt(yearly)}/yr</span>
-                          </div>
-                        )
-                      })}
-                    </>
-                  )}
-                </div>
-              </div>
-            </FadeIn>
-          )}
-
-          {/* ── Subscription Optimizer ── */}
-          {optimizerRows.length > 0 && (
-            <FadeIn delay={240}>
-              <div className="glass-card rounded-2xl p-5">
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <CreditCard size={13} className="text-white/35" />
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-white/35">Subscription Optimizer</p>
-                    </div>
-                    <p className="text-xs text-white/35 ml-5">Rate your usage · 5 = use daily, 1 = barely use it</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[10px] text-white/35 mb-0.5">Total yearly</p>
-                    <p className="text-sm font-bold tabular-nums">{fmt(yearlyTotal)}</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col divide-y divide-white/[0.04]">
-                  {optimizerRows.map(item => {
-                    const rating = usage[item.key]
-                    const ratingColor = rating == null ? null
-                      : rating <= 2 ? colors.expense
-                      : rating === 3 ? colors.warning
-                      : colors.income
-                    return (
-                      <div key={item.key} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                        {item.receiver
-                          ? <ReceiverAvatar receiver={item.receiver} size="md" />
-                          : <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center text-[11px] font-bold text-white/40 shrink-0">
-                              {item.name[0]?.toUpperCase()}
-                            </div>
-                        }
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white/80 truncate">{item.name}</p>
-                          <p className="text-[10px] text-white/30 capitalize">
-                            {item.comment ? `${item.comment} · ` : ''}{item.period}
-                          </p>
-                        </div>
-                        <div className="text-right mr-3 shrink-0">
-                          <p className="text-xs font-medium tabular-nums text-white/70">{fmt(item.yearly)}<span className="text-white/30">/yr</span></p>
-                          <p className="text-[10px] text-white/30">{fmt(item.monthly)}/mo</p>
-                        </div>
-                        {/* Usage dots */}
-                        <div className="flex gap-1 shrink-0">
-                          {[1,2,3,4,5].map(n => (
-                            <button
-                              key={n}
-                              onClick={() => setUsageRating(item.key, n)}
-                              className="w-3.5 h-3.5 rounded-full transition-all hover:scale-110"
-                              style={{ background: rating >= n ? ratingColor : 'rgba(255,255,255,0.12)' }}
-                            />
-                          ))}
-                        </div>
-                        {/* Recommendation chip */}
-                        <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0 w-28 text-center"
-                          style={ratingColor ? {
-                            background: `color-mix(in srgb, ${ratingColor} 15%, transparent)`,
-                            color: ratingColor,
-                          } : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.25)' }}>
-                          {rating == null  ? 'Not rated'
-                          : rating <= 2    ? 'Consider cancelling'
-                          : rating === 3   ? 'Occasional use'
-                          : 'Keep it'}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {cancellableSavings > 0 && (
-                  <div className="mt-4 pt-4 flex items-center justify-between"
-                    style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                    <p className="text-xs text-white/40">Potential savings if you cancel rated 1–2</p>
-                    <p className="text-sm font-bold tabular-nums" style={{ color: colors.income }}>
-                      {fmt(cancellableSavings)}/yr
-                    </p>
-                  </div>
-                )}
-              </div>
-            </FadeIn>
-          )}
 
       </div>
     </div>

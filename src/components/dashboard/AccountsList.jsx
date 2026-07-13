@@ -7,7 +7,6 @@ import { useSharedData } from '../../context/SharedDataContext'
 const CREDIT_TYPES = new Set(['income'])
 
 function txEffect(t) {
-  if (t.type === 'invest') return (t.direction ?? 'buy') === 'sell' ? t.amount : -t.amount
   return CREDIT_TYPES.has(t.type) ? t.amount : -t.amount
 }
 

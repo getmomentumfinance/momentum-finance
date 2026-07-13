@@ -82,7 +82,6 @@ export default function CalendarPage() {
   const [txsByDay,        setTxsByDay]        = useState({})   // keyed by day int (month view)
   const [txsByDate,       setTxsByDate]       = useState({})   // keyed by 'YYYY-MM-DD'
   const [selectedDateStr, setSelectedDateStr] = useState(null)
-  const [subReceiverIds,  setSubReceiverIds]  = useState(new Set())
   const [periodBudgets,   setPeriodBudgets]   = useState([])
   const [budgetSpentMap,  setBudgetSpentMap]  = useState({})
   const [cardMap,         setCardMap]         = useState({})
@@ -162,24 +161,16 @@ export default function CalendarPage() {
         end   = toLocalDateStr(new Date(year, month + 1, 0))
       }
 
-      const [{ data }, { data: subs }] = await Promise.all([
-        supabase
-          .from('transactions')
-          .select('id, type, description, comment, amount, date, source, category_id, subcategory_id, receiver_id, card_id, is_split_parent, split_parent_id')
-          .eq('user_id', user.id)
-          .eq('is_deleted', false)
-          .gte('date', start)
-          .lte('date', end)
-          .order('date', { ascending: true })
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('subscriptions')
-          .select('receiver_id')
-          .eq('user_id', user.id)
-          .eq('status', 'active'),
-      ])
+      const { data } = await supabase
+        .from('transactions')
+        .select('id, type, description, comment, amount, date, source, category_id, subcategory_id, receiver_id, card_id, is_split_parent, split_parent_id, labels')
+        .eq('user_id', user.id)
+        .eq('is_deleted', false)
+        .gte('date', start)
+        .lte('date', end)
+        .order('date', { ascending: true })
+        .order('created_at', { ascending: true })
 
-      setSubReceiverIds(new Set((subs ?? []).map(s => s.receiver_id).filter(Boolean)))
       if (!data) return
 
       const filtered = data
@@ -268,7 +259,7 @@ export default function CalendarPage() {
     const net        = dayNet(txs)
     const incomeAmt  = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
     const expenseAmt = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const hasRecurring = txs.some(t => t.receiver_id && subReceiverIds.has(t.receiver_id))
+    const hasRecurring = txs.some(t => t.labels?.some(l => l === 'Recurring' || l === 'Subscription'))
     const heatPct    = expenseAmt > 0 ? Math.round(Math.min(expenseAmt / maxDayExpense, 1) * 28) : 0
 
     return (
@@ -642,7 +633,7 @@ export default function CalendarPage() {
                       {selectedTxs.map(t => {
                         const typeInfo    = TYPES_MAP[t.type]
                         const sign        = t.type === 'income' ? '+' : t.type === 'expense' ? '−' : ''
-                        const isRecurring = t.receiver_id && subReceiverIds.has(t.receiver_id)
+                        const isRecurring = t.labels?.some(l => l === 'Recurring' || l === 'Subscription')
                         const card        = t.card_id ? cardMap[t.card_id] : null
 
                         // For transfers parse "From X to Y" out of the description
@@ -654,7 +645,7 @@ export default function CalendarPage() {
 
                         return (
                           <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                            {t.type === 'transfer' || t.type === 'invest' ? (
+                            {t.type === 'transfer' ? (
                               <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                                 style={{ background: `color-mix(in srgb, ${typeInfo?.color ?? '#9ca3af'} 15%, transparent)` }}>
                                 {typeInfo?.Icon && <typeInfo.Icon size={12} style={{ color: typeInfo.color }} />}

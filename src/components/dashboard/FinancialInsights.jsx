@@ -27,7 +27,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
   const { fmt, fmtK, t } = usePreferences()
   const { importance: importanceLevels } = useImportance()
   const c = useCardCustomization('Financial Insights')
-  const { allTransactions, subscriptions, budgets, categoryMap, receiverMap } = useSharedData()
+  const { allTransactions, budgets, categoryMap, receiverMap } = useSharedData()
 
   const data = useMemo(() => {
     const year  = currentDate.getFullYear()
@@ -64,7 +64,9 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     const thisSavingsOut = thisTxs.filter(t => t.type === 'savings' && t.source === 'savings_out' && t.amount > 0).reduce((s, t) => s + t.amount, 0)
     const savingsRate    = thisIncome > 0 ? ((thisSavingsIn - thisSavingsOut) / thisIncome) * 100 : null
     const vsLastMonth  = lastExpenses >= 50 ? ((thisExpenses - lastExpenses) / lastExpenses) * 100 : null
-    const totalSubCost = subscriptions.reduce((s, sub) => s + Number(sub.amount), 0)
+    const totalSubCost = thisTxs
+      .filter(t => t.type === 'expense' && t.labels?.includes('Subscription'))
+      .reduce((s, t) => s + Number(t.amount), 0)
 
     const catMap = categoryMap
     const recMap = receiverMap
@@ -108,7 +110,7 @@ export default function FinancialInsights({ currentDate = new Date() }) {
     const overBudgetCount = budgetRows.filter(b => b.over).length
 
     return { savingsRate, vsLastMonth, totalSubCost, overBudgetCount, thisIncome, thisExpenses, budgetRows, earnedIncome }
-  }, [allTransactions, subscriptions, budgets, categoryMap, receiverMap, currentDate, importanceLevels])
+  }, [allTransactions, budgets, categoryMap, receiverMap, currentDate, importanceLevels])
 
   if (!data) return null
 

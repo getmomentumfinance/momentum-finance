@@ -15,12 +15,6 @@ const SharedDataContext = createContext({
   cards:            [],
   allTransactions:  [],
   balanceTxs:       [],
-  pendingItems:     [],
-  subscriptions:    [],
-  subPayments:      [],
-  recurringBills:   [],
-  billPayments:     [],
-  plannedBills:     [],
   budgets:          [],
   targets:          [],
 })
@@ -37,12 +31,6 @@ export function SharedDataProvider({ children }) {
   const [cards,            setCards]            = useState([])
   const [allTransactions,  setAllTransactions]  = useState([])
   const [balanceTxs,       setBalanceTxs]       = useState([])
-  const [pendingItems,     setPendingItems]     = useState([])
-  const [subscriptions,    setSubscriptions]    = useState([])
-  const [subPayments,      setSubPayments]      = useState([])
-  const [recurringBills,   setRecurringBills]   = useState([])
-  const [billPayments,     setBillPayments]     = useState([])
-  const [plannedBills,     setPlannedBills]     = useState([])
   const [budgets,          setBudgets]          = useState([])
   const [targets,          setTargets]          = useState([])
   const [loaded,           setLoaded]           = useState(false)
@@ -60,10 +48,6 @@ export function SharedDataProvider({ children }) {
       { data: cardsData },
       { data: txData },
       { data: balanceTxData },
-      { data: pendingData },
-      { data: subsData },
-      { data: billsData },
-      { data: plannedData },
       { data: budgetsData },
       { data: targetsData },
     ] = await Promise.all([
@@ -71,24 +55,10 @@ export function SharedDataProvider({ children }) {
       supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
       supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id, card_number, is_buffer').eq('user_id', user.id).order('created_at'),
-      supabase.from('transactions').select('id, card_id, type, source, amount, reimbursable_amount, is_cash, split_parent_id, is_split_parent, date, category_id, subcategory_id, receiver_id, importance, is_earned, ticker, quantity, price_per_unit, label, direction, stop_loss, target_price, linked_expense_id').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
-      supabase.from('transactions').select('card_id, type, amount, is_cash, direction').eq('user_id', user.id).eq('is_deleted', false).is('split_parent_id', null),
-      supabase.from('pending_items').select('id, name, amount, pay_before, receiver_id, category_id').eq('user_id', user.id).eq('status', 'pending'),
-      supabase.from('subscriptions').select('id, name, amount, billing_day, status, is_trial, trial_ends_at').eq('user_id', user.id).eq('status', 'active'),
-      supabase.from('recurring_bills').select('id, name, amount, frequency, due_day, next_due_date').eq('user_id', user.id),
-      supabase.from('planned_bills').select('id, name, amount, pay_before').eq('user_id', user.id).eq('status', 'pending'),
+      supabase.from('transactions').select('id, card_id, type, source, amount, reimbursable_amount, is_cash, split_parent_id, is_split_parent, date, category_id, subcategory_id, receiver_id, importance, is_earned, labels, linked_expense_id').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
+      supabase.from('transactions').select('card_id, type, amount, is_cash').eq('user_id', user.id).eq('is_deleted', false).is('split_parent_id', null),
       supabase.from('budgets').select('*').eq('user_id', user.id),
       supabase.from('targets').select('*').eq('user_id', user.id),
-    ])
-
-    // Second batch — payment tables that depend on IDs from above
-    const [{ data: subPmtsData }, { data: billPmtsData }] = await Promise.all([
-      subsData?.length
-        ? supabase.from('subscription_payments').select('subscription_id, period').in('subscription_id', subsData.map(s => s.id))
-        : Promise.resolve({ data: [] }),
-      billsData?.length
-        ? supabase.from('recurring_bill_payments').select('bill_id, period').in('bill_id', billsData.map(b => b.id))
-        : Promise.resolve({ data: [] }),
     ])
 
     const cats = catData ?? []
@@ -120,12 +90,6 @@ export function SharedDataProvider({ children }) {
     setCards(cardsData ?? [])
     setAllTransactions(txData ?? [])
     setBalanceTxs(balanceTxData ?? [])
-    setPendingItems(pendingData ?? [])
-    setSubscriptions(subsData ?? [])
-    setSubPayments(subPmtsData ?? [])
-    setRecurringBills(billsData ?? [])
-    setBillPayments(billPmtsData ?? [])
-    setPlannedBills(plannedData ?? [])
     setBudgets(budgetsData ?? [])
     setTargets(targetsData ?? [])
     setLoaded(true)
@@ -153,8 +117,7 @@ export function SharedDataProvider({ children }) {
     <SharedDataContext.Provider value={{
       categories, receivers, categoryMap, receiverMap,
       receiverGroups, receiverGroupMap, receiverColorMap,
-      loaded, cards, allTransactions, balanceTxs, pendingItems,
-      subscriptions, subPayments, recurringBills, billPayments, plannedBills,
+      loaded, cards, allTransactions, balanceTxs,
       budgets, targets,
     }}>
       {children}

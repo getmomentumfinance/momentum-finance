@@ -8,7 +8,9 @@ import AddTransactionModal from '../components/transactions/AddTransactionModal'
 import SplitTransactionModal from '../components/transactions/SplitTransactionModal'
 import { TYPES_MAP, TRANSACTION_TYPES } from '../constants/transactionTypes'
 import { CategoryPill } from '../components/shared/CategoryPill'
+import { LabelPill } from '../components/shared/LabelPill'
 import { usePreferences } from '../context/UserPreferencesContext'
+import { useUIPrefs } from '../context/UIPrefContext'
 import { SkeletonRow } from '../components/shared/Skeleton'
 import { toLocalStr } from '../utils/budgetPeriod'
 
@@ -246,6 +248,10 @@ export default function Transactions() {
   const { user } = useAuth()
   const { fmt, t } = usePreferences()
   const { importance } = useImportance()
+  const { prefs: uiPrefs } = useUIPrefs()
+  const rawTxLabels = uiPrefs['tx_labels'] ?? [{ name: 'Recurring', color: '#60a5fa' }, { name: 'Subscription', color: '#a78bfa' }]
+  const txLabels = rawTxLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
+  const txLabelColorMap = Object.fromEntries(txLabels.map(l => [l.name, l.color]))
   const [currentDate, setCurrentDate] = useState(new Date())
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -266,6 +272,7 @@ export default function Transactions() {
   const [datePreset, setDatePreset] = useState('month')
   const [filterType, setFilterType] = useState('')
   const [filterImportance, setFilterImportance] = useState(new Set())
+  const [filterLabels,     setFilterLabels]     = useState(new Set())
   const [filterCard,       setFilterCard]       = useState('')
   const [allCards,         setAllCards]         = useState([])
   const [collapsedParents, setCollapsedParents] = useState(new Set())
@@ -316,7 +323,7 @@ export default function Transactions() {
         { data: receivers },
       ] = await Promise.all([
         supabase.from('transactions')
-          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance, label, linked_expense_id')
+          .select('id, type, description, amount, date, created_at, comment, status, is_cash, is_earned, source, category_id, subcategory_id, card_id, receiver_id, is_split_parent, split_parent_id, importance, labels, linked_expense_id')
           .eq('user_id', user.id)
           .eq('is_deleted', false)
           .gte('date', start)
@@ -402,13 +409,14 @@ export default function Transactions() {
     // date filtering is handled server-side via datePreset / filterDateFrom / filterDateTo
     if (filterType)                result = result.filter(r => r.type === filterType)
     if (filterImportance.size > 0) result = result.filter(r => filterImportance.has(r.importance ?? ''))
+    if (filterLabels.size > 0)     result = result.filter(r => r.labels?.some(l => filterLabels.has(l)))
     if (filterCard)                result = result.filter(r => r.card_id === filterCard)
     return result
-  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance, filterCard])
+  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance, filterLabels, filterCard])
 
   const topCategories = allCategories.filter(c => !c.parent_id)
   const subCategories = allCategories.filter(c => c.parent_id === filterCat)
-  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0 || filterCard
+  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0 || filterLabels.size > 0 || filterCard
 
   // ── Totals (filtered, exclude split parents to avoid double-count) ──
   const totalIncome   = filteredRows.filter(r => r.type === 'income'  && !r.is_split_parent).reduce((s, r) => s + r.amount, 0)
@@ -453,7 +461,7 @@ export default function Transactions() {
   function clearFilters() {
     setSearch(''); setFilterCat(''); setFilterSub('')
     setFilterReceiver(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterType('')
-    setFilterImportance(new Set()); setFilterCard(''); setDatePreset('month')
+    setFilterImportance(new Set()); setFilterLabels(new Set()); setFilterCard(''); setDatePreset('month')
   }
 
   async function handleDelete(tx) {
@@ -625,6 +633,33 @@ export default function Transactions() {
               })}
             </div>
 
+            {/* Label filter — multi-select pills */}
+            {txLabels.length > 0 && (
+              <div className="flex items-center gap-1">
+                {txLabels.map(l => {
+                  const active = filterLabels.has(l.name)
+                  return (
+                    <button key={l.name} type="button"
+                      onClick={() => setFilterLabels(prev => {
+                        const next = new Set(prev)
+                        if (next.has(l.name)) next.delete(l.name)
+                        else next.add(l.name)
+                        return next
+                      })}
+                      className="px-2 py-1 rounded-lg border text-[10px] font-medium transition-all"
+                      style={{
+                        borderColor: active ? l.color : 'rgba(255,255,255,0.06)',
+                        background:  active ? `color-mix(in srgb, ${l.color} 15%, transparent)` : 'transparent',
+                        color:       active ? l.color : 'rgba(255,255,255,0.3)',
+                      }}
+                    >
+                      {l.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             {/* Importance legend — desktop only */}
             <div className="hidden md:flex items-center gap-3 ml-auto">
               {importance.map(imp => (
@@ -662,7 +697,7 @@ export default function Transactions() {
                       split
                     </span>
                   )}
-                  {row.type === 'transfer' || row.type === 'savings' || row.type === 'cash_out' || row.type === 'invest'
+                  {row.type === 'transfer' || row.type === 'savings' || row.type === 'cash_out'
                     ? <div className="w-8 h-8 rounded-full bg-white/8 flex items-center justify-center shrink-0" style={{ color: typeInfo.color }}>
                         {typeInfo.Icon ? <typeInfo.Icon size={14} /> : <PiggyBank size={14} />}
                       </div>
@@ -834,11 +869,6 @@ export default function Transactions() {
                               style={{ color: typeInfo.color }}>
                               <Banknote size={13} strokeWidth={2} />
                             </div>
-                          ) : row.type === 'invest' && typeInfo.Icon ? (
-                            <div className="w-7 h-7 rounded-full bg-white/8 flex items-center justify-center shrink-0"
-                              style={{ color: typeInfo.color }}>
-                              <typeInfo.Icon size={13} strokeWidth={2} />
-                            </div>
                           ) : (
                             <ReceiverAvatar receiver={row.receiver} />
                           )}
@@ -938,9 +968,9 @@ export default function Transactions() {
                           {(row.type === 'income' || row.type === 'expense') && row.is_cash && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/50">{t('source.cash')}</span>
                           )}
-                          {row.label && (
-                            <span className="text-[10px] text-white/50 truncate">{row.label}</span>
-                          )}
+                          {row.labels?.map(l => (
+                            <LabelPill key={l} name={l} color={txLabelColorMap[l]} />
+                          ))}
                           {row.type === 'transfer' && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/50">
                               {t('type.transfer')}
@@ -949,11 +979,6 @@ export default function Transactions() {
                           {row.type === 'cash_out' && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/50">
                               {t('type.cash_out')}
-                            </span>
-                          )}
-                          {row.type === 'invest' && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/8 text-white/50">
-                              {t('type.invest')}
                             </span>
                           )}
                           {row.linked_expense_id && (
@@ -965,7 +990,7 @@ export default function Transactions() {
                               → expense
                             </button>
                           )}
-                          {!row.source && !row.label && row.type !== 'income' && !row.is_cash && row.type !== 'transfer' && row.type !== 'cash_out' && row.type !== 'invest' && !row.linked_expense_id && (
+                          {!row.source && !row.labels?.length && row.type !== 'income' && !row.is_cash && row.type !== 'transfer' && row.type !== 'cash_out' && !row.linked_expense_id && (
                             <span className="text-white/20">—</span>
                           )}
                         </div>

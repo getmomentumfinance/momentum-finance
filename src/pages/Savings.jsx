@@ -337,18 +337,16 @@ export default function Savings() {
   const month = currentDate.getMonth()
 
   const deposits    = allTxs.filter(t => t.source === 'savings_in'  && t.amount > 0)
-  const WITHDRAWAL_SOURCES = ['savings_out', 'savings_out_purchase', 'savings_out_invest']
+  const WITHDRAWAL_SOURCES = ['savings_out', 'savings_out_purchase']
   const withdrawals = allTxs.filter(t => WITHDRAWAL_SOURCES.includes(t.source) && t.amount > 0)
 
   const withdrawalBreakdown = useMemo(() => {
     const wColors  = uiPrefs.withdrawal_colors ?? {}
     const topup    = withdrawals.filter(t => t.source === 'savings_out').reduce((s, t) => s + t.amount, 0)
     const purchase = withdrawals.filter(t => t.source === 'savings_out_purchase').reduce((s, t) => s + t.amount, 0)
-    const invest   = withdrawals.filter(t => t.source === 'savings_out_invest').reduce((s, t) => s + t.amount, 0)
     return [
       { name: 'Top-up',     value: topup,    color: wColors['savings_out']          ?? '#60a5fa' },
       { name: 'Purchase',   value: purchase, color: wColors['savings_out_purchase'] ?? '#f472b6' },
-      { name: 'Investment', value: invest,   color: wColors['savings_out_invest']   ?? '#34d399' },
     ].filter(d => d.value > 0)
   }, [withdrawals, uiPrefs.withdrawal_colors])
 

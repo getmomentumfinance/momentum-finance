@@ -10,7 +10,6 @@ import { toLocalStr } from '../../utils/budgetPeriod'
 const CREDIT_TYPES = new Set(['income'])
 
 function effect(row) {
-  if (row.type === 'invest') return (row.direction ?? 'buy') === 'sell' ? row.amount : -row.amount
   return CREDIT_TYPES.has(row.type) ? row.amount : -row.amount
 }
 
@@ -23,7 +22,6 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
   const [loading,     setLoading]     = useState(true)
 
   const isCash     = card === null
-  const isTrading  = card?.type === 'trading'
   const title      = isCash ? 'Cash Wallet' : card.name
   const monthLabel = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
@@ -39,7 +37,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       // Current month transactions (all, including deleted)
       let txQuery = supabase
         .from('transactions')
-        .select('id, type, description, amount, date, created_at, is_cash, is_deleted, receiver_id, direction')
+        .select('id, type, description, amount, date, created_at, is_cash, is_deleted, receiver_id')
         .eq('user_id', user.id)
         .gte('date', start)
         .lte('date', end)
@@ -49,7 +47,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       // All non-deleted transactions BEFORE this month (for base balance)
       let prevQuery = supabase
         .from('transactions')
-        .select('type, amount, direction')
+        .select('type, amount')
         .eq('user_id', user.id)
         .eq('is_deleted', false)
         .lt('date', start)
@@ -92,7 +90,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
       map[r.id] = acc
     })
     return map
-  }, [activeRows, baseBalance, isTrading])
+  }, [activeRows, baseBalance])
 
   return createPortal(
     <div className="modal-backdrop fixed inset-0 z-[500] flex items-center justify-center p-4" onClick={onClose}>
@@ -122,8 +120,7 @@ export default function CardActivityModal({ card, currentDate, onClose }) {
             <div className="divide-y divide-white/[0.03]">
               {rows.map(row => {
                 const typeInfo = TYPES_MAP[row.type] ?? { label: row.type, color: '#9ca3af' }
-                const isSell   = row.type === 'invest' && (row.direction ?? 'buy') === 'sell'
-                const sign     = (row.type === 'income' || row.amount < 0 || isSell) ? '+' : '−'
+                const sign     = (row.type === 'income' || row.amount < 0) ? '+' : '−'
                 const deleted  = !!row.is_deleted
                 const running  = !deleted ? runningMap[row.id] : null
 

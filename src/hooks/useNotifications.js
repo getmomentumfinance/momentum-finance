@@ -3,15 +3,7 @@ import { supabase } from '../lib/supabase'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useSharedData } from '../context/SharedDataContext'
 import { txMatchesBudget } from '../utils/budgetMatch'
-import { getPeriodBounds, getPreviousPeriodBounds, toLocalStr } from '../utils/budgetPeriod'
-
-function getPeriodKey(frequency, date) {
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  if (frequency === 'monthly')   return `${y}-${String(m).padStart(2, '0')}`
-  if (frequency === 'quarterly') return `${y}-Q${Math.ceil(m / 3)}`
-  return `${y}`
-}
+import { getPeriodBounds, getPreviousPeriodBounds } from '../utils/budgetPeriod'
 
 const SEVERITY_ORDER = { alert: 0, warning: 1, info: 2 }
 
@@ -25,12 +17,6 @@ export function useNotifications(userId, currentDate) {
   // without needing them as useCallback deps (which would cause infinite loops)
   const sharedRef = useRef({})
   sharedRef.current = {
-    pendingItems:    shared.pendingItems,
-    plannedBills:    shared.plannedBills,
-    recurringBills:  shared.recurringBills,
-    billPayments:    shared.billPayments,
-    subscriptions:   shared.subscriptions,
-    subPayments:     shared.subPayments,
     budgets:         shared.budgets,
     allTransactions: shared.allTransactions,
     categories:      shared.categories,
@@ -39,93 +25,10 @@ export function useNotifications(userId, currentDate) {
 
   const load = useCallback(async () => {
     if (!userId) return
-    const { pendingItems, plannedBills, recurringBills, billPayments, subscriptions, subPayments } = sharedRef.current
-
-    const today    = new Date(); today.setHours(0, 0, 0, 0)
-    const todayStr = toLocalStr(today)
-    const in3dStr  = toLocalStr(new Date(today.getTime() + 3 * 86400000))
-
-    const year  = currentDate.getFullYear()
-    const month = currentDate.getMonth()
 
     const actions = []
 
-    // 1. Overdue pending items — filter from shared context
-    for (const p of pendingItems) {
-      if (!p.pay_before || p.pay_before >= todayStr) continue
-      const daysAgo = Math.round((today - new Date(p.pay_before + 'T00:00:00')) / 86400000)
-      actions.push({
-        id: `pending-${p.id}`, type: 'pending', recordId: p.id,
-        severity: 'alert', label: p.name,
-        detail: `${daysAgo}d overdue · ${fmtAmt(p.amount)}`,
-        amount: p.amount, period: null, canPay: true,
-      })
-    }
-
-    // 2. Planned bills due in ≤3 days — filter from shared context
-    for (const p of plannedBills) {
-      if (!p.pay_before || p.pay_before < todayStr || p.pay_before > in3dStr) continue
-      const daysLeft = Math.round((new Date(p.pay_before + 'T00:00:00') - today) / 86400000)
-      actions.push({
-        id: `planned-${p.id}`, type: 'planned', recordId: p.id,
-        severity: daysLeft === 0 ? 'alert' : 'warning', label: p.name,
-        detail: `${daysLeft === 0 ? 'Due today' : `Due in ${daysLeft}d`} · ${fmtAmt(p.amount)}`,
-        amount: p.amount, period: null, canPay: true,
-      })
-    }
-
-    // 3. Recurring bills due in ≤3 days (unpaid) — from shared context
-    for (const b of recurringBills) {
-      const period = getPeriodKey(b.frequency, currentDate)
-      if (billPayments.some(p => p.bill_id === b.id && p.period === period)) continue
-      const lastDay = new Date(year, month + 1, 0).getDate()
-      const dueDate = new Date(year, month, Math.min(b.due_day, lastDay))
-      const daysLeft = Math.round((dueDate - today) / 86400000)
-      if (daysLeft <= 3) {
-        const badge = daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue`
-                    : daysLeft === 0 ? 'Due today' : `Due in ${daysLeft}d`
-        actions.push({
-          id: `bill-${b.id}`, type: 'bill', recordId: b.id,
-          severity: daysLeft <= 0 ? 'alert' : 'warning', label: b.name,
-          detail: `${badge} · ${fmtAmt(b.amount)}`,
-          amount: b.amount, period, canPay: true,
-        })
-      }
-    }
-
-    // 4. Subscriptions renewing in ≤7 days (unpaid) — from shared context
-    const subPeriod = getPeriodKey('monthly', currentDate)
-    for (const s of subscriptions) {
-      if (subPayments.some(p => p.subscription_id === s.id && p.period === subPeriod)) continue
-      const lastDay = new Date(year, month + 1, 0).getDate()
-      const dueDate = new Date(year, month, Math.min(s.billing_day, lastDay))
-      // Skip if free trial (with or without end date)
-      if (s.is_trial) {
-        // Instead alert when trial is ending soon
-        const trialEnd = new Date(s.trial_ends_at + 'T00:00:00')
-        const trialDaysLeft = Math.round((trialEnd - today) / 86400000)
-        if (trialDaysLeft >= 0 && trialDaysLeft <= 7) {
-          actions.push({
-            id: `trial-${s.id}`, type: 'sub', recordId: s.id,
-            severity: trialDaysLeft <= 1 ? 'alert' : 'warning', label: s.name,
-            detail: `Free trial ends ${trialDaysLeft === 0 ? 'today' : `in ${trialDaysLeft}d`} · then ${fmtAmt(s.amount)}/mo`,
-            amount: s.amount, period: subPeriod, canPay: false,
-          })
-        }
-        continue
-      }
-      const daysLeft = Math.round((dueDate - today) / 86400000)
-      if (daysLeft >= 0 && daysLeft <= 7) {
-        actions.push({
-          id: `sub-${s.id}`, type: 'sub', recordId: s.id,
-          severity: 'info', label: s.name,
-          detail: `Renewing ${daysLeft === 0 ? 'today' : `in ${daysLeft}d`} · ${fmtAmt(s.amount)}/mo`,
-          amount: s.amount, period: subPeriod, canPay: true,
-        })
-      }
-    }
-
-    // 5. Budgets ≥80% used — from shared context
+    // 1. Budgets ≥80% used — from shared context
     const { budgets, allTransactions, categoryMap: catMap } = sharedRef.current
     const yearStr = `${currentDate.getFullYear()}-`
     const yearExpenses = (allTransactions ?? []).filter(t =>
@@ -159,7 +62,7 @@ export function useNotifications(userId, currentDate) {
       }
     }
 
-    // 6. Period budget leftovers
+    // 2. Period budget leftovers
     const periodBudgets = (budgets ?? []).filter(b => b.period && b.period !== 'monthly' || (b.period === 'monthly' && b.card_id))
       .filter(b => b.card_id)
 
@@ -206,25 +109,6 @@ export function useNotifications(userId, currentDate) {
           prevPeriodKey: periodKey,
         })
       }
-    }
-
-    // 7. Price change alerts
-    const { data: priceAlerts } = await supabase
-      .from('price_change_alerts').select('*')
-      .eq('user_id', userId).eq('resolved', false)
-
-    for (const a of priceAlerts ?? []) {
-      const diff = a.actual_amount - a.expected_amount
-      const yearlyDiff = Math.abs(diff * 12)
-      const sign = diff > 0 ? '+' : '-'
-      actions.push({
-        id: `price-change-${a.id}`, type: 'price_change', recordId: a.id,
-        source: a.source, sourceId: a.record_id,
-        severity: 'warning', label: `${a.name} price ${diff > 0 ? 'increased' : 'decreased'}`,
-        detail: `${fmtAmt(a.expected_amount)} → ${fmtAmt(a.actual_amount)} (${sign}${fmtAmt(yearlyDiff)}/yr)`,
-        expectedAmount: a.expected_amount, actualAmount: a.actual_amount,
-        canPay: false,
-      })
     }
 
     actions.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])

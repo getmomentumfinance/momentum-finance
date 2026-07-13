@@ -15,26 +15,17 @@ import { useAuth } from '../context/AuthContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
 import { supabase } from '../lib/supabase'
 import Navbar from '../components/dashboard/Navbar'
-import { Wallet, TrendingDown, PiggyBank, TrendingUp, Banknote, LineChart } from 'lucide-react'
-import { usePortfolioValue } from '../hooks/usePortfolioValue'
+import { Wallet, TrendingDown, PiggyBank, TrendingUp, Banknote } from 'lucide-react'
 import { usePreferences } from '../context/UserPreferencesContext'
 import CalendarWidget from '../components/dashboard/CalendarWidget'
 import { StatCard } from '../components/dashboard/SummaryCards'
 import StatCardActivityModal from '../components/dashboard/StatCardActivityModal'
 import AccountsList from '../components/dashboard/AccountsList'
-import RecurringBills from '../components/dashboard/RecurringBills'
-import PlannedBills from '../components/dashboard/PlannedBills'
-import Subscriptions from '../components/dashboard/Subscriptions'
 import SavingsGoals from '../components/dashboard/SavingsGoals'
-import PendingTransactions from '../components/dashboard/PendingTransactions'
-import Wishlist from '../components/dashboard/Wishlist'
-import BalanceProjection from '../components/dashboard/BalanceProjection'
-import StillToPayCard from '../components/dashboard/StillToPayCard'
 import RecentTransactions from '../components/dashboard/RecentTransactions'
 import BudgetsWidget from '../components/dashboard/BudgetsWidget'
 import ActionCenter from '../components/dashboard/ActionCenter'
 import FinancialInsights from '../components/dashboard/FinancialInsights'
-import MyCardsWidget from '../components/dashboard/MyCardsWidget'
 import FadeIn from '../components/shared/FadeIn'
 import GetStartedCard from '../components/dashboard/GetStartedCard'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -47,8 +38,8 @@ const BALANCE_TYPES = ['debit', 'credit']
 const CREDIT_TYPES  = new Set(['income'])
 
 // ── Drag-and-drop widget columns ───────────────────────────────────
-const DEFAULT_LEFT_COL  = ['my-cards', 'recurring', 'planned', 'subscriptions', 'savings-goals', 'budgets']
-const DEFAULT_RIGHT_COL = ['pending', 'wishlist', 'projection', 'recent']
+const DEFAULT_LEFT_COL  = ['savings-goals', 'budgets']
+const DEFAULT_RIGHT_COL = ['recent']
 
 function SortableWidget({ id, children }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -81,7 +72,6 @@ export default function Dashboard() {
   const [cashBalance,       setCashBalance]       = useState(0)
   const [totalIncome,       setTotalIncome]       = useState(0)
   const [totalExpenses,     setTotalExpenses]     = useState(0)
-  const portfolioValue      = usePortfolioValue()
   const { t }               = usePreferences()
   const [totalSavingsMonth, setTotalSavingsMonth] = useState(0)
   const [totalSavings,      setTotalSavings]      = useState(0)
@@ -163,18 +153,11 @@ export default function Dashboard() {
 
   // ── Card visibility ───────────────────────────────────────────
   const DASH_CARDS = [
-    { key: 'dash-showMyCards',           label: 'My Cards'           },
     { key: 'dash-showFinancialInsights', label: 'Financial Insights' },
     { key: 'dash-showActionCenter',      label: 'Action Center'      },
-    { key: 'dash-showRecurring',         label: 'Recurring Bills'    },
-    { key: 'dash-showPlanned',           label: 'Planned Bills'      },
-    { key: 'dash-showSubscriptions',     label: 'Subscriptions'      },
     { key: 'dash-showSavingsGoals',      label: 'Savings Goals'      },
     { key: 'dash-showBudgets',           label: 'Budgets'            },
     { key: 'dash-showTargets',           label: 'Targets'            },
-    { key: 'dash-showPending',           label: 'Pending Transactions'},
-    { key: 'dash-showWishlist',          label: 'Wishlist'           },
-    { key: 'dash-showProjection',        label: 'Balance Projection' },
     { key: 'dash-showRecent',            label: 'Recent Transactions'},
   ]
   const [cardVis, setCardVis] = useState(() =>
@@ -257,7 +240,7 @@ export default function Dashboard() {
       if (monthTxs) {
         setTotalIncome(      monthTxs.filter(t => t.type === 'income'  && !t.is_split_parent).reduce((s, t) => s + t.amount, 0))
         setTotalExpenses(    monthTxs.filter(t => t.type === 'expense' && !t.is_split_parent).reduce((s, t) => s + t.amount, 0))
-        const SAVINGS_OUT_SOURCES = new Set(['savings_out', 'savings_out_purchase', 'savings_out_invest'])
+        const SAVINGS_OUT_SOURCES = new Set(['savings_out', 'savings_out_purchase'])
         const savMonthIn  = monthTxs.filter(t => t.source === 'savings_in'  && t.amount > 0).reduce((s, t) => s + t.amount, 0)
         const savMonthOut = monthTxs.filter(t => SAVINGS_OUT_SOURCES.has(t.source) && t.amount > 0).reduce((s, t) => s + t.amount, 0)
         setTotalSavingsMonth(savMonthIn - savMonthOut)
@@ -356,15 +339,11 @@ export default function Dashboard() {
             <div className="flex-1"><StatCard label={t('dash.cash')}          icon={Banknote}   value={cashBalance}   onCardClick={() => setActivityKind('cash')} /></div>
           </div>
 
-          {/* Cols 4-5: 2×2 stat cards + Still to Pay */}
-          <div style={{ gridColumn: '4 / span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr 1fr', gap: '0.75rem' }}>
+          {/* Cols 4-5: stat cards */}
+          <div style={{ gridColumn: '4 / span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '0.75rem' }}>
             <StatCard label={t('dash.expenses')}      icon={TrendingDown} value={totalExpenses}    onCardClick={() => setActivityKind('expenses')} />
-            <StatCard label={t('dash.investments')}   icon={LineChart}    value={portfolioValue ?? 0} onCardClick={() => setActivityKind('investments')} />
             <StatCard label={t('dash.savingsMonth')}  icon={PiggyBank}    value={totalSavingsMonth} onCardClick={() => setActivityKind('savings-month')} />
             <StatCard label={t('dash.totalSavings')}  icon={PiggyBank}    value={totalSavings}      onCardClick={() => setActivityKind('total-savings')} />
-            <div style={{ gridColumn: 'span 2' }}>
-              <StillToPayCard currentDate={currentDate} />
-            </div>
           </div>
 
           {/* Col 6: AccountsList */}
@@ -382,7 +361,6 @@ export default function Dashboard() {
             <StatCard label={t('dash.savingsMonth')}  icon={PiggyBank}   value={totalSavingsMonth}  onCardClick={() => setActivityKind('savings-month')} />
             <StatCard label={t('dash.totalSavings')}  icon={PiggyBank}   value={totalSavings}       onCardClick={() => setActivityKind('total-savings')} />
           </div>
-          <StillToPayCard currentDate={currentDate} />
           <AccountsList currentDate={currentDate} />
           <CalendarWidget
             currentDate={currentDate}
@@ -424,15 +402,8 @@ export default function Dashboard() {
         {/* Bottom: two independent sortable columns — no gaps on drag */}
         {(() => {
           const WIDGET_MAP = {
-            'my-cards':      { visKey: 'dash-showMyCards',       node: <MyCardsWidget currentDate={currentDate} /> },
-            'recurring':     { visKey: 'dash-showRecurring',     node: <RecurringBills currentDate={currentDate} /> },
-            'planned':       { visKey: 'dash-showPlanned',       node: <PlannedBills currentDate={currentDate} /> },
-            'subscriptions': { visKey: 'dash-showSubscriptions', node: <Subscriptions currentDate={currentDate} /> },
             'savings-goals': { visKey: 'dash-showSavingsGoals',  node: <SavingsGoals totalBalance={totalSavings} /> },
             'budgets':       { visKey: 'dash-showBudgets',       node: <BudgetsWidget currentDate={currentDate} /> },
-            'pending':       { visKey: 'dash-showPending',       node: <PendingTransactions currentDate={currentDate} /> },
-            'wishlist':      { visKey: 'dash-showWishlist',      node: <Wishlist currentDate={currentDate} /> },
-            'projection':    { visKey: 'dash-showProjection',    node: <BalanceProjection currentDate={currentDate} /> },
             'recent':        { visKey: 'dash-showRecent',        node: <RecentTransactions currentDate={currentDate} /> },
           }
           const visLeft  = leftCol.filter(id  => WIDGET_MAP[id]  && v(WIDGET_MAP[id].visKey))

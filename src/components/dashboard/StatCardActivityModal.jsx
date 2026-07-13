@@ -12,7 +12,6 @@ const CREDIT_TYPES = new Set(['income'])
 const KIND_CONFIG = {
   income:          { title: 'Income',             txType: 'income',   scope: 'month', signedTotal: false },
   expenses:        { title: 'Expenses',            txType: 'expense',  scope: 'month', signedTotal: false },
-  investments:     { title: 'Investments',         txType: 'invest',   scope: 'month', signedTotal: false },
   'savings-month': { title: 'Savings This Month',  txType: 'savings',  scope: 'month', signedTotal: false },
   cash:            { title: 'Cash Wallet',         isCash: true,       scope: 'month', signedTotal: true  },
   balance:         { title: 'Total Balance',       scope: 'month',                     signedTotal: true  },

@@ -936,11 +936,11 @@ export default function Analytics() {
   }, [categoryData, typeTotals, receiverData, colors])
 
   // ── Daily breakdown by type ───────────────────────────────────
-  const TYPE_KEYS   = ['income', 'expense', 'savings_in', 'savings_out', 'transfer', 'invest', 'cash_out']
+  const TYPE_KEYS   = ['income', 'expense', 'savings_in', 'savings_out', 'transfer', 'cash_out']
   const TYPE_LABELS = {
     income: t('an.income'), expense: t('an.expenses').replace(/s$/, ''),
     savings_in: t('sav.deposit'), savings_out: t('sav.withdrawal'),
-    transfer: t('type.transfer'), invest: t('type.invest'), cash_out: t('type.cash_out'),
+    transfer: t('type.transfer'), cash_out: t('type.cash_out'),
   }
 
   // Resolve canonical key per transaction.
@@ -1097,10 +1097,9 @@ export default function Analytics() {
     return [...seen.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [expenses, receiverMap])
 
-  const DD_TYPE_LABELS = { expense: 'Expense', savings: 'Savings', invest: 'Investment', transfer: 'Transfer', cash_out: 'Cash Out' }
+  const DD_TYPE_LABELS = { expense: 'Expense', savings: 'Savings', transfer: 'Transfer', cash_out: 'Cash Out' }
   function getDdTypeKey(t) {
     if (t.type === 'expense')                                          return 'expense'
-    if (t.type === 'invest' || t.source === 'savings_out_invest')     return 'invest'
     if (t.type === 'transfer')                                         return 'transfer'
     if (t.type === 'cash_out')                                         return 'cash_out'
     return 'savings'
@@ -1108,7 +1107,6 @@ export default function Analytics() {
   function getDdTypeColor(key) {
     if (key === 'expense')  return colors.expense
     if (key === 'savings')  return colors.savings
-    if (key === 'invest')   return colors.invest
     if (key === 'transfer') return colors.transfer
     if (key === 'cash_out') return colors.cashOut
     return colors.expense
@@ -1117,7 +1115,6 @@ export default function Analytics() {
     filtered.filter(t => !t.is_split_parent && (
       (t.type === 'expense') ||
       (t.type === 'savings'  && Number(t.amount) > 0 && t.source?.startsWith('savings_out')) ||
-      (t.type === 'invest'   && Number(t.amount) > 0) ||
       (t.type === 'transfer' && Number(t.amount) > 0) ||
       (t.type === 'cash_out' && Number(t.amount) > 0)
     ))

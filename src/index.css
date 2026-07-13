@@ -128,7 +128,6 @@ html, body { overscroll-behavior: none; }
   --type-expense:           var(--solid-blush);
   --type-transfer:          var(--solid-fog-blue);
   --type-savings:           var(--solid-soft-pink);
-  --type-invest:            var(--solid-steel-blue);
   --type-cash-out:          var(--solid-vintage-mauve);
   --type-income-earned:     var(--solid-dusty-sage);
   --type-income-not-earned: var(--solid-soft-pink);

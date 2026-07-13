@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { User, Palette, BookOpen, CreditCard, Database, Camera, LogOut, Mail, KeyRound, Globe, Calendar, DollarSign, Home, Layers, TrendingUp, Wallet, HelpCircle, ChevronRight, LayoutDashboard, BarChart2, PiggyBank, Target, Receipt, LineChart, CalendarDays, FileText, RefreshCw } from 'lucide-react'
+import { User, Palette, BookOpen, CreditCard, Database, Camera, LogOut, Mail, KeyRound, Globe, Calendar, DollarSign, Home, Layers, TrendingUp, Wallet, HelpCircle, ChevronRight, LayoutDashboard, BarChart2, PiggyBank, Target, Receipt, CalendarDays, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { usePreferences } from '../context/UserPreferencesContext'
@@ -10,7 +10,6 @@ import CategoriesTab from '../components/settings/CategoriesTab'
 import AppearanceTab from '../components/settings/AppearanceTab'
 import CardsTab from '../components/settings/CardsTab'
 import FinancialSituationTab from '../components/settings/FinancialSituationTab'
-import SubscriptionsTab from '../components/settings/SubscriptionsTab'
 
 const CURRENCIES = [
   { value: 'EUR', label: '€ Euro' },
@@ -47,7 +46,6 @@ const LANDING_PAGES = [
   { value: '/savings',      label: 'Savings' },
   { value: '/budgets',      label: 'Budgets' },
   { value: '/transactions', label: 'Transactions' },
-  { value: '/portfolio',    label: 'Portfolio' },
 ]
 
 function SelectRow({ icon: Icon, label, value, onChange, options }) {
@@ -73,7 +71,6 @@ const TAB_IDS = [
   { id: 'appearance', labelKey: 'set.appearance', icon: Palette },
   { id: 'categories', labelKey: 'set.library',    icon: BookOpen },
   { id: 'cards',         labelKey: 'set.cards',         icon: CreditCard },
-  { id: 'subscriptions', labelKey: 'set.subscriptions', icon: RefreshCw  },
   { id: 'financial',     labelKey: 'set.financial',     icon: TrendingUp },
   { id: 'data',       labelKey: 'set.data',       icon: Database },
   { id: 'help',       labelKey: 'set.help',       icon: HelpCircle },
@@ -115,7 +112,6 @@ function AccountTab() {
         if (t.type === 'income')   return s + t.amount
         if (t.type === 'expense')  return s - t.amount
         if (t.type === 'cash_out') return s - t.amount
-        if (t.type === 'invest')   return s - t.amount
         return s
       }, 0)
       const netWorth = initialBal + txNet
@@ -303,14 +299,6 @@ function DataTab() {
 
   async function handleDeleteTransactions() {
     setDeleting(true)
-    // Null out FK references first to avoid constraint violations
-    await Promise.all([
-      supabase.from('wishlist').update({ transaction_id: null }).eq('user_id', user.id),
-      supabase.from('pending_items').update({ transaction_id: null }).eq('user_id', user.id),
-      supabase.from('planned_bills').update({ transaction_id: null }).eq('user_id', user.id),
-      supabase.from('recurring_bill_payments').update({ transaction_id: null }).not('transaction_id', 'is', null),
-      supabase.from('subscription_payments').update({ transaction_id: null }).not('transaction_id', 'is', null),
-    ])
     // Delete split children before parents (self-referencing FK)
     await supabase.from('transactions').delete().eq('user_id', user.id).not('split_parent_id', 'is', null)
     await supabase.from('transactions').delete().eq('user_id', user.id)
@@ -416,7 +404,6 @@ function HelpTab({ onTabSwitch }) {
       items: [
         { icon: BarChart2,     label: t('help.analyticsLabel'), description: t('help.analyticsDesc'),  action: () => navigate('/analytics'), actionLabel: t('help.openDash') },
         { icon: FileText,      label: t('help.summaryLabel'),   description: t('help.summaryDesc'),    action: () => navigate('/summary'),   actionLabel: t('help.openDash') },
-        { icon: LineChart,     label: t('help.portLabel'),      description: t('help.portDesc'),       action: () => navigate('/portfolio'), actionLabel: t('help.openDash') },
       ],
     },
     {
@@ -463,7 +450,6 @@ export default function Settings() {
     appearance: <AppearanceTab />,
     categories: <CategoriesTab />,
     cards:         <CardsTab />,
-    subscriptions: <SubscriptionsTab />,
     financial:     <FinancialSituationTab />,
     data:       <DataTab />,
     help:       <HelpTab onTabSwitch={setActiveTab} />,
