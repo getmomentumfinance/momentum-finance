@@ -17,6 +17,7 @@ const SharedDataContext = createContext({
   balanceTxs:       [],
   budgets:          [],
   targets:          [],
+  householdMembers: [],
 })
 
 export function SharedDataProvider({ children }) {
@@ -33,6 +34,7 @@ export function SharedDataProvider({ children }) {
   const [balanceTxs,       setBalanceTxs]       = useState([])
   const [budgets,          setBudgets]          = useState([])
   const [targets,          setTargets]          = useState([])
+  const [householdMembers, setHouseholdMembers] = useState([])
   const [loaded,           setLoaded]           = useState(false)
 
   const debounceRef  = useRef(null)
@@ -50,15 +52,17 @@ export function SharedDataProvider({ children }) {
       { data: balanceTxData },
       { data: budgetsData },
       { data: targetsData },
+      { data: membersData },
     ] = await Promise.all([
       supabase.from('categories').select('id, name, color, icon, importance, parent_id').eq('user_id', user.id),
       supabase.from('receivers').select('id, name, type, domain, logo_url, group_id').eq('user_id', user.id),
       supabase.from('receiver_groups').select('id, name, color, gradient').eq('user_id', user.id).order('created_at'),
-      supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id, card_number, is_buffer').eq('user_id', user.id).order('created_at'),
+      supabase.from('cards').select('id, name, type, initial_balance, is_main, bank_id, card_number, is_buffer, owner_ids').eq('user_id', user.id).order('created_at'),
       supabase.from('transactions').select('id, card_id, type, source, amount, reimbursable_amount, is_cash, split_parent_id, is_split_parent, date, category_id, subcategory_id, receiver_id, importance, is_earned, labels, linked_expense_id').eq('user_id', user.id).eq('is_deleted', false).eq('is_split_parent', false).gte('date', `${new Date().getFullYear() - 5}-01-01`),
       supabase.from('transactions').select('card_id, type, amount, is_cash').eq('user_id', user.id).eq('is_deleted', false).is('split_parent_id', null),
       supabase.from('budgets').select('*').eq('user_id', user.id),
       supabase.from('targets').select('*').eq('user_id', user.id),
+      supabase.from('household_members').select('id, name, color').eq('user_id', user.id).order('name'),
     ])
 
     const cats = catData ?? []
@@ -92,6 +96,7 @@ export function SharedDataProvider({ children }) {
     setBalanceTxs(balanceTxData ?? [])
     setBudgets(budgetsData ?? [])
     setTargets(targetsData ?? [])
+    setHouseholdMembers(membersData ?? [])
     setLoaded(true)
   }, [user?.id])
 
@@ -106,9 +111,11 @@ export function SharedDataProvider({ children }) {
     }
     window.addEventListener('transaction-saved', debouncedLoad)
     window.addEventListener('receiver-group-saved', debouncedLoad)
+    window.addEventListener('household-member-saved', debouncedLoad)
     return () => {
       window.removeEventListener('transaction-saved', debouncedLoad)
       window.removeEventListener('receiver-group-saved', debouncedLoad)
+      window.removeEventListener('household-member-saved', debouncedLoad)
       clearTimeout(debounceRef.current)
     }
   }, [load])
@@ -118,7 +125,7 @@ export function SharedDataProvider({ children }) {
       categories, receivers, categoryMap, receiverMap,
       receiverGroups, receiverGroupMap, receiverColorMap,
       loaded, cards, allTransactions, balanceTxs,
-      budgets, targets,
+      budgets, targets, householdMembers,
     }}>
       {children}
     </SharedDataContext.Provider>

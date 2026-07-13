@@ -13,6 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../context/AuthContext'
 import { useTransactionModal } from '../context/TransactionModalContext'
+import { useSharedData } from '../context/SharedDataContext'
 import { supabase } from '../lib/supabase'
 import Navbar from '../components/dashboard/Navbar'
 import { Wallet, TrendingDown, PiggyBank, TrendingUp, Banknote } from 'lucide-react'
@@ -66,15 +67,18 @@ function SortableWidget({ id, children }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const { openTransactionModal } = useTransactionModal()
+  const { householdMembers } = useSharedData()
   const { setPref, deletePrefs, loaded: prefsLoaded } = useUIPrefs()
   const [currentDate,       setCurrentDate]       = useState(new Date())
   const [totalBalance,      setTotalBalance]      = useState(0)
   const [cashBalance,       setCashBalance]       = useState(0)
   const [totalIncome,       setTotalIncome]       = useState(0)
   const [totalExpenses,     setTotalExpenses]     = useState(0)
-  const { t }               = usePreferences()
+  const { t, fmt }          = usePreferences()
   const [totalSavingsMonth, setTotalSavingsMonth] = useState(0)
   const [totalSavings,      setTotalSavings]      = useState(0)
+  const [memberBalances,    setMemberBalances]    = useState({})
+  const [jointBalance,      setJointBalance]      = useState(0)
   const [activityKind,      setActivityKind]      = useState(null)
   const isMobile = useIsMobile(1024)
 
@@ -206,27 +210,41 @@ export default function Dashboard() {
       const end   = toLocalStr(new Date(year, month + 1, 0))
 
       const [{ data: balanceCards }, { data: cashCards }, { data: savingsCards }, { data: allTxs }, { data: monthTxs }] = await Promise.all([
-        supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).in('type', BALANCE_TYPES),
-        supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'cash'),
+        supabase.from('cards').select('id, initial_balance, owner_ids').eq('user_id', user.id).in('type', BALANCE_TYPES),
+        supabase.from('cards').select('id, initial_balance, owner_ids').eq('user_id', user.id).eq('type', 'cash'),
         supabase.from('cards').select('id, initial_balance').eq('user_id', user.id).eq('type', 'savings').eq('is_buffer', false),
         supabase.from('transactions').select('card_id, type, amount, is_cash, source, split_parent_id').eq('user_id', user.id).eq('is_deleted', false),
         supabase.from('transactions').select('type, amount, source, is_split_parent').eq('user_id', user.id).eq('is_deleted', false).gte('date', start).lte('date', end),
       ])
 
       if (allTxs) {
+        const memberTotals = {}
+        let jointTotal = 0
+        function attribute(ownerIds, amount) {
+          if (!ownerIds?.length) return
+          if (ownerIds.length >= 2) { jointTotal += amount; return }
+          memberTotals[ownerIds[0]] = (memberTotals[ownerIds[0]] ?? 0) + amount
+        }
+
         const cardTotal = (balanceCards ?? []).reduce((sum, card) => {
           const delta = allTxs
             .filter(t => t.card_id === card.id && !t.is_cash && !t.split_parent_id)
             .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
-          return sum + Number(card.initial_balance) + delta
+          const balance = Number(card.initial_balance) + delta
+          attribute(card.owner_ids, balance)
+          return sum + balance
         }, 0)
         const cashInitial = (cashCards ?? []).reduce((s, c) => s + Number(c.initial_balance), 0)
         const cashTxTotal = allTxs
           .filter(t => t.is_cash)
           .reduce((s, t) => s + (CREDIT_TYPES.has(t.type) ? t.amount : -t.amount), 0)
         const cashTotal = cashInitial + cashTxTotal
+        // Cash is singleOnly — at most one card, safe to attribute the whole cash total to it
+        ;(cashCards ?? []).forEach(card => attribute(card.owner_ids, cashTotal))
         setCashBalance(cashTotal)
         setTotalBalance(cardTotal + cashTotal)
+        setMemberBalances(memberTotals)
+        setJointBalance(jointTotal)
 
         const savingsTotal = (savingsCards ?? []).reduce((sum, card) => {
           const delta = allTxs
@@ -372,6 +390,26 @@ export default function Dashboard() {
             }}
           />
         </div>}
+
+        {/* Total balance by person */}
+        {householdMembers.length > 0 && (Object.keys(memberBalances).length > 0 || jointBalance !== 0) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-6 -mt-3 px-1">
+            {householdMembers
+              .filter(m => memberBalances[m.id] != null)
+              .map(m => (
+                <span key={m.id} className="flex items-center gap-1.5 text-xs text-white/50">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: m.color }} />
+                  {m.name} <span className="text-white/70 font-medium tabular-nums">{fmt(memberBalances[m.id])}</span>
+                </span>
+              ))}
+            {jointBalance !== 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-white/50">
+                <span className="w-2 h-2 rounded-full shrink-0 bg-white/30" />
+                Joint <span className="text-white/70 font-medium tabular-nums">{fmt(jointBalance)}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Financial Insights + Action Center */}
         {(v('dash-showFinancialInsights') || v('dash-showActionCenter')) && (

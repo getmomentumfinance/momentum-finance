@@ -3,6 +3,7 @@ import { useCashLabel } from '../../hooks/useCashLabel'
 import CardActivityModal from './CardActivityModal'
 import { usePreferences } from '../../context/UserPreferencesContext'
 import { useSharedData } from '../../context/SharedDataContext'
+import { OwnerBadges } from '../shared/OwnerBadges'
 
 const CREDIT_TYPES = new Set(['income'])
 
@@ -30,7 +31,7 @@ function computeCashBalance(cards, transactions) {
 export default function AccountsList({ currentDate }) {
   const { fmt, t } = usePreferences()
   const { label: cashLabel } = useCashLabel()
-  const { cards, balanceTxs } = useSharedData()
+  const { cards, balanceTxs, householdMembers } = useSharedData()
   const [activeCard, setActiveCard] = useState(undefined)
 
   if (cards.length === 0) {
@@ -42,6 +43,7 @@ export default function AccountsList({ currentDate }) {
   }
 
   const cashBalance  = computeCashBalance(cards, balanceTxs)
+  const cashCard     = cards.find(c => c.type === 'cash')
   const nonCashCards = cards.filter(c => c.type !== 'cash')
 
   return (
@@ -55,6 +57,7 @@ export default function AccountsList({ currentDate }) {
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] text-muted uppercase tracking-widest font-medium">{cashLabel}</span>
             <span className="text-[9px] text-white/25 uppercase tracking-widest">· {t('common.wallet')}</span>
+            {cashCard && <OwnerBadges ownerIds={cashCard.owner_ids} members={householdMembers} size={13} />}
           </div>
           <span className={`text-sm font-semibold mt-0.5 ${cashBalance < 0 ? 'text-[var(--color-alert)]' : 'text-white'}`}>
             {fmt(cashBalance)}
@@ -74,6 +77,7 @@ export default function AccountsList({ currentDate }) {
                 {card.is_main && (
                   <span className="text-[9px] text-white/25 uppercase tracking-widest">· main</span>
                 )}
+                <OwnerBadges ownerIds={card.owner_ids} members={householdMembers} size={13} />
               </div>
               <span className={`text-sm font-semibold mt-0.5 ${balance < 0 ? 'text-[var(--color-alert)]' : 'text-white'}`}>
                 {fmt(balance)}

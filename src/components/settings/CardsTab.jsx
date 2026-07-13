@@ -7,9 +7,14 @@ import { CATEGORY_ICONS, ICONS_MAP } from '../shared/CategoryPill'
 import { useCards } from '../../hooks/useCards'
 import { SkeletonCard } from '../shared/Skeleton'
 import { useBanks } from '../../hooks/useBanks'
+import { useHouseholdMembers } from '../../hooks/useHouseholdMembers'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { computeCardBalance } from '../../utils/cardBalance'
+import { OwnerBadges } from '../shared/OwnerBadges'
+import ColorPickerPopup, { useColorPicker } from '../shared/ColorPickerPopup'
+
+const MEMBER_PALETTE = ['#60a5fa', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#f87171']
 
 function resolveIcon(id) { return ICONS_MAP[id] ?? CreditCard }
 
@@ -97,7 +102,7 @@ function IconPicker({ value, onChange }) {
 }
 
 // ── Card add / edit form ──────────────────────────────────────
-function CardForm({ type, banks, initial, onSave, onCancel }) {
+function CardForm({ type, banks, members, initial, onSave, onCancel }) {
   const isCash = type === 'cash'
   const isSavings = type === 'savings'
   const [name,       setName]       = useState(initial?.name            ?? '')
@@ -106,12 +111,17 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
   const [balance,    setBalance]    = useState(initial?.initial_balance ?? '')
   const [cardNumber, setCardNumber] = useState(initial?.card_number     ?? '')
   const [isBuffer,   setIsBuffer]   = useState(initial?.is_buffer       ?? false)
+  const [ownerIds,   setOwnerIds]   = useState(initial?.owner_ids       ?? [])
+
+  function toggleOwner(id) {
+    setOwnerIds(prev => prev.includes(id) ? prev.filter(o => o !== id) : [...prev, id])
+  }
 
   function handleSubmit(e) {
     e?.preventDefault()
     const resolvedName = isCash ? 'Cash Wallet' : name.trim()
     if (!resolvedName) return
-    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0, card_number: cardNumber.trim() || null, ...(isSavings && { is_buffer: isBuffer }) })
+    onSave({ name: resolvedName, bank_id: bankId || null, icon, initial_balance: parseFloat(balance) || 0, card_number: cardNumber.trim() || null, owner_ids: ownerIds, ...(isSavings && { is_buffer: isBuffer }) })
   }
 
   return (
@@ -172,6 +182,33 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
 
       <IconPicker value={icon} onChange={setIcon} />
 
+      {members.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs text-muted uppercase tracking-widest">Owner</label>
+          <div className="flex flex-wrap gap-1.5">
+            {members.map(m => {
+              const active = ownerIds.includes(m.id)
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => toggleOwner(m.id)}
+                  className="px-2.5 py-1 rounded-full border text-xs font-medium transition-all"
+                  style={{
+                    borderColor: active ? m.color : 'rgba(255,255,255,0.08)',
+                    background:  active ? `color-mix(in srgb, ${m.color} 15%, transparent)` : 'rgba(255,255,255,0.02)',
+                    color:       active ? m.color : 'rgba(255,255,255,0.4)',
+                  }}
+                >
+                  {m.name}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[11px] text-white/30">Select both for a joint account.</p>
+        </div>
+      )}
+
       {isSavings && (
         <label className="flex items-center gap-2.5 cursor-pointer select-none">
           <div
@@ -202,7 +239,7 @@ function CardForm({ type, banks, initial, onSave, onCancel }) {
 }
 
 // ── Single card row ───────────────────────────────────────────
-function CardRow({ card, banks, canBeMain, balance, onUpdate, onDelete, onSetMain }) {
+function CardRow({ card, banks, members, canBeMain, balance, onUpdate, onDelete, onSetMain }) {
   const [editing, setEditing] = useState(false)
   const { fmt } = usePreferences()
   const CardIcon = resolveIcon(card.icon)
@@ -213,6 +250,7 @@ function CardRow({ card, banks, canBeMain, balance, onUpdate, onDelete, onSetMai
       <CardForm
         type={card.type}
         banks={banks}
+        members={members}
         initial={card}
         onSave={updates => { onUpdate(card.id, updates); setEditing(false) }}
         onCancel={() => setEditing(false)}
@@ -229,6 +267,7 @@ function CardRow({ card, banks, canBeMain, balance, onUpdate, onDelete, onSetMai
           {card.is_main && canBeMain && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 text-white/50">main</span>
           )}
+          <OwnerBadges ownerIds={card.owner_ids} members={members} size={14} />
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           {bank && <BankAvatar bank={bank} size={14} />}
@@ -260,7 +299,7 @@ function CardRow({ card, banks, canBeMain, balance, onUpdate, onDelete, onSetMai
 }
 
 // ── Card type section ─────────────────────────────────────────
-function CardTypeSection({ type, label, Icon, cards, banks, canBeMain, singleOnly, balanceMap, onAdd, onUpdate, onDelete, onSetMain }) {
+function CardTypeSection({ type, label, Icon, cards, banks, members, canBeMain, singleOnly, balanceMap, onAdd, onUpdate, onDelete, onSetMain }) {
   const [adding, setAdding] = useState(false)
   const typeCards = cards.filter(c => c.type === type)
   const canAdd = !singleOnly || typeCards.length === 0
@@ -283,6 +322,7 @@ function CardTypeSection({ type, label, Icon, cards, banks, canBeMain, singleOnl
           key={card.id}
           card={card}
           banks={banks}
+          members={members}
           canBeMain={canBeMain}
           balance={balanceMap?.[card.id]}
           onUpdate={onUpdate}
@@ -299,6 +339,7 @@ function CardTypeSection({ type, label, Icon, cards, banks, canBeMain, singleOnl
         <CardForm
           type={type}
           banks={banks}
+          members={members}
           onSave={data => { onAdd({ ...data, type }); setAdding(false) }}
           onCancel={() => setAdding(false)}
         />
@@ -308,7 +349,7 @@ function CardTypeSection({ type, label, Icon, cards, banks, canBeMain, singleOnl
 }
 
 // ── Cash section (piggybank style) ────────────────────────────
-function CashSection({ cards, banks, balanceMap, onAdd, onUpdate, onDelete }) {
+function CashSection({ cards, banks, members, balanceMap, onAdd, onUpdate, onDelete }) {
   const [adding, setAdding] = useState(false)
   const cashCards = cards.filter(c => c.type === 'cash')
 
@@ -328,6 +369,7 @@ function CashSection({ cards, banks, balanceMap, onAdd, onUpdate, onDelete }) {
           key={card.id}
           card={card}
           banks={banks}
+          members={members}
           canBeMain={false}
           balance={balanceMap?.[card.id]}
           onUpdate={onUpdate}
@@ -344,6 +386,7 @@ function CashSection({ cards, banks, balanceMap, onAdd, onUpdate, onDelete }) {
         <CardForm
           type="cash"
           banks={[]}
+          members={members}
           onSave={data => { onAdd({ ...data, type: 'cash' }); setAdding(false) }}
           onCancel={() => setAdding(false)}
         />
@@ -444,12 +487,100 @@ function AddBankForm({ onSave, onCancel }) {
   )
 }
 
+// ── Household member row ───────────────────────────────────────
+function MemberRow({ member, onUpdate, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(member.name)
+  const picker = useColorPicker()
+
+  function handleSave() {
+    if (!name.trim()) return
+    onUpdate(member.id, { name: name.trim() })
+    setEditing(false)
+  }
+
+  function handleColor(c) {
+    onUpdate(member.id, { color: c })
+    picker.setOpen(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-white/5 group">
+      <button
+        ref={picker.btnRef}
+        type="button"
+        onClick={() => picker.toggle()}
+        className="w-6 h-6 rounded-full border border-white/20 shrink-0 hover:border-white/50 transition-colors"
+        style={{ background: member.color }}
+      />
+      {picker.open && (
+        <ColorPickerPopup popupRef={picker.popupRef} pos={picker.pos} selected={member.color} onSelect={handleColor} />
+      )}
+      <div className="flex-1 min-w-0">
+        {editing ? (
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false) }}
+            onBlur={handleSave}
+            autoFocus
+            className="w-full bg-transparent text-sm text-white outline-none border-b border-white/20"
+          />
+        ) : (
+          <span className="text-sm text-white">{member.name}</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-colors">
+          <Pencil size={12} />
+        </button>
+        <button onClick={() => onDelete(member.id)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-red-400 transition-colors">
+          <Trash2 size={12} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Add household member form ───────────────────────────────────
+function AddMemberForm({ nextColor, onSave, onCancel }) {
+  const [name, setName] = useState('')
+
+  function handleKey(e) {
+    if (e.key === 'Enter')  { e.preventDefault(); handleSave() }
+    if (e.key === 'Escape') onCancel()
+  }
+  function handleSave() {
+    if (!name.trim()) return
+    onSave({ name: name.trim(), color: nextColor })
+  }
+
+  return (
+    <div className="flex flex-col gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        onKeyDown={handleKey}
+        placeholder="Name"
+        autoFocus
+        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-white/30"
+      />
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel} className="text-xs text-muted hover:text-white transition-colors px-3 py-1.5">Cancel</button>
+        <button type="button" onClick={handleSave} className="text-xs bg-white/10 hover:bg-white/20 text-white rounded-lg px-3 py-1.5 transition-colors">Add</button>
+      </div>
+    </div>
+  )
+}
+
 // ── Main tab ──────────────────────────────────────────────────
 export default function CardsTab() {
   const { user } = useAuth()
   const { cards, loading: cardsLoading, addCard, updateCard, deleteCard, setMainCard } = useCards()
   const { banks, addBank, updateBank, deleteBank } = useBanks()
+  const { members, addMember, updateMember, deleteMember } = useHouseholdMembers()
   const [addingBank,      setAddingBank]      = useState(false)
+  const [addingMember,    setAddingMember]    = useState(false)
   const [transactions,    setTransactions]    = useState([])
 
   useEffect(() => {
@@ -466,7 +597,7 @@ export default function CardsTab() {
   const balanceMap = Object.fromEntries(cards.map(c => [c.id, computeCardBalance(c, transactions)]))
 
   return (
-    <div className="grid grid-cols-2 gap-8 h-full">
+    <div className="grid grid-cols-3 gap-8 h-full">
 
       {/* Col 1 — all card types */}
       <div className="flex flex-col gap-8 overflow-y-auto pr-1">
@@ -476,7 +607,7 @@ export default function CardsTab() {
           <div key={value}>
             <CardTypeSection
               type={value} label={label} Icon={Icon}
-              cards={cards} banks={banks}
+              cards={cards} banks={banks} members={members}
               canBeMain={canBeMain} singleOnly={singleOnly}
               balanceMap={balanceMap}
               onAdd={addCard} onUpdate={updateCard} onDelete={deleteCard} onSetMain={setMainCard}
@@ -512,6 +643,40 @@ export default function CardsTab() {
 
           {banks.length === 0 && !addingBank && (
             <p className="text-xs text-muted/50">No banks added yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Col 3 — people */}
+      <div className="flex flex-col gap-8 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2">
+          <div className="mb-1">
+            <h3 className="text-sm font-medium text-white">People</h3>
+            <p className="text-xs text-muted mt-0.5">Add household members to tag accounts as theirs, yours, or joint.</p>
+          </div>
+          <div className="flex items-center justify-end mb-1">
+            <button
+              onClick={() => setAddingMember(true)}
+              className="flex items-center gap-1 text-xs text-muted hover:text-white transition-colors"
+            >
+              <Plus size={12} /> Add
+            </button>
+          </div>
+
+          {addingMember && (
+            <AddMemberForm
+              nextColor={MEMBER_PALETTE[members.length % MEMBER_PALETTE.length]}
+              onSave={data => { addMember(data); setAddingMember(false) }}
+              onCancel={() => setAddingMember(false)}
+            />
+          )}
+
+          {members.map(member => (
+            <MemberRow key={member.id} member={member} onUpdate={updateMember} onDelete={deleteMember} />
+          ))}
+
+          {members.length === 0 && !addingMember && (
+            <p className="text-xs text-muted/50">No people added yet.</p>
           )}
         </div>
       </div>

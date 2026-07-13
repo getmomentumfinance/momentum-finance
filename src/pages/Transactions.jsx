@@ -11,6 +11,7 @@ import { CategoryPill } from '../components/shared/CategoryPill'
 import { LabelPill } from '../components/shared/LabelPill'
 import { usePreferences } from '../context/UserPreferencesContext'
 import { useUIPrefs } from '../context/UIPrefContext'
+import { useSharedData } from '../context/SharedDataContext'
 import { SkeletonRow } from '../components/shared/Skeleton'
 import { toLocalStr } from '../utils/budgetPeriod'
 
@@ -249,6 +250,7 @@ export default function Transactions() {
   const { fmt, t } = usePreferences()
   const { importance } = useImportance()
   const { prefs: uiPrefs } = useUIPrefs()
+  const { householdMembers } = useSharedData()
   const rawTxLabels = uiPrefs['tx_labels'] ?? [{ name: 'Recurring', color: '#60a5fa' }, { name: 'Subscription', color: '#a78bfa' }]
   const txLabels = rawTxLabels.map(l => typeof l === 'string' ? { name: l, color: '#a78bfa' } : l)
   const txLabelColorMap = Object.fromEntries(txLabels.map(l => [l.name, l.color]))
@@ -273,6 +275,7 @@ export default function Transactions() {
   const [filterType, setFilterType] = useState('')
   const [filterImportance, setFilterImportance] = useState(new Set())
   const [filterLabels,     setFilterLabels]     = useState(new Set())
+  const [filterPerson,     setFilterPerson]     = useState(new Set())
   const [filterCard,       setFilterCard]       = useState('')
   const [allCards,         setAllCards]         = useState([])
   const [collapsedParents, setCollapsedParents] = useState(new Set())
@@ -331,7 +334,7 @@ export default function Transactions() {
           .order('date', { ascending: false })
           .order('created_at', { ascending: false }),
         supabase.from('categories').select('*').eq('user_id', user.id),
-        supabase.from('cards').select('id, name, type').eq('user_id', user.id),
+        supabase.from('cards').select('id, name, type, owner_ids').eq('user_id', user.id),
         supabase.from('receivers').select('id, name, domain, logo_url').eq('user_id', user.id),
       ])
 
@@ -393,6 +396,8 @@ export default function Transactions() {
     return () => document.removeEventListener('click', close)
   }, [openPayback])
 
+  const cardOwnerMap = useMemo(() => Object.fromEntries(allCards.map(c => [c.id, c.owner_ids ?? []])), [allCards])
+
   const filteredRows = useMemo(() => {
     let result = sortedRows
     // Without a card filter, hide the receiver-side companion rows (negative amount)
@@ -410,13 +415,18 @@ export default function Transactions() {
     if (filterType)                result = result.filter(r => r.type === filterType)
     if (filterImportance.size > 0) result = result.filter(r => filterImportance.has(r.importance ?? ''))
     if (filterLabels.size > 0)     result = result.filter(r => r.labels?.some(l => filterLabels.has(l)))
+    if (filterPerson.size > 0)     result = result.filter(r => {
+      const ownerIds = cardOwnerMap[r.card_id] ?? []
+      if (filterPerson.has('joint') && ownerIds.length >= 2) return true
+      return ownerIds.some(id => filterPerson.has(id))
+    })
     if (filterCard)                result = result.filter(r => r.card_id === filterCard)
     return result
-  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance, filterLabels, filterCard])
+  }, [sortedRows, search, filterCat, filterSub, filterReceiver, filterDateFrom, filterDateTo, filterType, filterImportance, filterLabels, filterPerson, cardOwnerMap, filterCard])
 
   const topCategories = allCategories.filter(c => !c.parent_id)
   const subCategories = allCategories.filter(c => c.parent_id === filterCat)
-  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0 || filterLabels.size > 0 || filterCard
+  const hasFilters = search || filterCat || filterSub || filterReceiver || filterDateFrom || filterDateTo || filterType || filterImportance.size > 0 || filterLabels.size > 0 || filterPerson.size > 0 || filterCard
 
   // ── Totals (filtered, exclude split parents to avoid double-count) ──
   const totalIncome   = filteredRows.filter(r => r.type === 'income'  && !r.is_split_parent).reduce((s, r) => s + r.amount, 0)
@@ -461,7 +471,7 @@ export default function Transactions() {
   function clearFilters() {
     setSearch(''); setFilterCat(''); setFilterSub('')
     setFilterReceiver(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterType('')
-    setFilterImportance(new Set()); setFilterLabels(new Set()); setFilterCard(''); setDatePreset('month')
+    setFilterImportance(new Set()); setFilterLabels(new Set()); setFilterPerson(new Set()); setFilterCard(''); setDatePreset('month')
   }
 
   async function handleDelete(tx) {
@@ -657,6 +667,49 @@ export default function Transactions() {
                     </button>
                   )
                 })}
+              </div>
+            )}
+
+            {/* Person filter — multi-select pills */}
+            {householdMembers.length > 0 && (
+              <div className="flex items-center gap-1">
+                {householdMembers.map(m => {
+                  const active = filterPerson.has(m.id)
+                  return (
+                    <button key={m.id} type="button"
+                      onClick={() => setFilterPerson(prev => {
+                        const next = new Set(prev)
+                        if (next.has(m.id)) next.delete(m.id)
+                        else next.add(m.id)
+                        return next
+                      })}
+                      className="px-2 py-1 rounded-lg border text-[10px] font-medium transition-all"
+                      style={{
+                        borderColor: active ? m.color : 'rgba(255,255,255,0.06)',
+                        background:  active ? `color-mix(in srgb, ${m.color} 15%, transparent)` : 'transparent',
+                        color:       active ? m.color : 'rgba(255,255,255,0.3)',
+                      }}
+                    >
+                      {m.name}
+                    </button>
+                  )
+                })}
+                <button type="button"
+                  onClick={() => setFilterPerson(prev => {
+                    const next = new Set(prev)
+                    if (next.has('joint')) next.delete('joint')
+                    else next.add('joint')
+                    return next
+                  })}
+                  className="px-2 py-1 rounded-lg border text-[10px] font-medium transition-all"
+                  style={{
+                    borderColor: filterPerson.has('joint') ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.06)',
+                    background:  filterPerson.has('joint') ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    color:       filterPerson.has('joint') ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  Joint
+                </button>
               </div>
             )}
 
