@@ -4,14 +4,10 @@ import { X, Trash2, ChevronDown } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { CategoryPill } from '../shared/CategoryPill'
-import { ReceiverAvatar } from '../shared/ReceiverCombobox'
-import { useImportance } from '../../hooks/useImportance'
 import { usePreferences } from '../../context/UserPreferencesContext'
 
 const inp = 'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-white/30 transition-colors placeholder:text-white/25'
 
-
-const PERIODS = [['weekly', 'Weekly'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['yearly', 'Yearly']]
 const PERIOD_MULTIPLIER = { weekly: 1 / 4.33, monthly: 1, quarterly: 3, yearly: 12 }
 const PERIOD_SHORT = { weekly: '/wk', monthly: '/mo', quarterly: '/qtr', yearly: '/yr' }
 const PERIOD_LABEL = { weekly: 'week', monthly: 'month', quarterly: 'quarter', yearly: 'year' }
@@ -20,8 +16,6 @@ const DIMENSIONS = [
   ['all',         'All'],
   ['category',    'Category'],
   ['subcategory', 'Subcategory'],
-  ['importance',  'Importance'],
-  ['merchant',    'Merchant'],
 ]
 
 function DropdownSelect({ value, onChange, options, placeholder = 'Select…' }) {
@@ -155,21 +149,19 @@ function MultiDropdownSelect({ values, onChange, options, placeholder = 'Select�
 export default function AddBudgetModal({
   budget = null,
   categories,
+  members = [],
   defaultDimension,
   defaultId,
   defaultLimit = 0,
   defaultName = '',
   avgByCategory = {},
   avgBySubcategory = {},
-  avgByImportance = {},
-  avgByReceiver = {},
   onClose,
   onSaved,
 }) {
   const isEdit = !!budget
   const { user } = useAuth()
   const { fmt, fmtK } = usePreferences()
-  const { importance: importanceLevels } = useImportance()
 
   const [name,             setName]             = useState(budget?.name ?? defaultName)
   const [dimension,        setDimension]        = useState(
@@ -189,47 +181,45 @@ export default function AddBudgetModal({
     budget?.subcategory_id          ? [budget.subcategory_id] :
     (defaultDimension === 'subcategory' && defaultId) ? [defaultId] : []
   )
-  const [importanceIds,  setImportanceIds]  = useState(
+  const [importanceIds]  = useState(
     budget?.importance_ids?.length  ? budget.importance_ids  :
     budget?.importance              ? [budget.importance]    :
     (defaultDimension === 'importance'  && defaultId) ? [defaultId] : []
   )
-  const [receiverIds,    setReceiverIds]    = useState(
+  const [receiverIds]    = useState(
     budget?.receiver_ids?.length    ? budget.receiver_ids    :
     budget?.receiver_id             ? [budget.receiver_id]   :
     (defaultDimension === 'merchant'    && defaultId) ? [defaultId] : []
   )
   const [limit,            setLimit]            = useState(budget?.monthly_limit  ?? defaultLimit)
-  const [period,           setPeriod]           = useState(budget?.period         ?? 'monthly')
-  const [resetDay,         setResetDay]         = useState(budget?.reset_day      ?? null)
-  const [rolloverBehavior, setRolloverBehavior] = useState(budget?.rollover_behavior ?? 'expire')
+  const [period]                                = useState(budget?.period         ?? 'monthly')
+  const [resetDay]                               = useState(budget?.reset_day      ?? null)
+  const [rolloverBehavior]                       = useState(budget?.rollover_behavior ?? 'expire')
   const [cardId,           setCardId]           = useState(budget?.card_id        ?? '')
   const [cards,            setCards]            = useState([])
-  const [receivers,        setReceivers]        = useState([])
   const [cardOpen,         setCardOpen]         = useState(false)
   const [cardSearch,       setCardSearch]       = useState('')
-  const [recOpen,          setRecOpen]          = useState(false)
-  const [recSearch,        setRecSearch]        = useState('')
-  const [excludedCategoryIds,    setExcludedCategoryIds]    = useState(budget?.excluded_category_ids    ?? [])
-  const [excludedSubcategoryIds, setExcludedSubcategoryIds] = useState(budget?.excluded_subcategory_ids ?? [])
+  const [excludedCategoryIds]    = useState(budget?.excluded_category_ids    ?? [])
+  const [excludedSubcategoryIds] = useState(budget?.excluded_subcategory_ids ?? [])
+  const [splitMode,        setSplitMode]        = useState(() => {
+    if (members.length === 0) return false
+    if (isEdit) return Object.keys(budget?.member_splits ?? {}).length > 0
+    return true
+  })
+  const [memberAmounts,    setMemberAmounts]    = useState(() =>
+    Object.fromEntries(members.map(m => [m.id, budget?.member_splits?.[m.id] != null ? String(budget.member_splits[m.id]) : '']))
+  )
   const [saving,           setSaving]           = useState(false)
   const [deleting,         setDeleting]         = useState(false)
   const [confirmDelete,    setConfirmDelete]    = useState(false)
   const [saveError,        setSaveError]        = useState('')
   const cardRef    = useRef(null)
   const cardSrchRef = useRef(null)
-  const recRef     = useRef(null)
-  const recSrchRef = useRef(null)
 
   useEffect(() => {
     if (!user?.id) return
-    Promise.all([
-      supabase.from('cards').select('id, name').eq('user_id', user.id).order('created_at'),
-      supabase.from('receivers').select('id, name, domain, logo_url').eq('user_id', user.id).order('name'),
-    ]).then(([{ data: cds }, { data: recs }]) => {
-      setCards(cds ?? [])
-      setReceivers(recs ?? [])
-    })
+    supabase.from('cards').select('id, name').eq('user_id', user.id).order('created_at')
+      .then(({ data }) => setCards(data ?? []))
   }, [user?.id])
 
   useEffect(() => {
@@ -240,22 +230,18 @@ export default function AddBudgetModal({
     return () => document.removeEventListener('mousedown', h)
   }, [cardOpen])
 
-  useEffect(() => {
-    if (!recOpen) { setRecSearch(''); return }
-    const h = e => { if (!recRef.current?.contains(e.target)) setRecOpen(false) }
-    document.addEventListener('mousedown', h)
-    setTimeout(() => recSrchRef.current?.focus(), 0)
-    return () => document.removeEventListener('mousedown', h)
-  }, [recOpen])
+  function setMemberAmount(id, value) {
+    setMemberAmounts(prev => ({ ...prev, [id]: value }))
+  }
 
   const topCategories   = categories.filter(c => !c.parent_id)
   const subcategories   = categories.filter(c =>  c.parent_id)
   const categoryOptions = topCategories.map(c => ({ value: c.id, label: c.name, color: c.color, icon: c.icon }))
   const subcategoryOpts = subcategories.map(c  => ({ value: c.id, label: c.name, color: c.color, icon: c.icon }))
 
-  const avgMaps = { category: avgByCategory, subcategory: avgBySubcategory, importance: avgByImportance, merchant: avgByReceiver }
-  const selIds  = dimension === 'category' ? categoryIds : dimension === 'subcategory' ? subcategoryIds : dimension === 'importance' ? importanceIds : receiverIds
-  const avgMonthly = dimension !== 'all' && selIds.length
+  const avgMaps = { category: avgByCategory, subcategory: avgBySubcategory }
+  const selIds  = dimension === 'category' ? categoryIds : dimension === 'subcategory' ? subcategoryIds : []
+  const avgMonthly = (dimension === 'category' || dimension === 'subcategory') && selIds.length
     ? (selIds.reduce((s, id) => s + (avgMaps[dimension]?.[id] ?? 0), 0) || null)
     : null
 
@@ -263,10 +249,13 @@ export default function AddBudgetModal({
   const periodShort = PERIOD_SHORT[period] ?? '/mo'
   const avgPeriod   = avgMonthly ? avgMonthly * periodMult : null
 
-  const limitVal   = typeof limit === 'number' ? limit : parseFloat(limit) || 0
-  const sliderMax  = avgPeriod ? Math.ceil(avgPeriod * 1.3) : Math.max(500, Math.ceil(limitVal * 2) || 500)
+  const isSplit    = members.length > 0 && splitMode
+  const splitTotal = Object.values(memberAmounts).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+  const flatLimitVal = typeof limit === 'number' ? limit : parseFloat(limit) || 0
+  const limitVal   = isSplit ? splitTotal : flatLimitVal
+  const sliderMax  = avgPeriod ? Math.ceil(avgPeriod * 1.3) : Math.max(500, Math.ceil(flatLimitVal * 2) || 500)
   const sliderStep = Math.max(1, Math.round(sliderMax / 100))
-  const sliderPct  = sliderMax > 0 ? Math.min((limitVal / sliderMax) * 100, 100) : 0
+  const sliderPct  = sliderMax > 0 ? Math.min((flatLimitVal / sliderMax) * 100, 100) : 0
 
   const savingPeriod  = avgPeriod ? Math.max(0, avgPeriod - limitVal) : 0
   const savingMonthly = savingPeriod / periodMult
@@ -293,9 +282,13 @@ export default function AddBudgetModal({
     if (!isValid) return
     setSaving(true)
     setSaveError('')
+    const finalSplits = isSplit
+      ? Object.fromEntries(Object.entries(memberAmounts).filter(([, v]) => parseFloat(v) > 0).map(([id, v]) => [id, parseFloat(v)]))
+      : {}
     const payload = {
       name:              name.trim() || null,
       monthly_limit:     limitVal,
+      member_splits:     finalSplits,
       // New multi-select columns
       category_ids:    dimension === 'category'    ? categoryIds    : [],
       subcategory_ids: dimension === 'subcategory' ? subcategoryIds : [],
@@ -390,7 +383,7 @@ export default function AddBudgetModal({
               {dimension !== 'all' && (
                 <div className="flex flex-col gap-2">
                   <label className="text-xs text-muted uppercase tracking-widest">
-                    {dimension === 'importance' ? 'Importance level' : dimension === 'subcategory' ? 'Subcategory' : dimension === 'merchant' ? 'Merchant' : 'Category'}
+                    {dimension === 'subcategory' ? 'Subcategory' : dimension === 'category' ? 'Category' : 'Current scope'}
                   </label>
                   {dimension === 'category' && (
                     <MultiDropdownSelect values={categoryIds} onChange={setCategoryIds} options={categoryOptions} placeholder="Select categories…" />
@@ -398,157 +391,61 @@ export default function AddBudgetModal({
                   {dimension === 'subcategory' && (
                     <MultiDropdownSelect values={subcategoryIds} onChange={setSubcategoryIds} options={subcategoryOpts} placeholder="Select subcategories…" />
                   )}
-                  {dimension === 'merchant' && (
-                    <div ref={recRef} className="relative">
-                      <button type="button" onClick={() => setRecOpen(v => !v)}
-                        className="w-full flex flex-wrap gap-1.5 items-center min-h-[2.6rem] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-left hover:border-white/20 transition-colors">
-                        {receiverIds.length === 0
-                          ? <span className="text-white/25">Select merchants…</span>
-                          : receiverIds.map(id => {
-                              const r = receivers.find(x => x.id === id)
-                              return r ? (
-                                <span key={id} className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-white/10 text-xs text-white/80">
-                                  <ReceiverAvatar receiver={r} />
-                                  <span>{r.name}</span>
-                                  <button type="button" onClick={e => { e.stopPropagation(); setReceiverIds(prev => prev.filter(x => x !== id)) }}
-                                    className="text-white/35 hover:text-white ml-0.5 leading-none">×</button>
-                                </span>
-                              ) : null
-                            })
-                        }
-                        <ChevronDown size={13} className="text-white/25 ml-auto shrink-0" />
-                      </button>
-                      {recOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 glass-popup border border-white/15 rounded-xl overflow-hidden z-20 shadow-xl">
-                          <div className="px-3 py-2 border-b border-white/[0.06]">
-                            <input ref={recSrchRef} value={recSearch} onChange={e => setRecSearch(e.target.value)}
-                              placeholder="Search…"
-                              className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/25" />
-                          </div>
-                          <div className="max-h-44 overflow-y-auto scrollbar-thin">
-                            {receivers.length === 0
-                              ? <p className="text-xs text-white/30 px-3 py-3">No merchants yet</p>
-                              : (() => {
-                                  const q = recSearch.trim().toLowerCase()
-                                  const filtered = q ? receivers.filter(r => r.name.toLowerCase().includes(q)) : receivers
-                                  return filtered.length === 0
-                                    ? <p className="text-xs text-white/30 px-3 py-3">No results</p>
-                                    : filtered.map(r => {
-                                        const selected = receiverIds.includes(r.id)
-                                        return (
-                                          <button key={r.id} type="button"
-                                            onClick={() => setReceiverIds(prev => selected ? prev.filter(x => x !== r.id) : [...prev, r.id])}
-                                            className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 text-left transition-colors ${selected ? 'bg-white/[0.08]' : ''}`}>
-                                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${selected ? 'bg-white/25 border-white/40' : 'border-white/20'}`}>
-                                              {selected && <span className="text-[9px] text-white font-bold leading-none">✓</span>}
-                                            </div>
-                                            <ReceiverAvatar receiver={r} />
-                                            <span className="text-sm text-white">{r.name}</span>
-                                            {r.domain && <span className="text-xs text-muted ml-auto">{r.domain}</span>}
-                                          </button>
-                                        )
-                                      })
-                                })()
-                            }
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {dimension === 'importance' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {importanceLevels.map(imp => {
-                        const selected = importanceIds.includes(imp.value)
-                        return (
-                          <button key={imp.value} type="button"
-                            onClick={() => setImportanceIds(prev => selected ? prev.filter(x => x !== imp.value) : [...prev, imp.value])}
-                            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left"
-                            style={{
-                              borderColor: selected ? imp.color : 'rgba(255,255,255,0.08)',
-                              background:  selected ? `color-mix(in srgb, ${imp.color} 12%, transparent)` : 'rgba(255,255,255,0.03)',
-                            }}>
-                            <span className="flex gap-[3px] shrink-0">
-                              {Array.from({ length: 4 }).map((_, i) => (
-                                <span key={i} className="w-1.5 h-1.5 rounded-full"
-                                  style={{ background: i < imp.dots ? imp.color : imp.color + '30' }} />
-                              ))}
-                            </span>
-                            <span className="text-xs text-white/70">{imp.label}</span>
-                          </button>
-                        )
-                      })}
+                  {(dimension === 'importance' || dimension === 'merchant') && (
+                    <div className="px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-white/40 leading-relaxed">
+                      This budget was created with an older scope type ({dimension === 'importance' ? 'importance level' : 'merchant'}) that's no longer editable here. Pick Category or Subcategory above to change its scope, or leave as-is.
                     </div>
                   )}
                 </div>
               )}
-
-              {/* ── Exclusions ── */}
-              <div className="flex flex-col gap-3 pt-2 border-t border-white/[0.05]">
-                <label className="text-xs text-muted uppercase tracking-widest">Exclude from budget</label>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-white/30">Categories</span>
-                  <MultiDropdownSelect values={excludedCategoryIds} onChange={setExcludedCategoryIds} options={categoryOptions} placeholder="None excluded…" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-white/30">Subcategories</span>
-                  <MultiDropdownSelect values={excludedSubcategoryIds} onChange={setExcludedSubcategoryIds} options={subcategoryOpts} placeholder="None excluded…" />
-                </div>
-              </div>
 
             </div>
 
-            {/* Column 2: period settings */}
+            {/* Column 2: amount + account */}
             <div className="flex flex-col gap-4 w-[46%] shrink-0 p-6">
 
-              {/* Period */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest">Period</label>
-                <div className="grid grid-cols-2 gap-1 bg-white/5 rounded-xl p-0.5">
-                  {PERIODS.map(([v, l]) => (
-                    <button key={v} type="button" onClick={() => setPeriod(v)}
-                      className={`py-1.5 text-xs rounded-lg transition-colors font-medium ${period === v ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Start */}
-              {period === 'weekly' && (
+              {/* Amount mode toggle */}
+              {members.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs text-muted uppercase tracking-widest">Week starts on</label>
-                  <div className="grid grid-cols-7 gap-1">
-                    {[['Mo',0],['Tu',1],['We',2],['Th',3],['Fr',4],['Sa',5],['Su',6]].map(([l, v]) => (
-                      <button key={v} type="button" onClick={() => setResetDay(v)}
-                        className={`py-1.5 text-[10px] rounded-lg transition-colors font-medium ${(resetDay ?? 0) === v ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/50'}`}>
-                        {l}
-                      </button>
-                    ))}
+                  <label className="text-xs text-muted uppercase tracking-widest">Amount</label>
+                  <div className="grid grid-cols-2 gap-1 bg-white/5 rounded-xl p-0.5">
+                    <button type="button" onClick={() => setSplitMode(true)}
+                      className={`py-1.5 text-xs rounded-lg transition-colors font-medium ${splitMode ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
+                      Split by person
+                    </button>
+                    <button type="button" onClick={() => setSplitMode(false)}
+                      className={`py-1.5 text-xs rounded-lg transition-colors font-medium ${!splitMode ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
+                      Single amount
+                    </button>
                   </div>
                 </div>
               )}
-              {period === 'monthly' && (
+
+              {/* Per-member amounts */}
+              {isSplit && (
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs text-muted uppercase tracking-widest">Resets on day</label>
-                  <input type="number" min="1" max="28" step="1"
-                    value={resetDay ?? 1}
-                    onChange={e => setResetDay(Math.min(28, Math.max(1, parseInt(e.target.value) || 1)))}
-                    className={inp} placeholder="1" />
+                  {members.map(m => (
+                    <div key={m.id} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: m.color }} />
+                      <span className="text-xs text-white/60 w-16 truncate shrink-0">{m.name}</span>
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/30 pointer-events-none">€</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={memberAmounts[m.id] ?? ''}
+                          onChange={e => setMemberAmount(m.id, e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-white/5 border border-white/10 rounded-lg pl-6 pr-3 py-1.5 text-sm text-white outline-none focus:border-white/30"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-1 mt-1 border-t border-white/[0.06]">
+                    <span className="text-xs text-white/40">Total</span>
+                    <span className="text-sm font-semibold text-white tabular-nums">{fmt(splitTotal)}</span>
+                  </div>
                 </div>
               )}
-
-              {/* At period end */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs text-muted uppercase tracking-widest">At period end</label>
-                <div className="grid grid-cols-2 gap-1 bg-white/5 rounded-xl p-0.5">
-                  {[['expire', 'Expire'], ['accumulate', 'Roll over']].map(([v, l]) => (
-                    <button key={v} type="button" onClick={() => setRolloverBehavior(v)}
-                      className={`py-1.5 text-xs rounded-lg transition-colors font-medium ${rolloverBehavior === v ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/60'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
               {/* Card — optional */}
               {cards.length > 0 && (
@@ -599,80 +496,98 @@ export default function AddBudgetModal({
           {/* ── Row 2: slider — full width ── */}
           <div className="p-6 flex flex-col gap-4">
 
-            {/* Baseline avg vs new target */}
-            <div className="flex items-end justify-between gap-4">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Baseline avg</span>
-                <span className="text-2xl font-bold tabular-nums text-white/30">
-                  {avgPeriod ? fmt(avgPeriod) : '—'}
-                  {avgPeriod && <span className="text-sm font-normal text-white/20 ml-1">{periodShort}</span>}
-                </span>
-              </div>
-              <div className="flex flex-col gap-0.5 items-end">
-                <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Your budget</span>
-                <div className="flex items-baseline gap-1">
-                  <input
-                    type="number"
-                    min={0}
-                    value={limit === 0 ? '' : limit}
-                    onChange={e => setLimit(e.target.value === '' ? 0 : Number(e.target.value))}
-                    placeholder="0"
-                    className="text-2xl font-bold tabular-nums text-white/90 bg-transparent outline-none w-28 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="text-sm font-normal text-white/30">{periodShort}</span>
+            {!isSplit ? (
+              <>
+                {/* Baseline avg vs new target */}
+                <div className="flex items-end justify-between gap-4">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Baseline avg</span>
+                    <span className="text-2xl font-bold tabular-nums text-white/30">
+                      {avgPeriod ? fmt(avgPeriod) : '—'}
+                      {avgPeriod && <span className="text-sm font-normal text-white/20 ml-1">{periodShort}</span>}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 items-end">
+                    <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Your budget</span>
+                    <div className="flex items-baseline gap-1">
+                      <input
+                        type="number"
+                        min={0}
+                        value={limit === 0 ? '' : limit}
+                        onChange={e => setLimit(e.target.value === '' ? 0 : Number(e.target.value))}
+                        placeholder="0"
+                        className="text-2xl font-bold tabular-nums text-white/90 bg-transparent outline-none w-28 text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-sm font-normal text-white/30">{periodShort}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Slider */}
-            <div className="relative" style={{ padding: '10px 0' }}>
-              <div className="relative h-3 w-full rounded-full bg-white/10">
-                <div className="absolute inset-y-0 left-0 rounded-full transition-all"
-                  style={{ width: `${sliderPct}%`, background: 'var(--color-progress-bar)' }} />
-              </div>
-              <div className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-lg pointer-events-none ring-2 ring-black/10"
-                style={{ left: `calc(${sliderPct}% - 12px)` }} />
-              <input
-                type="range" min={0} max={sliderMax} step={sliderStep}
-                value={limitVal}
-                onChange={e => setLimit(Number(e.target.value))}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                style={{ appearance: 'none', WebkitAppearance: 'none' }}
-              />
-            </div>
+                {/* Slider */}
+                <div className="relative" style={{ padding: '10px 0' }}>
+                  <div className="relative h-3 w-full rounded-full bg-white/10">
+                    <div className="absolute inset-y-0 left-0 rounded-full transition-all"
+                      style={{ width: `${sliderPct}%`, background: 'var(--color-progress-bar)' }} />
+                  </div>
+                  <div className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white shadow-lg pointer-events-none ring-2 ring-black/10"
+                    style={{ left: `calc(${sliderPct}% - 12px)` }} />
+                  <input
+                    type="range" min={0} max={sliderMax} step={sliderStep}
+                    value={flatLimitVal}
+                    onChange={e => setLimit(Number(e.target.value))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    style={{ appearance: 'none', WebkitAppearance: 'none' }}
+                  />
+                </div>
 
-            {/* Min / max labels */}
-            <div className="flex items-center justify-between text-[11px] text-white/20 tabular-nums -mt-2">
-              <span>{fmt(0)}</span>
-              <span>{fmt(sliderMax)}</span>
-            </div>
+                {/* Min / max labels */}
+                <div className="flex items-center justify-between text-[11px] text-white/20 tabular-nums -mt-2">
+                  <span>{fmt(0)}</span>
+                  <span>{fmt(sliderMax)}</span>
+                </div>
 
-            {/* Suggestion chips */}
-            {avgPeriod && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] text-white/25 uppercase tracking-wide">Suggested</span>
-                {suggestedVal != null && (
-                  <button type="button" onClick={() => setLimit(suggestedVal)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg border transition-all font-medium"
-                    style={{
-                      borderColor: limitVal === suggestedVal ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.12)',
-                      background:  limitVal === suggestedVal ? 'color-mix(in srgb, var(--color-progress-bar) 12%, transparent)' : 'rgba(255,255,255,0.04)',
-                      color:       limitVal === suggestedVal ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.55)',
-                    }}>
-                    {fmt(suggestedVal)} <span className="opacity-60">−20%</span>
-                  </button>
+                {/* Suggestion chips */}
+                {avgPeriod && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] text-white/25 uppercase tracking-wide">Suggested</span>
+                    {suggestedVal != null && (
+                      <button type="button" onClick={() => setLimit(suggestedVal)}
+                        className="text-[11px] px-2.5 py-1 rounded-lg border transition-all font-medium"
+                        style={{
+                          borderColor: limitVal === suggestedVal ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.12)',
+                          background:  limitVal === suggestedVal ? 'color-mix(in srgb, var(--color-progress-bar) 12%, transparent)' : 'rgba(255,255,255,0.04)',
+                          color:       limitVal === suggestedVal ? 'var(--color-progress-bar)' : 'rgba(255,255,255,0.55)',
+                        }}>
+                        {fmt(suggestedVal)} <span className="opacity-60">−20%</span>
+                      </button>
+                    )}
+                    {aggressiveVal != null && aggressiveVal !== suggestedVal && (
+                      <button type="button" onClick={() => setLimit(aggressiveVal)}
+                        className="text-[11px] px-2.5 py-1 rounded-lg border transition-all font-medium"
+                        style={{
+                          borderColor: limitVal === aggressiveVal ? aggressiveColor : 'rgba(255,255,255,0.12)',
+                          background:  limitVal === aggressiveVal ? `color-mix(in srgb, ${aggressiveColor} 12%, transparent)` : 'rgba(255,255,255,0.04)',
+                          color:       limitVal === aggressiveVal ? aggressiveColor : 'rgba(255,255,255,0.45)',
+                        }}>
+                        {fmt(aggressiveVal)} <span className="opacity-60">Aggressive</span>
+                      </button>
+                    )}
+                  </div>
                 )}
-                {aggressiveVal != null && aggressiveVal !== suggestedVal && (
-                  <button type="button" onClick={() => setLimit(aggressiveVal)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg border transition-all font-medium"
-                    style={{
-                      borderColor: limitVal === aggressiveVal ? aggressiveColor : 'rgba(255,255,255,0.12)',
-                      background:  limitVal === aggressiveVal ? `color-mix(in srgb, ${aggressiveColor} 12%, transparent)` : 'rgba(255,255,255,0.04)',
-                      color:       limitVal === aggressiveVal ? aggressiveColor : 'rgba(255,255,255,0.45)',
-                    }}>
-                    {fmt(aggressiveVal)} <span className="opacity-60">Aggressive</span>
-                  </button>
-                )}
+              </>
+            ) : (
+              <div className="flex items-end justify-between gap-4">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Baseline avg</span>
+                  <span className="text-2xl font-bold tabular-nums text-white/30">
+                    {avgPeriod ? fmt(avgPeriod) : '—'}
+                    {avgPeriod && <span className="text-sm font-normal text-white/20 ml-1">{periodShort}</span>}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5 items-end">
+                  <span className="text-[10px] uppercase tracking-widest text-muted font-medium">Combined total</span>
+                  <span className="text-2xl font-bold tabular-nums text-white/90">{fmt(splitTotal)}</span>
+                </div>
               </div>
             )}
 
